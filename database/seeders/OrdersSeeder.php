@@ -15,23 +15,32 @@ class OrdersSeeder extends Seeder
         $data = json_decode(file_get_contents($path), true);
         if (! is_array($data)) return;
 
-        DB::table('order_items')->truncate();
-        DB::table('deliveries')->truncate();
-        DB::table('orders')->truncate();
+    // disable foreign key checks to allow truncation on MySQL
+    DB::statement('SET FOREIGN_KEY_CHECKS=0');
+    DB::table('order_items')->truncate();
+    DB::table('deliveries')->truncate();
+    DB::table('orders')->truncate();
+    DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         foreach ($data as $order) {
             $orderId = $order['id'] ?? null;
+            // normalize keys (support camelCase from mock JSON)
+            $createdAt = $order['created_at'] ?? $order['createdAt'] ?? now();
+            $receivedAt = $order['received_at'] ?? $order['receivedAt'] ?? null;
+            $paymentStatus = $order['payment_status'] ?? $order['paymentStatus'] ?? 'unpaid';
+            $total = isset($order['total']) ? intval($order['total']) : (isset($order['totalAmount']) ? intval($order['totalAmount']) : 0);
+
             DB::table('orders')->insert([
                 'id' => $orderId,
                 'status' => $order['status'] ?? 'new',
-                'payment_status' => $order['payment_status'] ?? 'unpaid',
-                'created_at' => isset($order['created_at']) ? $order['created_at'] : now(),
-                'received_at' => $order['received_at'] ?? null,
-                'total' => isset($order['total']) ? intval($order['total']) : 0,
+                'payment_status' => $paymentStatus,
+                'created_at' => $createdAt,
+                'received_at' => $receivedAt,
+                'total' => $total,
                 'note' => $order['note'] ?? null,
                 'delivery_id' => null,
-                'created_by_user_id' => $order['created_by_user_id'] ?? null,
-                'updated_at' => $order['updated_at'] ?? null,
+                'created_by_user_id' => $order['created_by_user_id'] ?? $order['userId'] ?? null,
+                'updated_at' => $order['updated_at'] ?? $order['updatedAt'] ?? null,
             ]);
 
             // delivery
@@ -61,12 +70,30 @@ class OrdersSeeder extends Seeder
             // items
             if (! empty($order['items']) && is_array($order['items'])) {
                 foreach ($order['items'] as $item) {
+                    // product_id can be in different shapes in mock data
+                    $productId = $item['product_id'] ?? $item['productId'] ?? null;
+                    if (! $productId && isset($item['product']) && is_array($item['product'])) {
+                        $productId = $item['product']['id'] ?? $item['product']['productId'] ?? null;
+                    }
+
+                    // unit price fallback to item.product.price or product_snapshot.price
+                    $unitPrice = null;
+                    if (isset($item['unit_price'])) {
+                        $unitPrice = intval($item['unit_price']);
+                    } elseif (isset($item['unitPrice'])) {
+                        $unitPrice = intval($item['unitPrice']);
+                    } elseif (isset($item['product']['price'])) {
+                        $unitPrice = intval($item['product']['price']);
+                    }
+
+                    $productSnapshot = $item['product_snapshot'] ?? $item['product'] ?? [];
+
                     DB::table('order_items')->insert([
                         'order_id' => $orderId,
-                        'product_id' => $item['product_id'] ?? null,
-                        'product_snapshot' => json_encode($item['product_snapshot'] ?? $item['product'] ?? []),
-                        'quantity' => isset($item['quantity']) ? intval($item['quantity']) : 1,
-                        'unit_price' => isset($item['unit_price']) ? intval($item['unit_price']) : 0,
+                        'product_id' => $productId,
+                        'product_snapshot' => json_encode($productSnapshot),
+                        'quantity' => isset($item['quantity']) ? intval($item['quantity']) : (isset($item['qty']) ? intval($item['qty']) : 1),
+                        'unit_price' => $unitPrice ?? 0,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
