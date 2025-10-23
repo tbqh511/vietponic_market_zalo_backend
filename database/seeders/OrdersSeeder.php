@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class OrdersSeeder extends Seeder
 {
@@ -27,6 +28,21 @@ class OrdersSeeder extends Seeder
             // normalize keys (support camelCase from mock JSON)
             $createdAt = $order['created_at'] ?? $order['createdAt'] ?? now();
             $receivedAt = $order['received_at'] ?? $order['receivedAt'] ?? null;
+            // Normalize ISO8601 datetimes (e.g. 2023-10-01T10:00:00Z) to MySQL datetime
+            try {
+                if (is_string($createdAt) && $createdAt !== '') {
+                    $createdAt = Carbon::parse($createdAt)->toDateTimeString();
+                }
+            } catch (\Exception $e) {
+                $createdAt = now();
+            }
+            try {
+                if (is_string($receivedAt) && $receivedAt !== '') {
+                    $receivedAt = Carbon::parse($receivedAt)->toDateTimeString();
+                }
+            } catch (\Exception $e) {
+                $receivedAt = null;
+            }
             $paymentStatus = $order['payment_status'] ?? $order['paymentStatus'] ?? 'unpaid';
             $total = isset($order['total']) ? intval($order['total']) : (isset($order['totalAmount']) ? intval($order['totalAmount']) : 0);
 
@@ -40,7 +56,7 @@ class OrdersSeeder extends Seeder
                 'note' => $order['note'] ?? null,
                 'delivery_id' => null,
                 'created_by_user_id' => $order['created_by_user_id'] ?? $order['userId'] ?? null,
-                'updated_at' => $order['updated_at'] ?? $order['updatedAt'] ?? null,
+                'updated_at' => (isset($order['updated_at']) ? (is_string($order['updated_at']) ? (Carbon::parse($order['updated_at'])->toDateTimeString() ?? null) : $order['updated_at']) : (isset($order['updatedAt']) ? (is_string($order['updatedAt']) ? (Carbon::parse($order['updatedAt'])->toDateTimeString() ?? null) : $order['updatedAt']) : null)),
             ]);
 
             // delivery
