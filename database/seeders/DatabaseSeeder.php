@@ -13,7 +13,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+            // Core data seeders (mock -> database)
+            $this->call([
+                BannersSeeder::class,
+                CategoriesSeeder::class,
+                ProductsSeeder::class,
+                StationsSeeder::class,
+                OrdersSeeder::class,
+            ]);
 
         User::factory()->create([
             'name' => 'Test User',
