@@ -46,8 +46,14 @@ class OrdersSeeder extends Seeder
             $paymentStatus = $order['payment_status'] ?? $order['paymentStatus'] ?? 'unpaid';
             $total = isset($order['total']) ? intval($order['total']) : (isset($order['totalAmount']) ? intval($order['totalAmount']) : 0);
 
-            DB::table('orders')->insert([
-                'id' => $orderId,
+            // If an order with same id exists, remove it (and related items/delivery)
+            if ($orderId) {
+                DB::table('order_items')->where('order_id', $orderId)->delete();
+                DB::table('deliveries')->where('order_id', $orderId)->delete();
+                DB::table('orders')->where('id', $orderId)->delete();
+            }
+
+            $orderData = [
                 'status' => $order['status'] ?? 'new',
                 'payment_status' => $paymentStatus,
                 'created_at' => $createdAt,
@@ -57,27 +63,36 @@ class OrdersSeeder extends Seeder
                 'delivery_id' => null,
                 'created_by_user_id' => $order['created_by_user_id'] ?? $order['userId'] ?? null,
                 'updated_at' => (isset($order['updated_at']) ? (is_string($order['updated_at']) ? (Carbon::parse($order['updated_at'])->toDateTimeString() ?? null) : $order['updated_at']) : (isset($order['updatedAt']) ? (is_string($order['updatedAt']) ? (Carbon::parse($order['updatedAt'])->toDateTimeString() ?? null) : $order['updatedAt']) : null)),
-            ]);
+            ];
+
+            // Only set explicit id when provided in JSON (avoid duplicate PKs / NULL insertion)
+            if ($orderId) {
+                $orderData['id'] = $orderId;
+            }
+
+            DB::table('orders')->insert($orderData);
 
             // delivery
             if (! empty($order['delivery'])) {
                 $delivery = $order['delivery'];
-                $deliveryId = $delivery['id'] ?? null;
-                DB::table('deliveries')->insert([
-                    'id' => $deliveryId,
+                // Prefer not to insert explicit id to avoid PK conflicts; let auto-increment handle it
+                $deliveryData = [
                     'order_id' => $orderId,
                     'type' => $delivery['type'] ?? null,
                     'alias' => $delivery['alias'] ?? null,
                     'address' => $delivery['address'] ?? null,
                     'name' => $delivery['name'] ?? null,
                     'phone' => $delivery['phone'] ?? null,
-                    'station_id' => $delivery['station_id'] ?? null,
+                    'station_id' => $delivery['station_id'] ?? ($delivery['id'] ?? null),
                     'station_image' => $delivery['station_image'] ?? null,
                     'location_lat' => isset($delivery['location']['lat']) ? floatval($delivery['location']['lat']) : null,
                     'location_lng' => isset($delivery['location']['lng']) ? floatval($delivery['location']['lng']) : null,
                     'created_at' => now(),
                     'updated_at' => now(),
-                ]);
+                ];
+
+                // Insert and get new delivery id
+                $deliveryId = DB::table('deliveries')->insertGetId($deliveryData);
 
                 // update order.delivery_id
                 DB::table('orders')->where('id', $orderId)->update(['delivery_id' => $deliveryId]);
