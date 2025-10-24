@@ -1,0 +1,13 @@
+name: CI
+
+on: [ push ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: PHP 8.0 Syntax Checker
+        uses: StephaneBour/actions-php-lint@8.0

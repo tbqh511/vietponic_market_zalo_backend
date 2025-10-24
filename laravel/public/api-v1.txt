@@ -1,0 +1,240 @@
+dd API LIST
+
+====================================================
+
+1. get_system_settings
+2. user_signup
+3. get_slider
+4. get_categories
+5. get_house_type
+6. get_unit
+7. update_profile
+8. get_user_by_id
+9. get_property
+10. post_property
+11. update_post_property
+12. remove_post_images
+13. set_property_inquiry
+14. get_notification_list
+15. get_property_inquiry
+16. set_property_total_click
+17.  delete_user
+18.add_favourite
+19.delete_favourite
+20.get_articles
+21.store_advertisement
+22.get_advertisement
+23.get_package
+
+===================================================
+
+
+1. get_system_settings
+   type : //about_app, terms_conditions, privacy_policy,company,currency_symbol,maintenance_mode
+
+2. user_signup
+    name:Rupesh Gondaliya
+    email:r.shreesoftech@gmail.com
+    mobile:9724661348
+    address:Mirzapar
+    fcm_id:123
+    type:mobile
+    profile:
+    firebase_id:
+
+3. get_slider
+
+
+4. get_categories
+    offset :  //optional
+    limit  :  //optional
+    search :  //optional  | category
+    id :  //optional
+
+
+5. get_house_type
+    offset :  //optional
+    limit  :  //optional
+
+6. get_unit
+    offset :  //optional
+    limit  :  //optional
+
+
+7. update_profile
+    userid :   //required
+    name:Rupesh Gondaliya   //optional
+    email:r.shreesoftech@gmail.com   //optional
+    mobile:9724661348   //optional
+    address:Mirzapar   //optional
+    fcm_id:123   //optional
+    profile:    //optional
+    firebase_id: //optional
+
+
+8. get_user_by_id
+    userid :
+
+9. get_property
+    id :
+    category_id :
+    userid :  //optional
+    propery_type :   ////0 : Buy 1:Rent
+    max_price  :
+    min_price  :
+    top_rated  : //  0 : No 1: Yes
+
+    unit_type :
+    unit_max
+    unit_min
+    posted_since :  // 0: last_week   1: yesterday
+    search :
+
+    furnished
+    country
+    state
+
+
+    offset :  //optional
+    limit  :  //optional
+
+
+10. post_property
+
+       category_id
+       title
+       description
+       address
+       client_address
+       price
+       unit_type
+       property_type    // 	0:Sell 1:Rent
+
+
+
+
+       carpet_area
+       built_up_area
+       plot_area
+       hecta_area
+       acre
+       house_type
+       furnished   //0 : Furnished 1: Semi-Furnished 2: Not-Furnished
+
+
+       country
+       state
+
+
+       title_image
+       gallery_images[]
+       userid:
+       status:     0: Deactive 1: Active
+
+
+11. update_post_property
+
+       action_type : 0: Update 1: Delete
+
+
+       id:          //Required
+       category_id
+       title
+       description
+       address
+       client_address
+       price
+       unit_type
+       property_type    // 	0:Sell 1:Rent
+       carpet_area
+       built_up_area
+       plot_area
+       hecta_area
+       acre
+       house_type
+       furnished   //0 : Furnished 1: Semi-Furnished 2: Not-Furnished
+       country
+       state
+       title_image
+       gallery_images[]
+       status:     0: Deactive 1: Active
+
+
+12. remove_post_images
+     // This Api use for Remove Each Gallery Image
+        id:
+
+
+13. set_property_inquiry
+    action_type :   ////0: add   1:update
+
+    //Add
+    property_id :
+    customer_id :
+
+    //update
+    id :
+    status :   0 : Pending 1:Accept 2: Complete 3:Cancle
+
+
+14. get_notification_list
+      userid
+
+
+15. get_property_inquiry
+        customer_id
+        offset :  //optional
+        limit  :  //optional
+
+
+
+16. set_property_total_click
+         property_id :
+
+17.  delete_user
+        userid :   //required
+
+
+// Notification Parmenter
+
+ 1. default Notification
+$fcmMsg = array(
+    'title' => 'Property Inquiry Updated',
+    'message' => 'Your Property Inquiry Updated To '. $status_text,
+    'type' => 'property_inquiry',
+    'body' => 'Your Property Inquiry Updated To '. $status_text,
+    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+    'sound' => 'default',
+    'id' => 1, //Propertys Inquiry ID,
+);
+
+
+
+ 2. default Notification
+
+    'title' => ,
+    'message' => ,
+    "image" =>,
+    'type' => 'default,
+    'body' => ,
+    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+    'sound' => 'default',
+
+ 18. add_favourite
+   'property_id'
+
+
+19.delete_favourite
+   'property_id'
+20.get_articles
+
+21.store_advertisement
+
+22.get_advertisement
+
+
+            'start_date' => '2022-11-1',
+            'end_date' => '2022-12-28',
+
+23.get_package
+

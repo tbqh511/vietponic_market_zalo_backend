@@ -1,0 +1,11 @@
+<svg id="balcony" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <rect id="Rectangle_58" data-name="Rectangle 58" width="24" height="24" fill="none"/>
+  <g id="Group_196" data-name="Group 196" transform="translate(-7.747 38.69)">
+    <path id="Path_181" data-name="Path 181" d="M30.747,203.779H29.46v3.773H26.841v-3.76H25.549v3.756H24.256v-3.758H22.971v3.761H21.685v-3.756H20.393v3.751H19.1v-3.754H17.815v3.757H16.522V203.8H15.229v3.755H13.944v-3.758H12.651v3.753H10.068v-3.76H8.747v-1.268h22Z" transform="translate(0 -227.191)" fill="#209362"/>
+    <path id="Path_182" data-name="Path 182" d="M33.19,325.109v-2.551H52.642v2.551Z" transform="translate(-23.156 -340.799)" fill="#209362"/>
+    <path id="Path_183" data-name="Path 183" d="M224.77-37.69a6.989,6.989,0,0,1,6.271,7.491A6.887,6.887,0,0,1,224.77-37.69Z" transform="translate(-204.258)" fill="#209362"/>
+    <path id="Path_184" data-name="Path 184" d="M87.347-37.678a6.911,6.911,0,0,1-6.264,7.5A6.975,6.975,0,0,1,87.347-37.678Z" transform="translate(-68.38 -0.011)" fill="#209362"/>
+    <path id="Path_185" data-name="Path 185" d="M81.386,119.826l2.5-.585v3.112h-2.5Z" transform="translate(-68.715 -148.452)" fill="#209362"/>
+    <path id="Path_186" data-name="Path 186" d="M296.944,119.02l2.494.613v2.506h-2.494Z" transform="translate(-272.63 -148.243)" fill="#209362"/>
+  </g>
+</svg>

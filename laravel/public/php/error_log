@@ -1,0 +1,4 @@
+[10-Aug-2023 15:46:06 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function get_magic_quotes_gpc() in /home/qymxlvghhosting/public_html/dalatbds.xyz/laravel/public/php/contact.php:31
+Stack trace:
+#0 {main}
+  thrown in /home/qymxlvghhosting/public_html/dalatbds.xyz/laravel/public/php/contact.php on line 31

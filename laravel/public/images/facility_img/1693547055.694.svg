@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="Rectangle_1646" data-name="Rectangle 1646" width="24" height="24" transform="translate(-5102 -7039)" fill="#fff"/>
+    </clipPath>
+  </defs>
+  <g id="Post_Office" data-name="Post Office" transform="translate(5102 7039)" clip-path="url(#clip-path)">
+    <g id="Post_Office-2" data-name="Post Office" transform="translate(-5102 -7039)">
+      <path id="Path_12788" data-name="Path 12788" d="M40.8,4.4A4.4,4.4,0,0,0,36.4,0h-4A4.4,4.4,0,0,0,28,4.4a.8.8,0,0,0,.8.8V7.6a.8.8,0,0,0-.8.8v.8a.8.8,0,0,0,.8.8V20.074A1.2,1.2,0,0,0,28,21.2v2a.8.8,0,0,0,.8.8H40a.8.8,0,0,0,.8-.8v-2a1.2,1.2,0,0,0-.8-1.126V10a.8.8,0,0,0,.8-.8V8.4a.8.8,0,0,0-.8-.8V5.2a.8.8,0,0,0,.8-.8ZM32.4.8h4A3.605,3.605,0,0,1,40,4.4H28.8A3.6,3.6,0,0,1,32.4.8ZM28.8,23.2v-2a.4.4,0,0,1,.4-.4H39.6a.4.4,0,0,1,.4.4v2ZM39.2,20H29.6V10h9.6ZM40,9.2H28.8V8.4H40Zm-.8-1.6H29.6V5.2h9.6Z" transform="translate(-16.8)" fill="#209362"/>
+      <path id="Path_12789" data-name="Path 12789" d="M38.8,31.8H42a.8.8,0,0,0,.8-.8V27.8A.8.8,0,0,0,42,27H38.8a.8.8,0,0,0-.8.8V31A.8.8,0,0,0,38.8,31.8Zm0-4H42V31H38.8Z" transform="translate(-22.8 -16.2)" fill="#209362"/>
+      <path id="Path_12790" data-name="Path 12790" d="M1.2,26.8H8.8A1.2,1.2,0,0,0,10,25.6V15.2A1.2,1.2,0,0,0,8.8,14H1.2A1.2,1.2,0,0,0,0,15.2V25.6a1.2,1.2,0,0,0,1.2,1.2ZM5,21.592,8.737,26H1.264Zm.51-.636a1.142,1.142,0,0,0,0-1.112L9.2,15.487v9.822ZM5,19.208,1.264,14.8h7.47Zm-.222.976a.333.333,0,0,1,0,.432L.8,25.31V15.49Z" transform="translate(0 -8.4)" fill="#209362"/>
+      <path id="Path_12791" data-name="Path 12791" d="M38.4,15.8h4a.4.4,0,1,0,0-.8h-4a.4.4,0,1,0,0,.8Z" transform="translate(-22.8 -9)" fill="#209362"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+{
+  "name": "dacoto/laravel-wizard-installer",
+  "description": "Laravel wizard installer package",
+  "type": "library",
+  "require": {
+    "php": "^8.0",
+    "ext-pdo": "*",
+    "ext-json": "*",
+    "laravel/framework": "^9.0",
+    "dacoto/laravel-setenv": "^2.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "dacoto\\LaravelWizardInstaller\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "dacoto\\LaravelWizardInstaller\\Providers\\LaravelWizardInstallerProvider"
+      ]
+    }
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "David Cortés",
+      "email": "cortestoledanodavid@gmail.com"
+    }
+  ]
+}
