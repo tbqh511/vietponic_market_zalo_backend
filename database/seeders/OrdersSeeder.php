@@ -68,14 +68,22 @@ class OrdersSeeder extends Seeder
             // Only set explicit id when provided in JSON (avoid duplicate PKs / NULL insertion)
             if ($orderId) {
                 $orderData['id'] = $orderId;
+                // insert with explicit id (we already removed any existing rows above)
+                DB::table('orders')->insert($orderData);
+            } else {
+                // let DB assign id and capture it
+                $orderId = DB::table('orders')->insertGetId($orderData);
             }
-
-            DB::table('orders')->insert($orderData);
 
             // delivery
             if (! empty($order['delivery'])) {
                 $delivery = $order['delivery'];
                 // Prefer not to insert explicit id to avoid PK conflicts; let auto-increment handle it
+                // If mock delivery included an explicit delivery id, remove it to avoid duplicate PKs
+                if (isset($delivery['id'])) {
+                    DB::table('deliveries')->where('id', $delivery['id'])->delete();
+                }
+
                 $deliveryData = [
                     'order_id' => $orderId,
                     'type' => $delivery['type'] ?? null,
@@ -83,7 +91,7 @@ class OrdersSeeder extends Seeder
                     'address' => $delivery['address'] ?? null,
                     'name' => $delivery['name'] ?? null,
                     'phone' => $delivery['phone'] ?? null,
-                    'station_id' => $delivery['station_id'] ?? ($delivery['id'] ?? null),
+                    'station_id' => $delivery['station_id'] ?? null,
                     'station_image' => $delivery['station_image'] ?? null,
                     'location_lat' => isset($delivery['location']['lat']) ? floatval($delivery['location']['lat']) : null,
                     'location_lng' => isset($delivery['location']['lng']) ? floatval($delivery['location']['lng']) : null,
@@ -91,7 +99,7 @@ class OrdersSeeder extends Seeder
                     'updated_at' => now(),
                 ];
 
-                // Insert and get new delivery id
+                // Insert and get new delivery id (do NOT set delivery.id from mock)
                 $deliveryId = DB::table('deliveries')->insertGetId($deliveryData);
 
                 // update order.delivery_id
