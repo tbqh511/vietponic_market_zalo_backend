@@ -34,6 +34,26 @@ use App\Http\Controllers\FrontEndAgentsController;
 use App\Models\Payments;
 use App\Models\PropertysInquiry;
 use Illuminate\Support\Facades\Artisan;
+ 
+/**
+ * Optional "Coming Soon" mode.
+ * Set COMING_SOON=true in your .env to enable a site-wide coming soon page.
+ * Admin and API routes are excluded so you can still access the admin panel.
+ */
+if (env('COMING_SOON', false)) {
+    // Root should show coming soon
+    Route::get('/', function () {
+        return view('coming_soon');
+    });
+
+    // Catch-all for public URLs but exclude admin, api, storage and common assets
+    Route::get('{any}', function () {
+        return view('coming_soon');
+    })->where('any', '^(?!admin|api|storage|favicon\.ico|robots\.txt).*$');
+
+    // Stop registering the rest of the web routes when coming soon is enabled
+    return;
+}
 
 /*
 |--------------------------------------------------------------------------
