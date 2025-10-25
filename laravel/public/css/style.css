@@ -2322,7 +2322,7 @@ nav li ul a:before , nav li ul a:after {
 	stroke-dashoffset: 220px; transition: linear 6s stroke-dashoffset;
 }
 .gradient-bg  , #subscribe-button:hover , .cf_btn:hover , .btn:hover    {
-    background: linear-gradient(to left, #3C6AFD, #57C7FA);
+    background: linear-gradient(to left, #209362, #57C7FA);
 }
 .hero-slider-wrap {
 	padding: 280px 0;

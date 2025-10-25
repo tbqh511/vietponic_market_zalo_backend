@@ -11,7 +11,7 @@
 	border-color:#209362;
 }
 .gradient-bg    , .api-btn:hover , #subscribe-button:hover  , .notification.success-notif , .dashboard-list:hover  , .onoffswitch-inner:after  , .add-room-item:hover ,  .btn:hover   , .add-list:hover , .clear_wishlist:hover , .log_btn:hover , .testim-link:hover  , .footer-social li a:hover , .main-search-button:hover  , .slsw_vis , .vishf , .vis-hiddenfilter2 , .dashboard-menu-btn:hover , .soc-log a:hover{
-    background: linear-gradient(to right, #3C6AFD, #57C7FA);
+    background: linear-gradient(to right, #209362, #57C7FA);
 }
 .green-color , .verified-badge  , .header-opt-modal-list li a:before    , .card-verified , .pricing-content li:before , .dashboard-stats-count span strong  {
     color:#40B69E;

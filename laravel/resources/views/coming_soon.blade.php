@@ -24,7 +24,7 @@
     <div id="main">
         <div class="wrapper">
             <!--  logo  -->
-            <div class="logo-holder"><a href="#"><img src="images/logo1.svg" alt=""></a></div>
+            {{-- <div class="logo-holder"><a href="#"><img src="images/logo1.svg" alt=""></a></div> --}}
             <!-- logo end  -->
             <div class="cs-content-wrapper">
                 <h3>Đang Trong Quá Trình Xây Dựng                </h3>

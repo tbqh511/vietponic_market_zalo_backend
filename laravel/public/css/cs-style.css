@@ -270,7 +270,7 @@ p {
     z-index: 2;
 	font-weight: 500;
     color: #fff;
-	background: linear-gradient(to left, #3C6AFD, #209362);
+	background: linear-gradient(to left, #209362, #209362);
 	transition: all 200ms linear;
 	font-family: 'Jost', sans-serif;
 }
@@ -462,7 +462,7 @@ p {
 	right: 70px;
 	top: 40px;
 	background: #209362;
-    background: linear-gradient(to left, #3C6AFD, #209362);
+    background: linear-gradient(to left, #209362, #209362);
 	color: #fff;
 	z-index: 20;
 	padding: 13px 30px;
