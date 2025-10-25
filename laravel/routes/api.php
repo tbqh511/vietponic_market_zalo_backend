@@ -23,6 +23,14 @@ Route::post('user_signup', [ApiController::class, 'user_signup']);
 Route::get('get_languages', [ApiController::class, 'get_languages']);
 Route::get('app_payment_status', [ApiController::class, 'app_payment_status']);
 
+// Zalo mini app endpoints (simple, DB-backed from mock/*.json)
+use App\Http\Controllers\ZaloApiController;
+Route::get('categories', [ZaloApiController::class, 'categories']);
+Route::get('products', [ZaloApiController::class, 'products']);
+Route::get('banners', [ZaloApiController::class, 'banners']);
+Route::get('stations', [ZaloApiController::class, 'stations']);
+Route::get('orders', [ZaloApiController::class, 'orders']);
+
 // Route::get('paypal', [ApiController::class, 'paypal']);
 // Route::get('paypal1', [ApiController::class, 'paypal']);
 
