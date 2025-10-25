@@ -47,7 +47,7 @@ if (env('COMING_SOON', false)) {
         return view('coming_soon');
     });
 
-    return;
+    // do not return early here — allow admin/auth routes to register below
 }
 
 /*
