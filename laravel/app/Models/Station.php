@@ -12,4 +12,6 @@ class Station extends Model
     protected $table = 'stations';
     public $timestamps = false;
     protected $fillable = ['id', 'name', 'image', 'address', 'lat', 'lng'];
+    public $incrementing = false;
+    protected $keyType = 'int';
 }

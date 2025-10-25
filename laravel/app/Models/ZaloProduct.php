@@ -13,6 +13,10 @@ class ZaloProduct extends Model
     public $timestamps = false;
     protected $fillable = ['id', 'category_id', 'name', 'price', 'original_price', 'image', 'detail'];
 
+    // mock products use explicit ids
+    public $incrementing = false;
+    protected $keyType = 'int';
+
     public function category()
     {
         return $this->belongsTo(ZaloCategory::class, 'category_id');

@@ -12,6 +12,9 @@ class ZaloOrder extends Model
     protected $table = 'zalo_orders';
     public $timestamps = false;
     protected $fillable = ['id','status','payment_status','created_at','received_at','total','note','customer_id'];
+    // IDs in mock files are provided explicitly (not auto-incremented)
+    public $incrementing = false;
+    protected $keyType = 'int';
 
     public function items()
     {

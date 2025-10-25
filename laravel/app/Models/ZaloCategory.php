@@ -12,4 +12,6 @@ class ZaloCategory extends Model
     protected $table = 'zalo_categories';
     public $timestamps = false;
     protected $fillable = ['id', 'name', 'image'];
+    public $incrementing = false;
+    protected $keyType = 'int';
 }

@@ -19,8 +19,11 @@ class ZaloOrdersSeeder extends Seeder
         }
         $json = json_decode(File::get($path), true);
         foreach ($json as $order) {
-            // create order
-            $orderModel = ZaloOrder::updateOrCreate(['id' => $order['id']], [
+            // use the id from mock explicitly to avoid FK issues
+            $orderId = isset($order['id']) ? (int) $order['id'] : null;
+
+            $orderData = [
+                'id' => $orderId,
                 'status' => $order['status'] ?? null,
                 'payment_status' => $order['paymentStatus'] ?? null,
                 'created_at' => isset($order['createdAt']) ? date('Y-m-d H:i:s', strtotime($order['createdAt'])) : null,
@@ -28,14 +31,17 @@ class ZaloOrdersSeeder extends Seeder
                 'total' => $order['total'] ?? 0,
                 'note' => $order['note'] ?? null,
                 'customer_id' => 1,
-            ]);
+            ];
 
-            // items
+            // ensure order exists with the expected ID
+            $orderModel = ZaloOrder::updateOrCreate(['id' => $orderId], $orderData);
+
+            // items: use the explicit $orderId for foreign key
             if (!empty($order['items'])) {
                 foreach ($order['items'] as $item) {
                     $product = $item['product'] ?? null;
                     ZaloOrderItem::create([
-                        'order_id' => $orderModel->id,
+                        'order_id' => $orderId,
                         'product_id' => $product['id'] ?? null,
                         'name' => $product['name'] ?? null,
                         'price' => $product['price'] ?? 0,
@@ -46,11 +52,11 @@ class ZaloOrdersSeeder extends Seeder
                 }
             }
 
-            // delivery
+            // delivery: also use explicit order id
             if (!empty($order['delivery'])) {
                 $d = $order['delivery'];
                 $deliveryData = [
-                    'order_id' => $orderModel->id,
+                    'order_id' => $orderId,
                     'type' => $d['type'] ?? null,
                     'alias' => $d['alias'] ?? null,
                     'address' => $d['address'] ?? null,
@@ -62,7 +68,7 @@ class ZaloOrdersSeeder extends Seeder
                     'lat' => data_get($d, 'location.lat'),
                     'lng' => data_get($d, 'location.lng'),
                 ];
-                ZaloDelivery::updateOrCreate(['order_id' => $orderModel->id], $deliveryData);
+                ZaloDelivery::updateOrCreate(['order_id' => $orderId], $deliveryData);
             }
         }
     }
