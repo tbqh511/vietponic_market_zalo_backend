@@ -24,6 +24,27 @@
                             </a>
                         </li>
                     @endif
+                    {{-- Zalo management menu --}}
+                    @if(has_permissions('read', 'zalo_categories') || has_permissions('read', 'zalo_products'))
+                        <li class="sidebar-item has-sub">
+                            <a href="#" class='sidebar-link'>
+                                <i class="bi bi-box-seam"></i>
+                                <span class="menu-item">{{ __('Zalo Management') }}</span>
+                            </a>
+                            <ul class="submenu" style="padding-left: 0rem">
+                                @if(has_permissions('read', 'zalo_categories'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
+                                    </li>
+                                @endif
+                                @if(has_permissions('read', 'zalo_products'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
+                                    </li>
+                                @endif
+                            </ul>
+                        </li>
+                    @endif
                     {{-- HuyTBQ: Old code --}}
                     {{-- @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
 
@@ -226,27 +247,7 @@
                         </li>
                         @endif
 
-                    {{-- Zalo management menu --}}
-                    @if(has_permissions('read', 'zalo_categories') || has_permissions('read', 'zalo_products'))
-                        <li class="sidebar-item has-sub">
-                            <a href="#" class='sidebar-link'>
-                                <i class="bi bi-box-seam"></i>
-                                <span class="menu-item">{{ __('Zalo Management') }}</span>
-                            </a>
-                            <ul class="submenu" style="padding-left: 0rem">
-                                @if(has_permissions('read', 'zalo_categories'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
-                                    </li>
-                                @endif
-                                @if(has_permissions('read', 'zalo_products'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
-                                    </li>
-                                @endif
-                            </ul>
-                        </li>
-                    @endif
+                    
                 </ul>
             </div>
         </div>
