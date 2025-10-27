@@ -33,6 +33,8 @@ use App\Http\Controllers\FrontEndPropertiesController;
 use App\Http\Controllers\FrontEndAgentsController;
 use App\Http\Controllers\Admin\ZaloCategoryController;
 use App\Http\Controllers\Admin\ZaloProductController;
+use App\Http\Controllers\Admin\ZaloOrderController;
+use App\Http\Controllers\Admin\ZaloOrderItemController;
 use App\Models\Payments;
 use App\Models\PropertysInquiry;
 use Illuminate\Support\Facades\Artisan;
@@ -349,6 +351,10 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
     // Zalo admin management (categories + products)
     Route::resource('zalo-categories', ZaloCategoryController::class);
     Route::resource('zalo-products', ZaloProductController::class);
+    Route::resource('zalo-orders', ZaloOrderController::class);
+    // order items (nested-ish) - custom routes for create/edit
+    Route::get('zalo-orders/{order}/items/create', [ZaloOrderItemController::class, 'create'])->name('zalo-order-items.create');
+    Route::resource('zalo-order-items', ZaloOrderItemController::class)->except(['index']);
     });
 });
 

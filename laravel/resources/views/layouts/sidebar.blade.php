@@ -239,12 +239,12 @@
                                 </li> --}}
                             </ul>
                         </li>
-                        <li class="sidebar-item">
+                        {{-- <li class="sidebar-item">
                             <a href="{{ url('system_version') }}" class='sidebar-link'>
                                 <i class="fas fa-cloud-download-alt"></i>
                                 <span class="menu-item">{{ __('System Update') }}</span>
                             </a>
-                        </li>
+                        </li> --}}
                         @endif
 
                     
