@@ -53,11 +53,15 @@ class UserController extends Controller
      */
     public function show($id)
     {
+        // Return user data (used by AJAX or direct requests)
+        $user = User::findOrFail($id);
+        return $user;
     }
 
     public function edit($id)
     {
-        $user_data = User::find($id);
+        // Keep returning raw user data for AJAX edit modal population
+        $user_data = User::findOrFail($id);
         return $user_data;
     }
 
@@ -68,21 +72,43 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request)
+    public function update(Request $request, $id = null)
     {
-
+        // Support both resource-style PUT/PATCH (/users/{id}) and custom POST (users-update with edit_id)
         if (!has_permissions('update', 'users_accounts')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
-        } else {
-            $id = $request->edit_id;
-            $update =  User::find($id);
-            $update->name = $request->name;
-            $update->email = $request->email;
-            $update->permissions = isset($request->Editpermissions) ? json_encode($request->Editpermissions) : '';
-            $update->status = $request->status;
-            $update->save();
-            return redirect()->back()->with('success', 'User Update Successfully');
         }
+
+        $targetId = $id ?? $request->input('edit_id');
+        $user = User::findOrFail($targetId);
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'status' => 'nullable|in:0,1',
+        ]);
+
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+        $user->permissions = isset($request->Editpermissions) ? json_encode($request->Editpermissions) : $user->permissions;
+        $user->status = isset($data['status']) ? $data['status'] : $user->status;
+        $user->save();
+
+        return redirect()->back()->with('success', 'User Update Successfully');
+    }
+
+    /**
+     * Remove the specified user from storage.
+     */
+    public function destroy($id)
+    {
+        if (!has_permissions('delete', 'users_accounts')) {
+            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        }
+
+        $user = User::findOrFail($id);
+        $user->delete();
+        return redirect()->back()->with('success', 'User deleted successfully');
     }
 
     public function userList()
@@ -140,6 +166,12 @@ class UserController extends Controller
             $permission = ($row->permissions != '') ? base64_encode($row->permissions) : '';
             $operate = '<a  id="' . $row->id . '" data-permission="' . $permission . '" data-id="' . $row->id . '"class="btn icon btn-primary btn-sm rounded-pill editdata"  data-bs-toggle="modal" data-bs-target="#editUsereditModal1"  title="Edit"><i class="fa fa-edit"></i></a>';
             $operate .= '&nbsp;&nbsp;<a  id="' . $row->id . '" data-bs-toggle="modal"  class="btn icon btn-primary btn-sm rounded-pill" data-bs-target="#resetpasswordmodel" onclick="setpasswordValue(this.id);"><i class="bi bi-key text-dark-50"></i></a>';
+                // delete button (form) - uses resource route DELETE /users/{id}
+                $operate .= '&nbsp;&nbsp;<form method="POST" action="' . url('users/' . $row->id) . '" style="display:inline-block" onsubmit="return confirm(\'Delete this user?\')">' .
+                    '<input type="hidden" name="_token" value="' . csrf_token() . '">' .
+                    '<input type="hidden" name="_method" value="DELETE">' .
+                    '<button class="btn icon btn-danger btn-sm rounded-pill" title="Delete"><i class="fa fa-trash"></i></button>' .
+                    '</form>';
             $tempRow['id'] = $row->id;
             $tempRow['name'] = $row->name;
             $tempRow['email'] = $row->email;
