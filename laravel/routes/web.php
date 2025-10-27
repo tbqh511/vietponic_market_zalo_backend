@@ -31,6 +31,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\FrontEndHomeController;
 use App\Http\Controllers\FrontEndPropertiesController;
 use App\Http\Controllers\FrontEndAgentsController;
+use App\Http\Controllers\Admin\ZaloCategoryController;
 use App\Models\Payments;
 use App\Models\PropertysInquiry;
 use Illuminate\Support\Facades\Artisan;
@@ -343,6 +344,9 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::get('calculator', function () {
             return view('Calculator.calculator');
         });
+
+        // Zalo admin management (categories)
+        Route::resource('zalo-categories', ZaloCategoryController::class);
     });
 });
 
