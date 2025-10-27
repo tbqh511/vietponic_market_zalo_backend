@@ -24,7 +24,8 @@
                             </a>
                         </li>
                     @endif
-                    @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
+                    {{-- HuyTBQ: Old code --}}
+                    {{-- @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
 
                         @if (has_permissions('read', 'unit'))
                             <li class="sidebar-item">
@@ -171,7 +172,7 @@
                                 <span class="menu-item">{{ __('Notification') }}</span>
                             </a>
                         </li>
-                    @endif
+                    @endif --}}
 
                     @if (has_permissions('read', 'users_accounts') ||
                             has_permissions('read', 'about_us') ||
@@ -188,11 +189,11 @@
                                         <a href="{{ url('users') }}">{{ __('Users Accounts') }}</a>
                                     </li>
                                 @endif
-                                @if (has_permissions('read', 'about_us'))
+                                {{-- @if (has_permissions('read', 'about_us'))
                                     <li class="submenu-item">
                                         <a href="{{ url('about-us') }}">{{ __('About Us') }}</a>
                                     </li>
-                                @endif
+                                @endif --}}
                                 @if (has_permissions('read', 'privacy_policy'))
                                     <li class="submenu-item">
                                         <a href="{{ url('privacy-policy') }}">{{ __('Privacy Policy') }}</a>
@@ -208,13 +209,13 @@
                                         <a href="{{ url('system-settings') }}">{{ __('System Settings') }}</a>
                                     </li>
                                 @endif
-                                <li class="submenu-item">
+                                {{-- <li class="submenu-item">
                                     <a href="{{ url('firebase_settings') }}">{{ __('Firebase Settings') }}</a>
                                 </li>
 
                                 <li class="submenu-item">
                                     <a href="{{ url('language') }}">{{ __('Languages') }}</a>
-                                </li>
+                                </li> --}}
                             </ul>
                         </li>
                         <li class="sidebar-item">
