@@ -11,5 +11,5 @@ class Banner extends Model
 
     protected $table = 'banners';
     public $timestamps = false;
-    protected $fillable = ['image'];
+    protected $fillable = ['image', 'rendered_width', 'rendered_height', 'rendered_aspect', 'intrinsic_width', 'intrinsic_height', 'intrinsic_aspect'];
 }
