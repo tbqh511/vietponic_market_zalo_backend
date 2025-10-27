@@ -42,6 +42,11 @@
                                         <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
                                     </li>
                                 @endif
+                                @if(has_permissions('read', 'banners'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
+                                    </li>
+                                @endif
                                 @if(has_permissions('read', 'zalo_orders'))
                                     <li class="submenu-item">
                                         <a href="{{ url('zalo-orders') }}">{{ __('Zalo Orders') }}</a>
