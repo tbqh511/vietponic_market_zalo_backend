@@ -6,6 +6,8 @@ use App\Models\Category;
 use App\Models\parameter;
 use App\Models\Type;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 
 class CategoryController extends Controller
@@ -47,11 +49,9 @@ class CategoryController extends Controller
             }
             // image upload
 
-
             if ($request->hasFile('image')) {
-                $profile = $request->file('image');
-                $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                $profile->move($destinationPath, $imageName);
+                $tempPath = $request->file('image')->getRealPath();
+                $imageName = $this->processImage($tempPath);
                 $saveCategories->image = $imageName;
             } else {
                 $saveCategories->image  = '';
@@ -107,11 +107,9 @@ class CategoryController extends Controller
             }
             // image upload
 
-
             if ($request->hasFile('edit_image')) {
-                $profile = $request->file('edit_image');
-                $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                $profile->move($destinationPath, $imageName);
+                $tempPath = $request->file('edit_image')->getRealPath();
+                $imageName = $this->processImage($tempPath);
                 $Category->image = $imageName;
 
                 if (file_exists(public_path('images') . config('global.CATEGORY_IMG_PATH') . $old_image)) {
@@ -247,5 +245,87 @@ class CategoryController extends Controller
             $response['error'] = false;
             return response()->json($response);
         }
+    }
+
+    private function processImage($imagePath)
+    {
+        // Load image
+        $imageInfo = getimagesize($imagePath);
+        if (!$imageInfo) {
+            throw new \Exception('Invalid image');
+        }
+
+        $mime = $imageInfo['mime'];
+        switch ($mime) {
+            case 'image/jpeg':
+                $source = imagecreatefromjpeg($imagePath);
+                break;
+            case 'image/png':
+                $source = imagecreatefrompng($imagePath);
+                break;
+            case 'image/gif':
+                $source = imagecreatefromgif($imagePath);
+                break;
+            default:
+                throw new \Exception('Unsupported image type');
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+
+        // Target dimensions
+        $targetWidth = 192;
+        $targetHeight = 192;
+
+        // Create new image
+        $resized = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        // Preserve transparency for PNG
+        if ($mime == 'image/png') {
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+            imagefill($resized, 0, 0, $transparent);
+        }
+
+        // Resize and crop to fit
+        $srcX = 0;
+        $srcY = 0;
+        $srcW = $width;
+        $srcH = $height;
+
+        $ratio = max($targetWidth / $width, $targetHeight / $height);
+        $newWidth = $width * $ratio;
+        $newHeight = $height * $ratio;
+
+        if ($newWidth > $targetWidth) {
+            $srcX = ($newWidth - $targetWidth) / 2 / $ratio;
+            $srcW = $targetWidth / $ratio;
+        }
+        if ($newHeight > $targetHeight) {
+            $srcY = ($newHeight - $targetHeight) / 2 / $ratio;
+            $srcH = $targetHeight / $ratio;
+        }
+
+        imagecopyresampled($resized, $source, 0, 0, $srcX, $srcY, $targetWidth, $targetHeight, $srcW, $srcH);
+
+        // Ensure directory exists
+        $directory = public_path('images') . config('global.CATEGORY_IMG_PATH');
+        if (!File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+
+        // Generate filename
+        $filename = Str::random(40) . '.jpg';
+        $path = $directory . '/' . $filename;
+
+        // Save as JPEG with maximum quality for best image quality
+        imagejpeg($resized, $path, 100);
+
+        // Free memory
+        imagedestroy($source);
+        imagedestroy($resized);
+
+        return $filename;
     }
 }
