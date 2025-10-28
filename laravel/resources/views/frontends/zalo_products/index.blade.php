@@ -54,7 +54,7 @@
                             <article class="geodir-category-listing fl-wrap">
                                 <div class="geodir-category-img">
                                     @if($product->image)
-                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}" style="width: 100%; height: 200px; object-fit: cover;">
+                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" style="width: 100%; height: 200px; object-fit: cover;">
                                     @else
                                     <img src="{{ asset('images/no-image.png') }}" alt="No image" style="width: 100%; height: 200px; object-fit: cover;">
                                     @endif
