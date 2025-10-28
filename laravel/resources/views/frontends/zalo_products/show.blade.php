@@ -13,9 +13,9 @@
                             <article class="geodir-category-listing fl-wrap">
                                 <div class="geodir-category-img">
                                     @if($product->image)
-                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" style="width: 100%; height: 400px; object-fit: cover;">
+                                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}" style="width: 100%; height: 400px; object-fit: cover;">
                                     @else
-                                    <img src="{{ asset('images/no-image.png') }}" alt="No image" style="width: 100%; height: 400px; object-fit: cover;">
+                                    <img src="{{ $product->image_url }}" alt="No image" style="width: 100%; height: 400px; object-fit: cover;">
                                     @endif
                                 </div>
                                 <div class="geodir-category-content fl-wrap">
@@ -56,9 +56,9 @@
                             <div class="related-product">
                                 <div class="related-product-img">
                                     @if($related->image)
-                                    <img src="{{ asset($related->image) }}" alt="{{ $related->name }}" style="width: 80px; height: 80px; object-fit: cover;">
+                                    <img src="{{ $related->image_url }}" alt="{{ $related->name }}" style="width: 80px; height: 80px; object-fit: cover;">
                                     @else
-                                    <img src="{{ asset('images/no-image.png') }}" alt="No image" style="width: 80px; height: 80px; object-fit: cover;">
+                                    <img src="{{ $related->image_url }}" alt="No image" style="width: 80px; height: 80px; object-fit: cover;">
                                     @endif
                                 </div>
                                 <div class="related-product-content">

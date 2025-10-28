@@ -44,7 +44,7 @@
                     @if($product->image)
                         <div class="mb-2">
                             <strong>Current Image:</strong><br>
-                            <img src="{{ asset($product->image) }}" alt="Current Image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+                            <img src="{{ $product->image_url }}" alt="Current Image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
                         </div>
                     @endif
                     <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this)">

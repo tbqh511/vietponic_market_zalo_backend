@@ -21,4 +21,17 @@ class ZaloProduct extends Model
     {
         return $this->belongsTo(ZaloCategory::class, 'category_id');
     }
+
+    /**
+     * Get the full URL for the product image
+     */
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) {
+            return config('app.url') . '/images/no-image.png';
+        }
+        
+        // For Zalo mini app compatibility, ensure we use full domain from config
+        return config('app.url') . '/' . $this->image;
+    }
 }

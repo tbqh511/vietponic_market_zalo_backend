@@ -54,9 +54,9 @@
                             <article class="geodir-category-listing fl-wrap">
                                 <div class="geodir-category-img">
                                     @if($product->image)
-                                    <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" style="width: 100%; height: 200px; object-fit: cover;">
+                                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}" style="width: 100%; height: 200px; object-fit: cover;">
                                     @else
-                                    <img src="{{ asset('images/no-image.png') }}" alt="No image" style="width: 100%; height: 200px; object-fit: cover;">
+                                    <img src="{{ $product->image_url }}" alt="No image" style="width: 100%; height: 200px; object-fit: cover;">
                                     @endif
                                     <div class="overlay"></div>
                                 </div>
