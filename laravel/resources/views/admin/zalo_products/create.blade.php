@@ -15,7 +15,7 @@
                     </ul>
                 </div>
             @endif
-            <form action="{{ route('zalo-products.store') }}" method="POST">
+            <form action="{{ route('zalo-products.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label">Category</label>
@@ -32,23 +32,61 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Price</label>
-                    <input type="number" name="price" class="form-control" value="{{ old('price', 0) }}">
+                    <input type="number" name="price" class="form-control" value="{{ old('price', 0) }}" step="0.01">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Original Price</label>
-                    <input type="number" name="original_price" class="form-control" value="{{ old('original_price') }}">
+                    <input type="number" name="original_price" class="form-control" value="{{ old('original_price') }}" step="0.01">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Image URL</label>
-                    <input type="text" name="image" class="form-control" value="{{ old('image') }}">
+                    <label class="form-label">Product Image</label>
+                    <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this)">
+                    <div class="form-text">
+                        Accepted formats: JPEG, PNG, JPG, GIF. Maximum size: 2MB. Image will be resized to 560x560px.
+                    </div>
+                    <div id="image-preview" class="mt-2" style="display: none;">
+                        <img id="preview-img" src="" alt="Image Preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Detail</label>
-                    <textarea name="detail" class="form-control">{{ old('detail') }}</textarea>
+                    <textarea name="detail" class="form-control" rows="4">{{ old('detail') }}</textarea>
                 </div>
                 <button class="btn btn-primary">Create</button>
                 <a href="{{ route('zalo-products.index') }}" class="btn btn-secondary">Cancel</a>
             </form>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPEG, PNG, JPG, GIF)');
+            input.value = '';
+            return;
+        }
+        
+        // Validate file size (2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('File size must be less than 2MB');
+            input.value = '';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('preview-img').src = e.target.result;
+            document.getElementById('image-preview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+</script>
 @endsection

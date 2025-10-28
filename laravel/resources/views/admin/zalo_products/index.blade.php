@@ -42,7 +42,7 @@
                             <td>{{ $p->name }}</td>
                             <td>{{ $p->category?->name }}</td>
                             <td>{{ number_format($p->price) }}</td>
-                            <td>@if($p->image)<img src="{{ $p->image }}" alt="" style="height:40px">@endif</td>
+                            <td>@if($p->image)<img src="{{ asset($p->image) }}" alt="{{ $p->name }}" style="height:40px; width:40px; object-fit:cover; border:1px solid #ddd;">@else<span class="text-muted">No image</span>@endif</td>
                             <td>
                                 <a href="{{ route('zalo-products.edit', $p->id) }}" class="btn btn-sm btn-secondary">Edit</a>
                                 <form action="{{ route('zalo-products.destroy', $p->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Delete this product?')">
