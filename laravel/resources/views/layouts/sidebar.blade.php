@@ -25,7 +25,7 @@
                         </li>
                     @endif
                     {{-- Zalo management menu --}}
-                    @if(has_permissions('read', 'zalo_categories') || has_permissions('read', 'zalo_products'))
+                    {{--@if(has_permissions('read', 'zalo_categories') || has_permissions('read', 'zalo_products'))--}}
                         <li class="sidebar-item has-sub">
                             <a href="#" class='sidebar-link'>
                                 <i class="bi bi-box-seam"></i>
@@ -54,7 +54,8 @@
                                 @endif
                             </ul>
                         </li>
-                    @endif
+                    {{--@endif--}}
+
                     {{-- HuyTBQ: Old code --}}
                     {{-- @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
 
