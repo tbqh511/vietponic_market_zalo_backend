@@ -32,25 +32,18 @@
                                 <span class="menu-item">{{ __('Zalo Management') }}</span>
                             </a>
                             <ul class="submenu" style="padding-left: 0rem">
-                                @if(has_permissions('read', 'zalo_orders'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('zalo-orders') }}">{{ __('Zalo Orders') }}</a>
-                                    </li>
-                                @endif
-                                @if(has_permissions('read', 'zalo_products'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
-                                    </li>
-                                @endif
-                                @if(has_permissions('read', 'zalo_categories'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
-                                    </li>
-                                @endif
-                                @if(has_permissions('read', 'banners'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
-                                    </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('zalo-orders') }}">{{ __('Zalo Orders') }}</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
+                                </li>
                                 @endif
                             </ul>
                         </li>
