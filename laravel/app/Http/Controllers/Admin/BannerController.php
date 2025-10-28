@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Banner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
 
 class BannerController extends Controller
 {
@@ -22,19 +24,46 @@ class BannerController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'image' => 'nullable|string|max:1024',
+        $request->validate([
+            'image' => 'nullable|string',
             'image_file' => 'nullable|image|max:5120', // max 5MB
         ]);
 
-        $imageUrl = $request->input('image');
+        // Check if at least one image source is provided
+        if (!$request->hasFile('image_file') && !$request->filled('image')) {
+            return back()->withErrors(['image' => 'Please upload an image file or provide an image URL.']);
+        }
+
+        $imagePath = null;
+
         if ($request->hasFile('image_file')) {
-            $path = $request->file('image_file')->store('banners', 'public');
-            $imageUrl = Storage::url($path);
+            $tempPath = $request->file('image_file')->getRealPath();
+            $imagePath = $this->processImage($tempPath);
+        } elseif ($request->filled('image')) {
+            // Validate URL
+            $url = $request->input('image');
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                return back()->withErrors(['image' => 'Invalid URL format']);
+            }
+            // Download image from URL
+            $tempPath = tempnam(sys_get_temp_dir(), 'banner');
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'user_agent' => 'Mozilla/5.0 (compatible; Banner Upload)',
+                ],
+            ]);
+            $data = file_get_contents($url, false, $context);
+            if ($data === false) {
+                return back()->withErrors(['image' => 'Failed to download image from URL']);
+            }
+            file_put_contents($tempPath, $data);
+            $imagePath = $this->processImage($tempPath);
+            unlink($tempPath);
         }
 
         Banner::create([
-            'image' => $imageUrl,
+            'image' => $imagePath,
         ]);
 
         return redirect()->route('banners.index')->with('success', 'Banner created');
@@ -45,37 +74,31 @@ class BannerController extends Controller
         $banner = Banner::findOrFail($id);
 
         $metadata = null;
-        if ($banner->image) {
-            // try to map the stored URL to storage disk path
-            $relative = preg_replace('#^/storage/#', '', $banner->image);
-            // if image contains full URL, attempt to remove asset base
-            $relative = preg_replace('#^https?://[^/]+/storage/#', '', $relative);
-            if ($relative && Storage::disk('public')->exists($relative)) {
-                $diskPath = Storage::disk('public')->path($relative);
-                $info = @getimagesize($diskPath);
-                if ($info) {
-                    $intrinsicW = $info[0];
-                    $intrinsicH = $info[1];
-                    // choose rendered height same as index preview (40px) for reference
-                    $renderedH = 40;
-                    $renderedW = intval(round($intrinsicW * ($renderedH / $intrinsicH)));
+        if ($banner->image && File::exists(public_path($banner->image))) {
+            $diskPath = public_path($banner->image);
+            $info = @getimagesize($diskPath);
+            if ($info) {
+                $intrinsicW = $info[0];
+                $intrinsicH = $info[1];
+                // choose rendered height same as index preview (40px) for reference
+                $renderedH = 40;
+                $renderedW = intval(round($intrinsicW * ($renderedH / $intrinsicH)));
 
-                    // helper to compute simplified ratio
-                    $gcd = function ($a, $b) use (&$gcd) {
-                        return $b == 0 ? $a : $gcd($b, $a % $b);
-                    };
-                    $ri = $gcd($renderedW, $renderedH);
-                    $ii = $gcd($intrinsicW, $intrinsicH);
+                // helper to compute simplified ratio
+                $gcd = function ($a, $b) use (&$gcd) {
+                    return $b == 0 ? $a : $gcd($b, $a % $b);
+                };
+                $ri = $gcd($renderedW, $renderedH);
+                $ii = $gcd($intrinsicW, $intrinsicH);
 
-                    $metadata = [
-                        'rendered_width' => $renderedW,
-                        'rendered_height' => $renderedH,
-                        'rendered_ratio' => ($renderedW / $ri) . ':' . ($renderedH / $ri),
-                        'intrinsic_width' => $intrinsicW,
-                        'intrinsic_height' => $intrinsicH,
-                        'intrinsic_ratio' => ($intrinsicW / $ii) . ':' . ($intrinsicH / $ii),
-                    ];
-                }
+                $metadata = [
+                    'rendered_width' => $renderedW,
+                    'rendered_height' => $renderedH,
+                    'rendered_ratio' => ($renderedW / $ri) . ':' . ($renderedH / $ri),
+                    'intrinsic_width' => $intrinsicW,
+                    'intrinsic_height' => $intrinsicH,
+                    'intrinsic_ratio' => ($intrinsicW / $ii) . ':' . ($intrinsicH / $ii),
+                ];
             }
         }
 
@@ -86,18 +109,48 @@ class BannerController extends Controller
     {
         $banner = Banner::findOrFail($id);
         $data = $request->validate([
-            'image' => 'nullable|string|max:1024',
+            'image' => 'nullable|string',
             'image_file' => 'nullable|image|max:5120',
         ]);
 
-        $imageUrl = $request->input('image', $banner->image);
+        $imagePath = $banner->image;
+
         if ($request->hasFile('image_file')) {
-            $path = $request->file('image_file')->store('banners', 'public');
-            $imageUrl = Storage::url($path);
+            // Delete old image
+            if ($banner->image && File::exists(public_path($banner->image))) {
+                File::delete(public_path($banner->image));
+            }
+            $tempPath = $request->file('image_file')->getRealPath();
+            $imagePath = $this->processImage($tempPath);
+        } elseif ($request->filled('image') && $request->input('image') !== $banner->image) {
+            // Validate URL
+            $url = $request->input('image');
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                return back()->withErrors(['image' => 'Invalid URL format']);
+            }
+            // Delete old image
+            if ($banner->image && File::exists(public_path($banner->image))) {
+                File::delete(public_path($banner->image));
+            }
+            // Download new image
+            $tempPath = tempnam(sys_get_temp_dir(), 'banner');
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'user_agent' => 'Mozilla/5.0 (compatible; Banner Upload)',
+                ],
+            ]);
+            $data = file_get_contents($url, false, $context);
+            if ($data === false) {
+                return back()->withErrors(['image' => 'Failed to download image from URL']);
+            }
+            file_put_contents($tempPath, $data);
+            $imagePath = $this->processImage($tempPath);
+            unlink($tempPath);
         }
 
         $banner->update([
-            'image' => $imageUrl,
+            'image' => $imagePath,
         ]);
 
         return redirect()->route('banners.index')->with('success', 'Banner updated');
@@ -106,7 +159,87 @@ class BannerController extends Controller
     public function destroy($id)
     {
         $banner = Banner::findOrFail($id);
+        // Delete old image if exists
+        if ($banner->image && File::exists(public_path($banner->image))) {
+            File::delete(public_path($banner->image));
+        }
         $banner->delete();
         return redirect()->route('banners.index')->with('success', 'Banner deleted');
+    }
+
+    private function processImage($imagePath)
+    {
+        // Load image
+        $imageInfo = getimagesize($imagePath);
+        if (!$imageInfo) {
+            throw new \Exception('Invalid image');
+        }
+
+        $mime = $imageInfo['mime'];
+        switch ($mime) {
+            case 'image/jpeg':
+                $source = imagecreatefromjpeg($imagePath);
+                break;
+            case 'image/png':
+                $source = imagecreatefrompng($imagePath);
+                break;
+            case 'image/gif':
+                $source = imagecreatefromgif($imagePath);
+                break;
+            default:
+                throw new \Exception('Unsupported image type');
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+
+        // Target dimensions
+        $targetWidth = 367;
+        $targetHeight = 198;
+
+        // Create new image
+        $resized = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        // Preserve transparency for PNG
+        if ($mime == 'image/png') {
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+            imagefill($resized, 0, 0, $transparent);
+        }
+
+        // Resize and crop to fit
+        $srcX = 0;
+        $srcY = 0;
+        $srcW = $width;
+        $srcH = $height;
+
+        $ratio = max($targetWidth / $width, $targetHeight / $height);
+        $newWidth = $width * $ratio;
+        $newHeight = $height * $ratio;
+
+        if ($newWidth > $targetWidth) {
+            $srcX = ($newWidth - $targetWidth) / 2 / $ratio;
+            $srcW = $targetWidth / $ratio;
+        }
+        if ($newHeight > $targetHeight) {
+            $srcY = ($newHeight - $targetHeight) / 2 / $ratio;
+            $srcH = $targetHeight / $ratio;
+        }
+
+        imagecopyresampled($resized, $source, 0, 0, $srcX, $srcY, $targetWidth, $targetHeight, $srcW, $srcH);
+
+        // Generate filename
+        $filename = Str::random(40) . '.jpg';
+        $path = public_path('images/banners/' . $filename);
+
+        // Save as JPEG
+        imagejpeg($resized, $path, 90);
+
+        // Free memory
+        imagedestroy($source);
+        imagedestroy($resized);
+
+        return 'images/banners/' . $filename;
     }
 }

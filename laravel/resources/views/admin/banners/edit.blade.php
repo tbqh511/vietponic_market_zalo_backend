@@ -25,7 +25,7 @@
                     <input type="text" name="image" id="image_url" class="form-control mt-2" value="{{ old('image', $banner->image) }}" placeholder="https://...">
                     <div id="preview" class="mt-2">
                         @if($banner->image)
-                            <img id="previewImg" src="{{ $banner->image }}" style="height:40px" />
+                            <img id="previewImg" src="{{ asset($banner->image) }}" style="height:40px" />
                         @else
                             <img id="previewImg" src="" style="height:40px; display:none" />
                         @endif
