@@ -24,7 +24,17 @@ class ZaloApiController extends Controller
         if ($request->has('categoryId')) {
             $query->where('category_id', $request->categoryId);
         }
-        $data = $query->orderBy('id')->get();
+        $data = $query->orderBy('id')->get()->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'category_id' => $product->category_id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'original_price' => $product->original_price,
+                'image' => $product->image_url, // Use full URL from accessor
+                'detail' => $product->detail,
+            ];
+        });
         return response()->json(['error' => false, 'data' => $data]);
     }
 
