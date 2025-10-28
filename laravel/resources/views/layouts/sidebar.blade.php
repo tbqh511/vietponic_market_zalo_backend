@@ -44,7 +44,6 @@
                                 <li class="submenu-item">
                                     <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
                                 </li>
-                                @endif
                             </ul>
                         </li>
                     {{--@endif--}}
