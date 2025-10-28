@@ -31,6 +31,7 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\FrontEndHomeController;
 use App\Http\Controllers\FrontEndPropertiesController;
 use App\Http\Controllers\FrontEndAgentsController;
+use App\Http\Controllers\FrontEndZaloProductsController;
 use App\Http\Controllers\Admin\ZaloCategoryController;
 use App\Http\Controllers\Admin\ZaloProductController;
 use App\Http\Controllers\Admin\ZaloOrderController;
@@ -101,6 +102,10 @@ Route::get('/agents', [FrontEndAgentsController::class, 'index'])->name('agents.
 
 
 Route::get('/gioi-thieu',[FrontEndHomeController::class, 'about'])->name('about');
+
+// Zalo Products frontend
+Route::get('/zalo-products', [FrontEndZaloProductsController::class, 'index'])->name('zalo-products.index');
+Route::get('/zalo-products/{id}', [FrontEndZaloProductsController::class, 'show'])->name('zalo-products.show');
 
 Route::get('/lien-he', function () {
     return view('contact');

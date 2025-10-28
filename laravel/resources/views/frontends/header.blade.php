@@ -49,6 +49,9 @@
                 <li>
                     <a href="{{ route('properties.index', ['propery_type' => 1]) }}">Cho thuê <i class="fa "></i></a>
                 </li>
+                <li>
+                    <a href="{{ route('frontend.zalo-products.index') }}">Sản phẩm Zalo <i class="fa "></i></a>
+                </li>
                 {{-- <li>
                     <a href="#">Listings <i class="fa fa-caret-down"></i></a>
                     <!--second level -->
