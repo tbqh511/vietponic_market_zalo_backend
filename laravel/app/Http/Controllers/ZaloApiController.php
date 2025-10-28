@@ -14,15 +14,7 @@ class ZaloApiController extends Controller
 {
     public function categories()
     {
-        $data = ZaloCategory::orderBy('id')->get()->map(function ($category) {
-            return [
-                'id' => $category->id,
-                'name' => $category->name,
-                'image' => $category->image ? asset($category->image) : null,
-                'created_at' => $category->created_at,
-                'updated_at' => $category->updated_at,
-            ];
-        });
+        $data = ZaloCategory::orderBy('id')->get();
         return response()->json(['error' => false, 'data' => $data]);
     }
 

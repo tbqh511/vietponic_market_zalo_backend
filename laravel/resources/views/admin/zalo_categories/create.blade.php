@@ -37,3 +37,57 @@
         </div>
     </div>
 @endsection
+
+@section('script')
+    <script>
+        const fileInput = document.getElementById('image_file');
+        const urlInput = document.getElementById('image_url');
+        const previewImg = document.getElementById('previewImg');
+        const metaDiv = document.getElementById('meta');
+
+        function showMeta(intrinsicW, intrinsicH, renderedH = 40) {
+            const renderedW = Math.round(intrinsicW * (renderedH / intrinsicH));
+            function gcd(a, b) { return b == 0 ? a : gcd(b, a % b); }
+            const r = gcd(renderedW, renderedH);
+            const i = gcd(intrinsicW, intrinsicH);
+            metaDiv.style.display = 'block';
+            metaDiv.innerHTML = `Rendered size:\t${renderedW} × ${renderedH} px<br>Rendered aspect ratio:\t${renderedW / r}:${renderedH / r}<br>Intrinsic size:\t${intrinsicW} × ${intrinsicH} px<br>Intrinsic aspect ratio:\t${intrinsicW / i}:${intrinsicH / i}`;
+        }
+
+        fileInput && fileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            previewImg.src = url;
+            previewImg.style.display = 'inline-block';
+            const img = new Image();
+            img.onload = function () {
+                showMeta(img.naturalWidth, img.naturalHeight, 40);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+            // clear the URL input when a file is chosen
+            if (urlInput) urlInput.value = '';
+        });
+
+        // if user pastes an image URL, show preview and try to fetch intrinsic size
+        urlInput && urlInput.addEventListener('change', function (e) {
+            const v = e.target.value.trim();
+            if (!v) return;
+            previewImg.src = v;
+            previewImg.style.display = 'inline-block';
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function () {
+                showMeta(img.naturalWidth, img.naturalHeight, 40);
+            };
+            img.onerror = function () {
+                metaDiv.style.display = 'block';
+                metaDiv.innerHTML = 'Could not load image to compute metadata.';
+            };
+            img.src = v;
+            // clear file input when URL provided
+            if (fileInput) fileInput.value = null;
+        });
+    </script>
+@endsection

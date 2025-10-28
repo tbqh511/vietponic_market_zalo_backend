@@ -14,4 +14,9 @@ class ZaloCategory extends Model
     protected $fillable = ['id', 'name', 'image'];
     public $incrementing = false;
     protected $keyType = 'int';
+
+    public function getImageAttribute($image)
+    {
+        return $image != "" ? asset($image) : '';
+    }
 }
