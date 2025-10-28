@@ -229,6 +229,15 @@ class BannerController extends Controller
 
         imagecopyresampled($resized, $source, 0, 0, $srcX, $srcY, $targetWidth, $targetHeight, $srcW, $srcH);
 
+        // Apply gentle sharpening filter to improve quality without over-sharpening
+        $sharpenMatrix = [
+            [0, -1, 0],
+            [-1, 5, -1],
+            [0, -1, 0]
+        ];
+        $divisor = array_sum(array_map('array_sum', $sharpenMatrix));
+        imageconvolution($resized, $sharpenMatrix, $divisor, 0);
+
         // Ensure directory exists
         $directory = public_path('images/banners');
         if (!File::exists($directory)) {
@@ -239,8 +248,8 @@ class BannerController extends Controller
         $filename = Str::random(40) . '.jpg';
         $path = $directory . '/' . $filename;
 
-        // Save as JPEG
-        imagejpeg($resized, $path, 90);
+        // Save as JPEG with maximum quality for best image quality
+        imagejpeg($resized, $path, 100);
 
         // Free memory
         imagedestroy($source);
