@@ -229,9 +229,15 @@ class BannerController extends Controller
 
         imagecopyresampled($resized, $source, 0, 0, $srcX, $srcY, $targetWidth, $targetHeight, $srcW, $srcH);
 
+        // Ensure directory exists
+        $directory = public_path('images/banners');
+        if (!File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
+        }
+
         // Generate filename
         $filename = Str::random(40) . '.jpg';
-        $path = public_path('images/banners/' . $filename);
+        $path = $directory . '/' . $filename;
 
         // Save as JPEG
         imagejpeg($resized, $path, 90);

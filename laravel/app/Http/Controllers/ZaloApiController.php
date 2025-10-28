@@ -30,7 +30,14 @@ class ZaloApiController extends Controller
 
     public function banners()
     {
-        $data = Banner::orderBy('id')->get();
+        $data = Banner::orderBy('id')->get()->map(function ($banner) {
+            return [
+                'id' => $banner->id,
+                'image' => $banner->image ? asset($banner->image) : null,
+                'created_at' => $banner->created_at,
+                'updated_at' => $banner->updated_at,
+            ];
+        });
         return response()->json(['error' => false, 'data' => $data]);
     }
 
