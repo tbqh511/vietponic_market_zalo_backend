@@ -21,9 +21,4 @@ class ZaloProduct extends Model
     {
         return $this->belongsTo(ZaloCategory::class, 'category_id');
     }
-
-    public function getImageAttribute($image)
-    {
-        return $image != "" ? asset($image) : '';
-    }
 }

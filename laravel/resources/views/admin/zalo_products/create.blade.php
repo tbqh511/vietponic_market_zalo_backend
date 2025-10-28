@@ -15,7 +15,7 @@
                     </ul>
                 </div>
             @endif
-            <form action="{{ route('zalo-products.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('zalo-products.store') }}" method="POST">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label">Category</label>
@@ -39,14 +39,8 @@
                     <input type="number" name="original_price" class="form-control" value="{{ old('original_price') }}">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Image file (or paste image URL)</label>
-                    <input type="file" name="image_file" id="image_file" class="form-control" accept="image/*">
-                    <small class="form-text text-muted">You may also paste an image URL below instead of uploading.</small>
-                    <input type="text" name="image" id="image_url" class="form-control mt-2" value="{{ old('image') }}" placeholder="https://...">
-                    <div id="preview" class="mt-2">
-                        <img id="previewImg" src="" style="height:40px; display:none" />
-                        <div id="meta" style="font-size:0.9em; margin-top:6px; display:none"></div>
-                    </div>
+                    <label class="form-label">Image URL</label>
+                    <input type="text" name="image" class="form-control" value="{{ old('image') }}">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Detail</label>
@@ -57,58 +51,4 @@
             </form>
         </div>
     </div>
-@endsection
-
-@section('script')
-    <script>
-        const fileInput = document.getElementById('image_file');
-        const urlInput = document.getElementById('image_url');
-        const previewImg = document.getElementById('previewImg');
-        const metaDiv = document.getElementById('meta');
-
-        function showMeta(intrinsicW, intrinsicH, renderedH = 40) {
-            const renderedW = Math.round(intrinsicW * (renderedH / intrinsicH));
-            function gcd(a, b) { return b == 0 ? a : gcd(b, a % b); }
-            const r = gcd(renderedW, renderedH);
-            const i = gcd(intrinsicW, intrinsicH);
-            metaDiv.style.display = 'block';
-            metaDiv.innerHTML = `Rendered size:\t${renderedW} × ${renderedH} px<br>Rendered aspect ratio:\t${renderedW / r}:${renderedH / r}<br>Intrinsic size:\t${intrinsicW} × ${intrinsicH} px<br>Intrinsic aspect ratio:\t${intrinsicW / i}:${intrinsicH / i}`;
-        }
-
-        fileInput && fileInput.addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            previewImg.src = url;
-            previewImg.style.display = 'inline-block';
-            const img = new Image();
-            img.onload = function () {
-                showMeta(img.naturalWidth, img.naturalHeight, 40);
-                URL.revokeObjectURL(url);
-            };
-            img.src = url;
-            // clear the URL input when a file is chosen
-            if (urlInput) urlInput.value = '';
-        });
-
-        // if user pastes an image URL, show preview and try to fetch intrinsic size
-        urlInput && urlInput.addEventListener('change', function (e) {
-            const v = e.target.value.trim();
-            if (!v) return;
-            previewImg.src = v;
-            previewImg.style.display = 'inline-block';
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function () {
-                showMeta(img.naturalWidth, img.naturalHeight, 40);
-            };
-            img.onerror = function () {
-                metaDiv.style.display = 'block';
-                metaDiv.innerHTML = 'Could not load image to compute metadata.';
-            };
-            img.src = v;
-            // clear file input when URL provided
-            if (fileInput) fileInput.value = null;
-        });
-    </script>
 @endsection
