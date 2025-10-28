@@ -194,8 +194,8 @@ class BannerController extends Controller
         $height = imagesy($source);
 
         // Target dimensions
-        $targetWidth = 367;
-        $targetHeight = 198;
+        $targetWidth = 1312;
+        $targetHeight = 708;
 
         // Create new image
         $resized = imagecreatetruecolor($targetWidth, $targetHeight);
@@ -229,15 +229,6 @@ class BannerController extends Controller
 
         imagecopyresampled($resized, $source, 0, 0, $srcX, $srcY, $targetWidth, $targetHeight, $srcW, $srcH);
 
-        // Apply gentle sharpening filter to improve quality without over-sharpening
-        $sharpenMatrix = [
-            [0, -1, 0],
-            [-1, 5, -1],
-            [0, -1, 0]
-        ];
-        $divisor = array_sum(array_map('array_sum', $sharpenMatrix));
-        imageconvolution($resized, $sharpenMatrix, $divisor, 0);
-
         // Ensure directory exists
         $directory = public_path('images/banners');
         if (!File::exists($directory)) {
@@ -248,7 +239,7 @@ class BannerController extends Controller
         $filename = Str::random(40) . '.jpg';
         $path = $directory . '/' . $filename;
 
-        // Save as JPEG with maximum quality for best image quality
+        // Save as JPEG with maximum quality for best image quality (no compression artifacts)
         imagejpeg($resized, $path, 100);
 
         // Free memory
