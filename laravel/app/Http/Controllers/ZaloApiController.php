@@ -212,10 +212,10 @@ class ZaloApiController extends Controller
             $phoneNumber = $phoneData['data']['number'];
 
             // Update customer phone number
-            $customer = Customer::find($customerId);
-            if ($customer) {
-                $customer->update(['mobile' => $phoneNumber]);
-            }
+            //$customer = Customer::find($customerId);
+            //if ($customer) {
+                //$customer->update(['mobile' => $phoneNumber]);
+            //}
 
             return response()->json([
                 'error' => false,
