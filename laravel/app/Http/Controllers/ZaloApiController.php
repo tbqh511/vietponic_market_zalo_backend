@@ -154,4 +154,82 @@ class ZaloApiController extends Controller
             ], 500);
         }
     }
+
+    public function infouser(Request $request)
+    {
+        // // Require JWT Bearer token to identify the customer
+        // $header = $request->header('Authorization', '');
+        // if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
+        //     return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
+        // }
+
+        // try {
+        //     $token = \Illuminate\Support\Str::substr($header, 7);
+        //     $payload = JWTAuth::getPayload($token);
+        //     $customerId = $payload['customer_id'] ?? null;
+
+        //     if (!$customerId) {
+        //         return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        //     }
+        // } catch (\Exception $e) {
+        //     return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        // }
+
+        $request->validate([
+            'access_token' => 'required|string',
+            'code' => 'required|string', // Token từ API lấy số điện thoại
+        ]);
+
+        $accessToken = $request->access_token;
+        $code = $request->code;
+        $secretKey = config('services.zalo.app_secret');
+
+        try {
+            // Call Zalo Open API to get user phone number
+            $response = Http::withHeaders([
+                'access_token' => $accessToken,
+                'code' => $code,
+                'secret_key' => $secretKey,
+            ])->get('https://graph.zalo.me/v2.0/me/info');
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Failed to get user phone info from Zalo'
+                ], 400);
+            }
+
+            $phoneData = $response->json();
+
+            // Check if response contains phone number
+            if (!isset($phoneData['data']['number'])) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Phone number not found in response'
+                ], 400);
+            }
+
+            $phoneNumber = $phoneData['data']['number'];
+
+            // Update customer phone number
+            $customer = Customer::find($customerId);
+            if ($customer) {
+                $customer->update(['mobile' => $phoneNumber]);
+            }
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Phone info retrieved and updated successfully',
+                'data' => [
+                    'number' => $phoneNumber
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to get phone info: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
