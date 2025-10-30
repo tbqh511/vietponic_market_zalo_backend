@@ -29,6 +29,7 @@ Route::get('categories', [ZaloApiController::class, 'categories']);
 Route::get('products', [ZaloApiController::class, 'products']);
 Route::get('banners', [ZaloApiController::class, 'banners']);
 Route::get('stations', [ZaloApiController::class, 'stations']);
+Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
 Route::get('orders', [ZaloApiController::class, 'orders']);
 
 // Route::get('paypal', [ApiController::class, 'paypal']);
