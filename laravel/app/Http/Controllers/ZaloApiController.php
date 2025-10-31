@@ -58,24 +58,24 @@ class ZaloApiController extends Controller
         $data = Station::orderBy('id')->get();
         return response()->json(['error' => false, 'data' => $data]);
     }
-
+    //HuyTBQ: Order Apis 
     public function index(Request $request)
     {
-        // Require JWT Bearer token
-        $header = $request->header('Authorization', '');
-        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
-            return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
-        }
+        // // Require JWT Bearer token
+        // $header = $request->header('Authorization', '');
+        // if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
+        //     return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
+        // }
 
-        try {
-            $token = \Illuminate\Support\Str::substr($header, 7);
-            $payload = JWTAuth::getPayload($token);
-            $customerId = $payload['customer_id'] ?? null;
-        } catch (\Exception $e) {
-            return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
-        }
+        // try {
+        //     $token = \Illuminate\Support\Str::substr($header, 7);
+        //     $payload = JWTAuth::getPayload($token);
+        //     $customerId = $payload['customer_id'] ?? null;
+        // } catch (\Exception $e) {
+        //     return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        // }
 
-        $query = ZaloOrder::with(['items', 'delivery'])->where('customer_id', $customerId);
+        $query = ZaloOrder::with(['items', 'delivery']);
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
@@ -197,7 +197,7 @@ class ZaloApiController extends Controller
 
         return response()->json(['error' => false, 'data' => $order], 201);
     }
-
+    
     public function updateStatus(Request $request, $id)
     {
         // TODO: Add admin middleware here
@@ -218,7 +218,8 @@ class ZaloApiController extends Controller
 
         return response()->json(['error' => false, 'data' => $order]);
     }
-
+    //HuyTBQ End: Order Apis 
+    //HuyTBQ: Zalo Auth Apis
     public function authenticate(Request $request)
     {
         $request->validate([
@@ -292,7 +293,8 @@ class ZaloApiController extends Controller
             ], 500);
         }
     }
-
+    //HuyTBQ End: Zalo Auth Apis
+    //HuyTBQ: Zalo Get User Phone Api
     public function infouser(Request $request)
     {
         // // Require JWT Bearer token to identify the customer
@@ -370,4 +372,5 @@ class ZaloApiController extends Controller
             ], 500);
         }
     }
+    //HuyTBQ End: Zalo Get User Phone Api
 }
