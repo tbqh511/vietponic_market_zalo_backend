@@ -59,13 +59,11 @@ class ZaloApiController extends Controller
         return response()->json(['error' => false, 'data' => $data]);
     }
 
-    public function orders(Request $request)
+    public function index(Request $request)
     {
-        // require JWT Bearer token
+        // Require JWT Bearer token
         $header = $request->header('Authorization', '');
-        if (!
-            \Illuminate\Support\Str::startsWith($header, 'Bearer ')
-        ) {
+        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
             return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
         }
 
@@ -77,8 +75,148 @@ class ZaloApiController extends Controller
             return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
         }
 
-        $orders = ZaloOrder::with(['items', 'delivery'])->where('customer_id', $customerId)->orderBy('id', 'desc')->get();
+        $query = ZaloOrder::with(['items', 'delivery'])->where('customer_id', $customerId);
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+        $orders = $query->orderBy('id', 'desc')->get();
         return response()->json(['error' => false, 'data' => $orders]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        // Require JWT Bearer token
+        $header = $request->header('Authorization', '');
+        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
+            return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
+        }
+
+        try {
+            $token = \Illuminate\Support\Str::substr($header, 7);
+            $payload = JWTAuth::getPayload($token);
+            $customerId = $payload['sub'] ?? null;
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        }
+
+        $order = ZaloOrder::with(['items', 'delivery'])->where('id', $id)->where('customer_id', $customerId)->first();
+        if (!$order) {
+            return response()->json(['error' => true, 'message' => 'Order not found'], 404);
+        }
+        return response()->json(['error' => false, 'data' => $order]);
+    }
+
+    public function store(Request $request)
+    {
+        // Require JWT Bearer token
+        $header = $request->header('Authorization', '');
+        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
+            return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
+        }
+
+        try {
+            $token = \Illuminate\Support\Str::substr($header, 7);
+            $payload = JWTAuth::getPayload($token);
+            $customerId = $payload['sub'] ?? null;
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        }
+
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer',
+            'items.*.name' => 'required|string',
+            'items.*.price' => 'required|numeric',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.image' => 'nullable|string',
+            'items.*.detail' => 'nullable|string',
+            'delivery' => 'required|array',
+            'delivery.type' => 'required|string',
+            'delivery.alias' => 'nullable|string',
+            'delivery.address' => 'required|string',
+            'delivery.name' => 'required|string',
+            'delivery.phone' => 'required|string',
+            'delivery.station_id' => 'nullable|integer',
+            'delivery.station_name' => 'nullable|string',
+            'delivery.station_image' => 'nullable|string',
+            'delivery.lat' => 'nullable|numeric',
+            'delivery.lng' => 'nullable|numeric',
+            'note' => 'nullable|string',
+        ]);
+
+        $items = $request->items;
+        $delivery = $request->delivery;
+        $note = $request->note ?? '';
+
+        // Calculate total
+        $total = 0;
+        foreach ($items as $item) {
+            $total += $item['price'] * $item['quantity'];
+        }
+
+        // Create order
+        $order = ZaloOrder::create([
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'created_at' => now(),
+            'received_at' => null,
+            'total' => $total,
+            'note' => $note,
+            'customer_id' => $customerId,
+        ]);
+
+        // Create order items
+        foreach ($items as $item) {
+            ZaloOrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $item['product_id'],
+                'name' => $item['name'],
+                'price' => $item['price'],
+                'quantity' => $item['quantity'],
+                'image' => $item['image'] ?? '',
+                'detail' => $item['detail'] ?? '',
+            ]);
+        }
+
+        // Create delivery
+        ZaloDelivery::create([
+            'order_id' => $order->id,
+            'type' => $delivery['type'],
+            'alias' => $delivery['alias'] ?? '',
+            'address' => $delivery['address'],
+            'name' => $delivery['name'],
+            'phone' => $delivery['phone'],
+            'station_id' => $delivery['station_id'] ?? null,
+            'station_name' => $delivery['station_name'] ?? '',
+            'station_image' => $delivery['station_image'] ?? '',
+            'lat' => $delivery['lat'] ?? null,
+            'lng' => $delivery['lng'] ?? null,
+        ]);
+
+        $order->load(['items', 'delivery']);
+
+        return response()->json(['error' => false, 'data' => $order], 201);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        // TODO: Add admin middleware here
+        // This should be protected by admin-only middleware
+
+        $request->validate([
+            'status' => 'required|string|in:pending,confirmed,preparing,delivering,delivered,cancelled',
+        ]);
+
+        $order = ZaloOrder::find($id);
+        if (!$order) {
+            return response()->json(['error' => true, 'message' => 'Order not found'], 404);
+        }
+
+        $order->update(['status' => $request->status]);
+
+        $order->load(['items', 'delivery']);
+
+        return response()->json(['error' => false, 'data' => $order]);
     }
 
     public function authenticate(Request $request)

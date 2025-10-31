@@ -31,7 +31,10 @@ Route::get('banners', [ZaloApiController::class, 'banners']);
 Route::get('stations', [ZaloApiController::class, 'stations']);
 Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
 Route::post('infouser', [ZaloApiController::class, 'infouser']);
-Route::get('orders', [ZaloApiController::class, 'orders']);
+Route::get('orders', [ZaloApiController::class, 'index']); // ?status=pending
+Route::get('orders/{id}', [ZaloApiController::class, 'show']);
+Route::post('orders', [ZaloApiController::class, 'store']);
+Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']); // Admin only
 
 // Route::get('paypal', [ApiController::class, 'paypal']);
 // Route::get('paypal1', [ApiController::class, 'paypal']);
