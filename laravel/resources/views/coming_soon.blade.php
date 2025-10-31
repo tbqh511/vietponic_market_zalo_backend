@@ -162,7 +162,7 @@
           var emailInput = document.getElementById('subscribe-email');
 
           if (emailInput.value.trim() !== '') {
-                    window.location.href = '/home'; // Chuyển hướng đến trang chủ
+                    window.location.href = '/'; // Chuyển hướng đến trang chủ
           }
           return false;
         }

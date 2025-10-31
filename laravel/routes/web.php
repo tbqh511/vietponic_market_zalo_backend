@@ -46,34 +46,13 @@ use Illuminate\Support\Facades\Artisan;
  * Set COMING_SOON=true in your .env to enable a site-wide coming soon page.
  * Admin and API routes are excluded so you can still access the admin panel.
  */
-if (env('COMING_SOON', false)) {
-
-    // Root should show coming soon
-    Route::get('/', function () {
-        return view('coming_soon');
-    });
-
-    // do not return early here — allow admin/auth routes to register below
-}
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
-
 
 //HuyTBQ: Route for Frontend Page
 // Route::get('/', function () {
 //     return view('coming_soon');
 // });
 
-Route::get('/', [FrontEndHomeController::class, 'index'])->name('index');
+Route::get('/', [FrontEndHomeController::class, 'index'])->middleware('coming.soon')->name('index');
 
 //property controller
 Route::get('/property/{id}', [FrontEndPropertiesController::class, 'getPropertyById'])->name('property.showid');
