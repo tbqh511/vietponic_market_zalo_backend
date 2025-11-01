@@ -7,6 +7,8 @@ use App\Models\ZaloProduct;
 use App\Models\Banner;
 use App\Models\Station;
 use App\Models\ZaloOrder;
+use App\Models\ZaloOrderItem;
+use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -58,7 +60,8 @@ class ZaloApiController extends Controller
         $data = Station::orderBy('id')->get();
         return response()->json(['error' => false, 'data' => $data]);
     }
-    //HuyTBQ: Order Apis 
+
+    //HuyTBQ End: Order Apis 
     public function index(Request $request)
     {
         // // Require JWT Bearer token
@@ -196,6 +199,51 @@ class ZaloApiController extends Controller
         $order->load(['items', 'delivery']);
 
         return response()->json(['error' => false, 'data' => $order], 201);
+    }
+    
+    public function prepareOrder(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'desc' => 'required|string',
+            'item' => 'required|array',
+            'item.*.id' => 'required|integer',
+            'item.*.name' => 'required|string',
+            'item.*.price' => 'required|numeric',
+            'item.*.quantity' => 'required|integer|min:1',
+            'extradata' => 'nullable',
+            'method' => 'nullable|string',
+        ]);
+
+        $data = $request->only(['amount', 'desc', 'item', 'extradata', 'method']);
+        
+        // Tính toán MAC theo hướng dẫn Zalo
+        $mac = $this->calculateMac($data);
+        
+        return response()->json([
+            'error' => false,
+            'mac' => $mac,
+            'orderData' => $data
+        ]);
+    }
+
+    private function calculateMac(array $params): string
+    {
+        // Lấy private key từ config
+        $privateKey = config('services.zalo.app_secret');
+        
+        // Sắp xếp key theo thứ tự từ điển tăng dần
+        ksort($params);
+        
+        // Tạo data string
+        $dataMac = collect($params)
+            ->map(function ($value, $key) {
+                return $key . '=' . (is_array($value) ? json_encode($value) : $value);
+            })
+            ->implode('&');
+        
+        // Tính HMAC-SHA256
+        return hash_hmac('sha256', $dataMac, $privateKey);
     }
     
     public function updateStatus(Request $request, $id)
