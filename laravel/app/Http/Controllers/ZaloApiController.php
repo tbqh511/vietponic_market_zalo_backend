@@ -420,5 +420,64 @@ class ZaloApiController extends Controller
             ], 500);
         }
     }
-    //HuyTBQ End: Zalo Get User Phone Api
+        //HuyTBQ End: Zalo Get User Phone Api
+    //HuyTBQ: Zalo Get User Location Api
+    public function getLocation(Request $request)
+    {
+        $request->validate([
+            'access_token' => 'required|string',
+            'code' => 'required|string', // Location token từ Zalo Mini App
+        ]);
+
+        $accessToken = $request->access_token;
+        $locationToken = $request->code;
+        $secretKey = config('services.zalo.app_secret');
+
+        try {
+            // Call Zalo Open API to get user location info
+            $response = Http::withHeaders([
+                'access_token' => $accessToken,
+                'code' => $locationToken,
+                'secret_key' => $secretKey,
+            ])->get('https://graph.zalo.me/v2.0/me/info');
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Failed to get user location info from Zalo'
+                ], 400);
+            }
+
+            $locationData = $response->json();
+
+            // Check if response contains location data
+            if (!isset($locationData['data'])) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Location data not found in response'
+                ], 400);
+            }
+
+            $location = $locationData['data'];
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Location info retrieved successfully',
+                'data' => [
+                    'provider' => $location['provider'] ?? null,
+                    'latitude' => $location['latitude'] ?? null,
+                    'longitude' => $location['longitude'] ?? null,
+                    'timestamp' => $location['timestamp'] ?? null,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to get location info: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    //HuyTBQ End: Zalo Get User Location Api
+    
 }

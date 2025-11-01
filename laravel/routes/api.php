@@ -30,7 +30,9 @@ Route::get('products', [ZaloApiController::class, 'products']);
 Route::get('banners', [ZaloApiController::class, 'banners']);
 Route::get('stations', [ZaloApiController::class, 'stations']);
 Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
+//HuyTBQ: Zalo Get User Info Api
 Route::post('infouser', [ZaloApiController::class, 'infouser']);
+Route::post('get-location', [ZaloApiController::class, 'getLocation']);
 //Order routes
 Route::post('prepare-order', [ZaloApiController::class, 'prepareOrder']);
 Route::get('orders', [ZaloApiController::class, 'index']); // ?status=pending
