@@ -112,18 +112,18 @@ class ZaloApiController extends Controller
     public function store(Request $request)
     {
         // Require JWT Bearer token
-        $header = $request->header('Authorization', '');
-        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
-            return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
-        }
+        // $header = $request->header('Authorization', '');
+        // if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
+        //     return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
+        // }
 
-        try {
-            $token = \Illuminate\Support\Str::substr($header, 7);
-            $payload = JWTAuth::getPayload($token);
-            $customerId = $payload['sub'] ?? null;
-        } catch (\Exception $e) {
-            return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
-        }
+        // try {
+        //     $token = \Illuminate\Support\Str::substr($header, 7);
+        //     $payload = JWTAuth::getPayload($token);
+        //     $customerId = $payload['sub'] ?? null;
+        // } catch (\Exception $e) {
+        //     return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
+        // }
 
         $request->validate([
             'items' => 'required|array|min:1',
