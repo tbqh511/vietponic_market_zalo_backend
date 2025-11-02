@@ -278,14 +278,14 @@ class ZaloApiController extends Controller
 
         try {
             // Call Zalo Open API to get user profile
-            $response = Http::timeout(60)->withHeaders([
+            $response = Http::withHeaders([
                 'access_token' => $accessToken,
             ])->get(config('services.zalo.api_base_url') . '/v2.0/me');
 
             if (!$response->successful()) {
                 return response()->json([
                     'error' => true,
-                    'message' => 'Failed to get user profile from Zalo: ' . $response->status() . ' - ' . $response->body()
+                    'message' => 'Failed to get user profile from Zalo'
                 ], 400);
             }
 
@@ -343,7 +343,7 @@ class ZaloApiController extends Controller
     }
     //HuyTBQ End: Zalo Auth Apis
     //HuyTBQ: Zalo Get User Phone Api
-    public function infouser(Request $request)
+    public function zaloapiuser(Request $request)
     {
         // // Require JWT Bearer token to identify the customer
         // $header = $request->header('Authorization', '');
@@ -374,7 +374,7 @@ class ZaloApiController extends Controller
 
         try {
             // Call Zalo Open API to get user phone number
-            $response = Http::timeout(60)->withHeaders([
+            $response = Http::withHeaders([
                 'access_token' => $accessToken,
                 'code' => $code,
                 'secret_key' => $secretKey,
@@ -383,7 +383,7 @@ class ZaloApiController extends Controller
             if (!$response->successful()) {
                 return response()->json([
                     'error' => true,
-                    'message' => 'Failed to get user phone info from Zalo: ' . $response->status() . ' - ' . $response->body()
+                    'message' => 'Failed to get user phone info from Zalo'
                 ], 400);
             }
 
@@ -435,7 +435,7 @@ class ZaloApiController extends Controller
 
         try {
             // Call Zalo Open API to get user location info
-            $response = Http::timeout(60)->withHeaders([
+            $response = Http::withHeaders([
                 'access_token' => $accessToken,
                 'code' => $locationToken,
                 'secret_key' => $secretKey,
@@ -444,7 +444,7 @@ class ZaloApiController extends Controller
             if (!$response->successful()) {
                 return response()->json([
                     'error' => true,
-                    'message' => 'Failed to get user location info from Zalo: ' . $response->status() . ' - ' . $response->body()
+                    'message' => 'Failed to get user location info from Zalo'
                 ], 400);
             }
 
