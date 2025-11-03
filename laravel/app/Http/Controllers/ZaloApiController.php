@@ -240,7 +240,7 @@ class ZaloApiController extends Controller
         // Tạo data string
         $dataMac = collect($params)
             ->map(function ($value, $key) {
-                return $key . '=' . (is_array($value) ? json_encode($value) : $value);
+                return $key . '=' . (is_array($value) || $value === null ? json_encode($value) : $value);
             })
             ->implode('&');
         
