@@ -150,7 +150,8 @@ class ZaloApiController extends Controller
         $items = $request->items;
         $delivery = $request->delivery;
         $note = $request->note ?? '';
-
+        $customerId = $request->customer_id ?? '';
+        
         // Calculate total
         $total = 0;
         foreach ($items as $item) {
