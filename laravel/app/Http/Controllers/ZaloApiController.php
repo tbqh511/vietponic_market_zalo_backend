@@ -13,6 +13,7 @@ use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Carbon\Carbon;
 
 class ZaloApiController extends Controller
 {
@@ -145,6 +146,7 @@ class ZaloApiController extends Controller
             'delivery.lat' => 'nullable|numeric',
             'delivery.lng' => 'nullable|numeric',
             'note' => 'nullable|string',
+            'created_at' => 'nullable|date',
         ]);
 
         $items = $request->items;
@@ -159,17 +161,16 @@ class ZaloApiController extends Controller
         }
 
         // Create order
+        $createdAt = $request->created_at ? Carbon::parse($request->created_at) : now();
         $order = ZaloOrder::create([
             'status' => 'pending',
             'payment_status' => 'unpaid',
-            'created_at' => now(),
-            'received_at' => null,
+            'created_at' => $createdAt,
+            'received_at' => $createdAt->copy()->addDays(3), // Thêm 3 ngày vào created_at
             'total' => $total,
             'note' => $note,
             'customer_id' => $customerId,
-        ]);
-
-        // Create order items
+        ]);        // Create order items
         foreach ($items as $item) {
             ZaloOrderItem::create([
                 'order_id' => $order->id,
