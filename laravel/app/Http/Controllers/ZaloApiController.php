@@ -205,9 +205,10 @@ class ZaloApiController extends Controller
             'desc' => 'required|string',
             'item' => 'required|array',
             'item.*.id' => 'required|integer',
-            'item.*.name' => 'required|string',
-            'item.*.price' => 'required|numeric',
-            'item.*.quantity' => 'required|integer|min:1',
+            'item.*.name' => 'nullable|string',
+            'item.*.price' => 'nullable|numeric',
+            'item.*.quantity' => 'nullable|integer|min:1',
+            'item.*.amount' => 'required|numeric',
             'extradata' => 'nullable',
             'method' => 'nullable|string',
         ]);
