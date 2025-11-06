@@ -127,46 +127,38 @@ class ZaloApiController extends Controller
         // }
 
         $request->validate([
+            'customer_id' => 'required|string',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|integer',
+            'items.*.product_id' => 'required|string',
             'items.*.name' => 'required|string',
-            'items.*.price' => 'required|numeric',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|string',
+            'items.*.quantity' => 'required|string',
             'items.*.image' => 'nullable|string',
             'items.*.detail' => 'nullable|string',
             'delivery' => 'required|array',
-            'delivery.type' => 'required|string',
-            'delivery.alias' => 'nullable|string',
+            'delivery.type' => 'required|string|in:shipping,pickup',
             'delivery.address' => 'required|string',
             'delivery.name' => 'required|string',
             'delivery.phone' => 'required|string',
-            'delivery.station_id' => 'nullable|integer',
-            'delivery.station_name' => 'nullable|string',
-            'delivery.station_image' => 'nullable|string',
-            'delivery.lat' => 'nullable|numeric',
-            'delivery.lng' => 'nullable|numeric',
+            'delivery.station_id' => 'nullable|string',
+            'total' => 'required|string',
             'note' => 'nullable|string',
-            'created_at' => 'nullable|date',
+            'created_at' => 'required|string',
         ]);
 
         $items = $request->items;
         $delivery = $request->delivery;
         $note = $request->note ?? '';
-        $customerId = $request->customer_id ?? '';
+        $customerId = $request->customer_id;
+        $total = $request->total;
         
-        // Calculate total
-        $total = 0;
-        foreach ($items as $item) {
-            $total += $item['price'] * $item['quantity'];
-        }
-
         // Create order
-        $createdAt = $request->created_at ? Carbon::parse($request->created_at) : now();
+        $createdAt = Carbon::parse($request->created_at);
         $order = ZaloOrder::create([
             'status' => 'pending',
-            'payment_status' => 'unpaid',
+            'payment_status' => 'cod',
             'created_at' => $createdAt,
-            'received_at' => $createdAt->copy()->addDays(3), // Thêm 3 ngày vào created_at
+            'received_at' => $createdAt->copy()->addDays(3),
             'total' => $total,
             'note' => $note,
             'customer_id' => $customerId,
@@ -187,15 +179,15 @@ class ZaloApiController extends Controller
         ZaloDelivery::create([
             'order_id' => $order->id,
             'type' => $delivery['type'],
-            'alias' => $delivery['alias'] ?? '',
+            'alias' => '',
             'address' => $delivery['address'],
             'name' => $delivery['name'],
             'phone' => $delivery['phone'],
             'station_id' => $delivery['station_id'] ?? null,
-            'station_name' => $delivery['station_name'] ?? '',
-            'station_image' => $delivery['station_image'] ?? '',
-            'lat' => $delivery['lat'] ?? null,
-            'lng' => $delivery['lng'] ?? null,
+            'station_name' => '',
+            'station_image' => '',
+            'lat' => null,
+            'lng' => null,
         ]);
 
         $order->load(['items', 'delivery']);
