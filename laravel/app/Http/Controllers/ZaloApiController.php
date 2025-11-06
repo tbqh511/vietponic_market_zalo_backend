@@ -200,7 +200,10 @@ class ZaloApiController extends Controller
 
         $order->load(['items', 'delivery']);
 
-        return response()->json(['error' => false, 'data' => $order], 201);
+        return response()->json([
+            'message' => 'Đã tạo đơn hàng thành công!',
+            'orderId' => $order->id,
+        ], 201);
     }
     
     public function prepareOrder(Request $request)
