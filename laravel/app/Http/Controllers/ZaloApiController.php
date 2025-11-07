@@ -532,16 +532,16 @@ class ZaloApiController extends Controller
             }
 
             // Find and update order
-            $order = ZaloOrder::where('checkout_sdk_order_id', $orderId)->first();
-            if (!$order) {
-                return response()->json([
-                    'returnCode' => 0,
-                    'returnMessage' => 'Order not found',
-                ]);
-            }
+            // $order = ZaloOrder::where('checkout_sdk_order_id', $orderId)->first();
+            // if (!$order) {
+            //     return response()->json([
+            //         'returnCode' => 0,
+            //         'returnMessage' => 'Order not found',
+            //     ]);
+            // }
 
             // Update payment method
-            $order->update(['payment_method' => $method]);
+            //$order->update(['payment_method' => $method]);
 
             // Optionally update status if needed
             // $order->update(['status' => 'confirmed']); // Uncomment if needed
