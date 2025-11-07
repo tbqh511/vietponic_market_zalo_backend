@@ -532,7 +532,7 @@ class ZaloApiController extends Controller
             }
 
             // Find and update order
-            $order = ZaloOrder::where('id', $orderId)->first();
+            $order = ZaloOrder::where('checkout_sdk_order_id', $orderId)->first();
             if (!$order) {
                 return response()->json([
                     'returnCode' => 0,
