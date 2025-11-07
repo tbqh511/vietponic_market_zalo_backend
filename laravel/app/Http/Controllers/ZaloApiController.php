@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ZaloApiController extends Controller
 {
@@ -477,5 +478,87 @@ class ZaloApiController extends Controller
         }
     }
     //HuyTBQ End: Zalo Get User Location Api
+    //HuyTBQ: Zalo Notify SDK Api
+    public function notifySDK(Request $request)
+    {
+        try {
+            $body = $request->all();
+            $data = $body['data'] ?? null;
+            $mac = $body['mac'] ?? null;
+
+            if (!$data || !$mac) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Missing data or mac',
+                ]);
+            }
+
+            $appId = $data['appId'] ?? null;
+            $orderId = $data['orderId'] ?? null;
+            $method = $data['method'] ?? null;
+
+            if (!$appId || !$orderId || !$method) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Missing appId, orderId or method',
+                ]);
+            }
+
+            // Validate method
+            if (!in_array($method, ['COD','COD_SANDBOX', 'BANK','BANK_SANDBOX'])) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Invalid method',
+                ]);
+            }
+
+            $secretKey = env('ZALO_APP_SECRET');
+            if (!$secretKey) {
+                Log::error('Missing ZALO_CHECKOUT_SECRET_KEY in env');
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Server configuration error',
+                ]);
+            }
+
+            $raw = "appId={$appId}&orderId={$orderId}&method={$method}";
+            $expectedMac = hash_hmac('sha256', $raw, $secretKey);
+
+            if (!hash_equals($mac, $expectedMac)) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Invalid MAC',
+                ]);
+            }
+
+            // Find and update order
+            $order = ZaloOrder::where('id', $orderId)->first();
+            if (!$order) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Order not found',
+                ]);
+            }
+
+            // Update payment method
+            $order->update(['payment_method' => $method]);
+
+            // Optionally update status if needed
+            // $order->update(['status' => 'confirmed']); // Uncomment if needed
+
+            return response()->json([
+                'returnCode' => 1,
+                'returnMessage' => 'Success',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Notify SDK error: ' . $e->getMessage());
+            return response()->json([
+                'returnCode' => 0,
+                'returnMessage' => 'Internal server error',
+            ]);
+        }
+    }
+    //HuyTBQ End: Zalo Notify SDK Api
     
 }

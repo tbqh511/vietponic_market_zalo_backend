@@ -11,7 +11,7 @@ class ZaloOrder extends Model
 
     protected $table = 'zalo_orders';
     public $timestamps = false;
-    protected $fillable = ['status','payment_status','created_at','received_at','total','note','customer_id'];
+    protected $fillable = ['status','payment_status','created_at','received_at','total','note','customer_id','payment_method'];
     // Enable auto increment for ID
     public $incrementing = true;
     protected $keyType = 'int';
