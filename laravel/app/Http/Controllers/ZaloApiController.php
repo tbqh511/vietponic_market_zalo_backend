@@ -516,9 +516,9 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            $secretKey = env('ZALO_CHECK_OUT_SECRET');
+            $secretKey = env('ZALO_APP_SECRET');
             if (!$secretKey) {
-                Log::error('Missing ZALO_CHECK_OUT_SECRET in env');
+                Log::error('Missing ZALO_APP_SECRET in env');
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Server configuration error',
@@ -536,16 +536,16 @@ class ZaloApiController extends Controller
             }
 
             // Find and update order
-            // $order = ZaloOrder::where('checkout_sdk_order_id', $orderId)->first();
-            // if (!$order) {
-            //     return response()->json([
-            //         'returnCode' => 0,
-            //         'returnMessage' => 'Order not found',
-            //     ]);
-            // }
+            $order = ZaloOrder::where('checkout_sdk_order_id', $orderId)->first();
+            if (!$order) {
+                return response()->json([
+                    'returnCode' => 0,
+                    'returnMessage' => 'Order not found',
+                ]);
+            }
 
             // Update payment method
-            //$order->update(['payment_method' => $method]);
+            $order->update(['payment_method' => $method]);
 
             // Optionally update status if needed
             // $order->update(['status' => 'confirmed']); // Uncomment if needed
