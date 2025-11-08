@@ -228,8 +228,12 @@ class ZaloApiController extends Controller
 
     private function calculateMac(array $params): string
     {
-        // Lấy private key từ config
-        $privateKey = config('services.zalo.app_secret');
+        // Lấy private key từ env
+        $privateKey = env('ZALO_CHECK_OUT_SECRET');
+        
+        if (!$privateKey) {
+            throw new \Exception('Missing ZALO_CHECK_OUT_SECRET in environment');
+        }
         
         // Sắp xếp key theo thứ tự từ điển tăng dần
         ksort($params);
@@ -512,9 +516,9 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            $secretKey = env('ZALO_APP_SECRET');
+            $secretKey = env('ZALO_CHECK_OUT_SECRET');
             if (!$secretKey) {
-                Log::error('Missing ZALO_CHECKOUT_SECRET_KEY in env');
+                Log::error('Missing ZALO_CHECK_OUT_SECRET in env');
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Server configuration error',
