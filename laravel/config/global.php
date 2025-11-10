@@ -16,6 +16,7 @@ return [
     '3D_IMG_PATH' => '/3d_img/',
     'PARAMETER_IMAGE_PATH' => '/parameter_img/',
     'FACILITY_IMAGE_PATH' => '/facility_img/',
+    'STATION_IMG_PATH' => '/stations/',
 
     "JSON_PATH" => '/json',
 

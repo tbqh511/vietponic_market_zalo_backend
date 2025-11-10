@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\ZaloCategoryController;
 use App\Http\Controllers\Admin\ZaloProductController;
 use App\Http\Controllers\Admin\ZaloOrderController;
 use App\Http\Controllers\Admin\ZaloOrderItemController;
+use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Models\Payments;
 use App\Models\PropertysInquiry;
@@ -336,6 +337,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
     Route::resource('zalo-categories', ZaloCategoryController::class);
     Route::resource('zalo-products', ZaloProductController::class);
     Route::resource('zalo-orders', ZaloOrderController::class);
+    Route::resource('zalo-stations', ZaloStationController::class);
     // banners admin
     Route::resource('banners', BannerController::class);
     // order items (nested-ish) - custom routes for create/edit

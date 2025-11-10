@@ -42,6 +42,9 @@
                                     <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
                                 </li>
                                 <li class="submenu-item">
+                                    <a href="{{ url('zalo-stations') }}">{{ __('Zalo Stations') }}</a>
+                                </li>
+                                <li class="submenu-item">
                                     <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
                                 </li>
                             </ul>
