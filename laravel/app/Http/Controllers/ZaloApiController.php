@@ -140,7 +140,7 @@ class ZaloApiController extends Controller
             'delivery.type' => 'required|string|in:shipping,pickup',
             'delivery.address' => 'required|string',
             'delivery.name' => 'required|string',
-            'delivery.phone' => 'required|string',
+            'delivery.phone' => 'nullable|string',
             'delivery.station_id' => 'nullable|string',
             'total' => 'required|string',
             'note' => 'nullable|string',

@@ -30,7 +30,7 @@ Route::get('products', [ZaloApiController::class, 'products']);
 Route::get('banners', [ZaloApiController::class, 'banners']);
 Route::get('stations', [ZaloApiController::class, 'stations']);
 Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
-Route::post('infouser', [ZaloApiController::class, 'infouser']);
+Route::post('infouser', [ZaloApiController::class, 'zaloapiuser']);
 Route::post('get-location', [ZaloApiController::class, 'getLocation']);
 Route::post('notify', [ZaloApiController::class, 'notifySDK']);
 //Order routes
