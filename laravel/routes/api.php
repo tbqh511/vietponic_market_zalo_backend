@@ -39,6 +39,7 @@ Route::get('orders', [ZaloApiController::class, 'index']); // ?status=pending
 Route::get('orders/{id}', [ZaloApiController::class, 'show']);
 Route::post('orders', [ZaloApiController::class, 'store']);
 Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']); // Admin only
+Route::post('link', [ZaloApiController::class, 'link']);
 //
 // Route::get('paypal', [ApiController::class, 'paypal']);
 // Route::get('paypal1', [ApiController::class, 'paypal']);

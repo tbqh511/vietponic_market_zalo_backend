@@ -565,4 +565,27 @@ class ZaloApiController extends Controller
     }
     //HuyTBQ End: Zalo Notify SDK Api
     
+    public function link(Request $request)
+    {
+        $request->validate([
+            'orderId' => 'required|integer',
+            'checkoutSdkOrderId' => 'required|string',
+            'miniAppId' => 'required|string',
+        ]);
+
+        $order = ZaloOrder::find($request->orderId);
+        if (!$order) {
+            return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
+        }
+
+        // Liên kết order với checkoutSdkOrderId
+        $order->checkout_sdk_order_id = $request->checkoutSdkOrderId;
+        $order->save();
+
+        // Dispatch job để check status sau 20 phút
+        \App\Jobs\CheckPaymentStatus::dispatch($order->id, $request->checkoutSdkOrderId, $request->miniAppId)
+            ->delay(now()->addMinutes(20));
+
+        return response()->json(['message' => 'Đã liên kết đơn hàng thành công!']);
+    }
 }
