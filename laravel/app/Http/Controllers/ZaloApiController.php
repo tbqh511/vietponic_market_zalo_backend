@@ -12,6 +12,7 @@ use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -63,24 +64,14 @@ class ZaloApiController extends Controller
         return response()->json(['error' => false, 'data' => $data]);
     }
 
-    //HuyTBQ End: Order Apis 
+    //HuyTBQ: Order Apis (Protected by ZaloJwtMiddleware)
     public function index(Request $request)
     {
-        // // Require JWT Bearer token
-        // $header = $request->header('Authorization', '');
-        // if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
-        //     return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
-        // }
+        // customer_id được gắn bởi ZaloJwtMiddleware
+        $customerId = $request->attributes->get('zalo_customer_id');
 
-        // try {
-        //     $token = \Illuminate\Support\Str::substr($header, 7);
-        //     $payload = JWTAuth::getPayload($token);
-        //     $customerId = $payload['customer_id'] ?? null;
-        // } catch (\Exception $e) {
-        //     return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
-        // }
-
-        $query = ZaloOrder::with(['items', 'delivery']);
+        $query = ZaloOrder::with(['items', 'delivery'])
+            ->where('customer_id', $customerId);
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
@@ -90,19 +81,8 @@ class ZaloApiController extends Controller
 
     public function show(Request $request, $id)
     {
-        // Require JWT Bearer token
-        $header = $request->header('Authorization', '');
-        if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
-            return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
-        }
-
-        try {
-            $token = \Illuminate\Support\Str::substr($header, 7);
-            $payload = JWTAuth::getPayload($token);
-            $customerId = $payload['sub'] ?? null;
-        } catch (\Exception $e) {
-            return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
-        }
+        // customer_id được gắn bởi ZaloJwtMiddleware
+        $customerId = $request->attributes->get('zalo_customer_id');
 
         $order = ZaloOrder::with(['items', 'delivery'])->where('id', $id)->where('customer_id', $customerId)->first();
         if (!$order) {
@@ -113,22 +93,10 @@ class ZaloApiController extends Controller
 
     public function store(Request $request)
     {
-        // Require JWT Bearer token
-        // $header = $request->header('Authorization', '');
-        // if (!\Illuminate\Support\Str::startsWith($header, 'Bearer ')) {
-        //     return response()->json(['error' => true, 'message' => 'Unauthorized'], 401);
-        // }
-
-        // try {
-        //     $token = \Illuminate\Support\Str::substr($header, 7);
-        //     $payload = JWTAuth::getPayload($token);
-        //     $customerId = $payload['sub'] ?? null;
-        // } catch (\Exception $e) {
-        //     return response()->json(['error' => true, 'message' => 'Invalid token'], 401);
-        // }
+        // customer_id được gắn bởi ZaloJwtMiddleware
+        $customerId = $request->attributes->get('zalo_customer_id');
 
         $request->validate([
-            'customer_id' => 'required|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|string',
             'items.*.name' => 'required|string',
@@ -150,46 +118,81 @@ class ZaloApiController extends Controller
         $items = $request->items;
         $delivery = $request->delivery;
         $note = $request->note ?? '';
-        $customerId = $request->customer_id;
-        $total = $request->total;
-        
-        // Create order
-        $createdAt = Carbon::parse($request->created_at);
-        $order = ZaloOrder::create([
-            'status' => 'pending',
-            'payment_status' => 'cod',
-            'created_at' => $createdAt,
-            'received_at' => $createdAt->copy()->addDays(3),
-            'total' => $total,
-            'note' => $note,
-            'customer_id' => $customerId,
-        ]);        // Create order items
+
+        // Server-side validate total: tính lại từ giá sản phẩm trong DB, ghi đè total từ client
+        $productIds = collect($items)->pluck('product_id')->toArray();
+        $products = ZaloProduct::whereIn('id', $productIds)->get()->keyBy('id');
+        $serverTotal = 0;
         foreach ($items as $item) {
-            ZaloOrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'name' => $item['name'],
-                'price' => $item['price'],
-                'quantity' => $item['quantity'],
-                'image' => $item['image'] ?? '',
-                'detail' => $item['detail'] ?? '',
+            $product = $products->get($item['product_id']);
+            if ($product) {
+                $serverTotal += $product->price * (int) $item['quantity'];
+            } else {
+                // Sản phẩm không tồn tại trong DB
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Sản phẩm ID ' . $item['product_id'] . ' không tồn tại',
+                ], 422);
+            }
+        }
+
+        // Log nếu total client khác server (phát hiện bất thường)
+        $clientTotal = (float) $request->total;
+        if (abs($clientTotal - $serverTotal) > 0.01) {
+            Log::warning('Zalo Order total mismatch', [
+                'customer_id' => $customerId,
+                'client_total' => $clientTotal,
+                'server_total' => $serverTotal,
+                'items' => $items,
             ]);
         }
 
-        // Create delivery
-        ZaloDelivery::create([
-            'order_id' => $order->id,
-            'type' => $delivery['type'],
-            'alias' => '',
-            'address' => $delivery['address'],
-            'name' => $delivery['name'],
-            'phone' => $delivery['phone'],
-            'station_id' => $delivery['station_id'] ?? null,
-            'station_name' => '',
-            'station_image' => '',
-            'lat' => null,
-            'lng' => null,
-        ]);
+        // Bọc trong DB Transaction để tránh orphan data
+        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $request, $products) {
+            $createdAt = Carbon::parse($request->created_at);
+
+            // Create order (dùng serverTotal thay vì total từ client)
+            $order = ZaloOrder::create([
+                'status' => 'pending',
+                'payment_status' => 'cod',
+                'created_at' => $createdAt,
+                'received_at' => $createdAt->copy()->addDays(3),
+                'total' => $serverTotal,
+                'note' => $note,
+                'customer_id' => $customerId,
+            ]);
+
+            // Create order items (dùng giá từ DB, không dùng giá client gửi)
+            foreach ($items as $item) {
+                $product = $products->get($item['product_id']);
+                ZaloOrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                    'name' => $product->name,
+                    'price' => $product->price,
+                    'quantity' => $item['quantity'],
+                    'image' => $item['image'] ?? '',
+                    'detail' => $item['detail'] ?? '',
+                ]);
+            }
+
+            // Create delivery
+            ZaloDelivery::create([
+                'order_id' => $order->id,
+                'type' => $delivery['type'],
+                'alias' => '',
+                'address' => $delivery['address'],
+                'name' => $delivery['name'],
+                'phone' => $delivery['phone'] ?? null,
+                'station_id' => $delivery['station_id'] ?? null,
+                'station_name' => '',
+                'station_image' => '',
+                'lat' => null,
+                'lng' => null,
+            ]);
+
+            return $order;
+        });
 
         $order->load(['items', 'delivery']);
 

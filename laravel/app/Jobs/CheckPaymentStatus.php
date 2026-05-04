@@ -33,8 +33,8 @@ class CheckPaymentStatus implements ShouldQueue
         }
 
         $privateKey = env('ZALO_CHECK_OUT_SECRET');
-        $dataMac = "appId={$this->miniAppId}&orderId={$this->checkoutSdkOrderId}&privateKey={$privateKey}";
-        $mac = hash('sha256', $dataMac);
+        $dataMac = "appId={$this->miniAppId}&orderId={$this->checkoutSdkOrderId}";
+        $mac = hash_hmac('sha256', $dataMac, $privateKey);
 
         $response = Http::get('https://payment-mini.zalo.me/api/transaction/get-status', [
             'orderId' => $this->checkoutSdkOrderId,

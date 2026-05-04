@@ -50,5 +50,6 @@ class Kernel extends HttpKernel
         'jwt.verify' => \App\Http\Middleware\JwtMiddleware::class,
         'language' => \App\Http\Middleware\LanguageManager::class,
         'coming.soon' => \App\Http\Middleware\ComingSoonMiddleware::class,
+        'zalo.jwt' => \App\Http\Middleware\ZaloJwtMiddleware::class,
     ];
 }

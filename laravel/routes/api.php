@@ -23,7 +23,7 @@ Route::post('user_signup', [ApiController::class, 'user_signup']);
 Route::get('get_languages', [ApiController::class, 'get_languages']);
 Route::get('app_payment_status', [ApiController::class, 'app_payment_status']);
 
-// Zalo mini app endpoints (simple, DB-backed from mock/*.json)
+// Zalo mini app endpoints - Public (không cần auth)
 use App\Http\Controllers\ZaloApiController;
 Route::get('categories', [ZaloApiController::class, 'categories']);
 Route::get('products', [ZaloApiController::class, 'products']);
@@ -33,13 +33,16 @@ Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
 Route::get('infouser', [ZaloApiController::class, 'zaloapiuser']);
 Route::post('get-location', [ZaloApiController::class, 'getLocation']);
 Route::post('notify', [ZaloApiController::class, 'notifySDK']);
-//Order routes
-Route::post('prepare-order', [ZaloApiController::class, 'prepareOrder']);
-Route::get('orders', [ZaloApiController::class, 'index']); // ?status=pending
-Route::get('orders/{id}', [ZaloApiController::class, 'show']);
-Route::post('orders', [ZaloApiController::class, 'store']);
-Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']); // Admin only
-Route::post('link', [ZaloApiController::class, 'link']);
+
+// Zalo mini app endpoints - Protected (cần Zalo JWT auth)
+Route::group(['middleware' => ['zalo.jwt']], function () {
+    Route::post('prepare-order', [ZaloApiController::class, 'prepareOrder']);
+    Route::get('orders', [ZaloApiController::class, 'index']);
+    Route::get('orders/{id}', [ZaloApiController::class, 'show']);
+    Route::post('orders', [ZaloApiController::class, 'store']);
+    Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']);
+    Route::post('link', [ZaloApiController::class, 'link']);
+});
 //
 // Route::get('paypal', [ApiController::class, 'paypal']);
 // Route::get('paypal1', [ApiController::class, 'paypal']);
