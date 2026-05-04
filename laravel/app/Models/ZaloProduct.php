@@ -27,11 +27,14 @@ class ZaloProduct extends Model
      */
     public function getImageUrlAttribute()
     {
-        if (!$this->image) {
+        $image = $this->attributes['image'] ?? null;
+        if (!$image) {
             return config('app.url') . '/images/no-image.png';
         }
-        
-        // For Zalo mini app compatibility, ensure we use full domain from config
-        return config('app.url') . '/' . $this->image;
+        // Already a full URL — return as-is
+        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) {
+            return $image;
+        }
+        return rtrim(config('app.url'), '/') . '/' . ltrim($image, '/');
     }
 }

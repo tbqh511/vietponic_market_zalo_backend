@@ -90,24 +90,27 @@ class ZaloCategoryController extends Controller
             'image' => 'nullable|string|max:1024',
         ]);
 
-        $imagePath = $category->image;
+        // Read raw DB value (bypass accessor) to avoid double-URL issue
+        $imagePath = $category->getAttributes()['image'] ?? null;
 
         if ($request->hasFile('image_file')) {
-            // Delete old image
-            if ($category->image && File::exists(public_path($category->image))) {
-                File::delete(public_path($category->image));
+            // Delete old image using raw path
+            $rawOldImage = $category->getAttributes()['image'] ?? null;
+            if ($rawOldImage && !str_starts_with($rawOldImage, 'http') && File::exists(public_path($rawOldImage))) {
+                File::delete(public_path($rawOldImage));
             }
             $tempPath = $request->file('image_file')->getRealPath();
             $imagePath = $this->processImage($tempPath);
-        } elseif ($request->filled('image') && $request->input('image') !== $category->image) {
+        } elseif ($request->filled('image') && $request->input('image') !== ($category->getAttributes()['image'] ?? null)) {
             // Validate URL
             $url = $request->input('image');
             if (!filter_var($url, FILTER_VALIDATE_URL)) {
                 return back()->withErrors(['image' => 'Invalid URL format']);
             }
-            // Delete old image
-            if ($category->image && File::exists(public_path($category->image))) {
-                File::delete(public_path($category->image));
+            // Delete old image using raw path
+            $rawOldImage = $category->getAttributes()['image'] ?? null;
+            if ($rawOldImage && !str_starts_with($rawOldImage, 'http') && File::exists(public_path($rawOldImage))) {
+                File::delete(public_path($rawOldImage));
             }
             // Download new image
             $tempPath = tempnam(sys_get_temp_dir(), 'category');
