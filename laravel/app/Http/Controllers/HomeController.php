@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Article;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\Package;
 use App\Models\Property;
-use App\Models\PropertysInquiry;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -51,9 +48,7 @@ class HomeController extends Controller
             $list['total_rant_property'] = Property::where('propery_type', '1')->get()->count();
 
 
-            $list['total_property_inquiry'] = PropertysInquiry::all()->count();
             $list['total_properties'] = Property::all()->count();
-            $list['total_articles'] = Article::all()->count();
 
 
             $list['total_categories'] = Category::all()->count();

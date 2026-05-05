@@ -47,7 +47,6 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'checklogin' => \App\Http\Middleware\CheckLogin::class,
-        'jwt.verify' => \App\Http\Middleware\JwtMiddleware::class,
         'language' => \App\Http\Middleware\LanguageManager::class,
         'coming.soon' => \App\Http\Middleware\ComingSoonMiddleware::class,
         'zalo.jwt' => \App\Http\Middleware\ZaloJwtMiddleware::class,

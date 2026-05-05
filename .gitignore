@@ -1,0 +1,14 @@
+# Archives & temp files
+*.rar
+*.zip
+*.doc
+*.docx
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Laravel env & dependencies
+laravel/.env
+laravel/vendor/
+laravel/node_modules/

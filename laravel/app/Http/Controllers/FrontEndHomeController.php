@@ -3,15 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\CrmHost;
 use App\Models\Customer;
 use App\Models\Property;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\LocationsStreet;
 use App\Models\LocationsWard;
-use App\Models\ProductType;
-use App\Models\Product;
 
 class FrontEndHomeController extends Controller
 {
@@ -51,14 +48,10 @@ class FrontEndHomeController extends Controller
         $newestProducts = Property::with('customer')
             ->with('user')
             ->with('category:id,category,image')
-            ->with('assignfacilities.outdoorfacilities')
-            ->with('favourite')
             ->with('parameters')
-            ->with('interested_users')
             ->with('ward')
             ->with('street')
-            ->with('host')
-            ->where('status','1')
+            ->where('status', '1')
             ->orderBy($sort, $order)
             ->skip($offset)
             ->take($limit)
@@ -76,7 +69,7 @@ class FrontEndHomeController extends Controller
             ],
             [
                 'title' => 'Khách hàng hài lòng',
-                'value' => CrmHost::count()
+                'value' => 0
             ],
             [
                 'title' => 'Bất động sản mới trong tuần',
@@ -125,7 +118,7 @@ class FrontEndHomeController extends Controller
             ],
             [
                 'title' => 'Khách hàng hài lòng',
-                'value' => CrmHost::count()
+                'value' => 0
             ],
             [
                 'title' => 'Bất động sản mới trong tuần',

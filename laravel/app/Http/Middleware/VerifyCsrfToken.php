@@ -12,12 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-
-        '/webhook/razorpay',
-        '/webhook/paystack',
-        '/webhook/paypal',
-        '/webhook/stripe',
-
         '/firebase_messaging_settings'
 
 

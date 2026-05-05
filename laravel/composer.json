@@ -6,8 +6,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.0.2",
-        "barryvdh/laravel-debugbar": "^3.7",
-
         "doctrine/dbal": "^3.6",
         "guzzlehttp/guzzle": "^7.2",
         "kornrunner/blurhash": "^1.2",
@@ -16,23 +14,17 @@
         "laravel/tinker": "^2.7",
         "laravel/ui": "^4.0",
         "laravelcollective/html": "^6.3",
-        "php-webdriver/webdriver": "^1.14",
-        "razorpay/razorpay": "2.*",
         "spatie/image": "^2.2",
-        "sunra/php-simple-html-dom-parser": "^1.5",
-        "symfony/dom-crawler": "^6.3",
-        "tymon/jwt-auth": "^2.0",
-        "unicodeveloper/laravel-paystack": "^1.0",
-        "weidner/goutte": "^2.3"
+        "tymon/jwt-auth": "^2.0"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.7",
         "fakerphp/faker": "^1.9.1",
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^6.1",
         "phpunit/phpunit": "^9.5.10"
-
     },
     "autoload": {
         "psr-4": {

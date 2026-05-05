@@ -61,14 +61,6 @@ class Property extends Model
     }
     //End HuyTBQ
 
-    //HuyTBQ: Add host_id for propertys table
-    public function host()
-    {
-        return $this->hasOne(CrmHost::class, 'id', 'host_id')->select('id', 'gender', 'name', 'contact', 'age', 'company', 'about');
-    }
-
-    //End HuyTBQ
-
     //HuyTBQ: Add function for customer
     public function agent()
     {
@@ -372,45 +364,10 @@ class Property extends Model
                     ->withPivot('value')
                     ->orderBy('parameters.order');
     }
-    public function assignfacilities()
-    {
-        return $this->hasMany(AssignedOutdoorFacilities::class);
-    }
-
-    public function favourite()
-    {
-        return $this->hasMany(Favourite::class);
-    }
-    public function interested_users()
-    {
-        return $this->hasMany(InterestedUser::class);
-    }
-    // public function assign_parameter()
-    // {
-    //     return $this->hasMany(AssignParameters::class);
-    // }
-    public function advertisement()
-    {
-        return $this->hasMany(Advertisement::class);
-    }
 
     public function getGalleryAttribute()
     {
         $data = PropertyImages::select('id', 'image')->where('propertys_id', $this->id)->get();
-
-
-        foreach ($data as $item) {
-            if ($item['image'] != '') {
-                $item['image'] = $item['image'];
-                $item['image_url'] = ($item['image'] != '') ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_GALLERY_IMG_PATH') . $this->id . "/" . $item['image'] : '';
-            }
-        }
-        return $data;
-    }
-
-    public function getLegalImagesAttribute()
-    {
-        $data = PropertyLegalImage::select('id', 'image')->where('propertys_id', $this->id)->get();
 
 
         foreach ($data as $item) {
