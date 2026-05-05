@@ -89,7 +89,7 @@ foreach (['config:cache', 'route:cache', 'view:cache'] as $cmd) {
 // ── Response ──────────────────────────────────────────────────────────────────
 $failed = array_filter($steps, fn($s) => $s['code'] !== 0);
 $passed = count($steps) - count($failed);
-$total  = count($steps);
+$total = count($steps);
 
 if (empty($failed)) {
     if ($isBrowser) {
@@ -109,7 +109,7 @@ if (empty($failed)) {
 // ── HTML Render Functions ─────────────────────────────────────────────────────
 function renderErrorPage(string $title, string $message): string
 {
-    $title   = htmlspecialchars($title, ENT_QUOTES);
+    $title = htmlspecialchars($title, ENT_QUOTES);
     $message = htmlspecialchars($message, ENT_QUOTES);
     return <<<HTML
     <!DOCTYPE html>
@@ -172,12 +172,12 @@ function renderStepsHtml(array $steps): string
 {
     $html = '';
     foreach ($steps as $step) {
-        $code       = $step['code'];
-        $cmd        = htmlspecialchars($step['cmd'], ENT_QUOTES);
-        $output     = htmlspecialchars($step['output'], ENT_QUOTES);
-        $isFailed   = $code !== 0;
-        $icon       = $isFailed ? '❌' : '✅';
-        $stepClass  = $isFailed ? ' failed' : '';
+        $code = $step['code'];
+        $cmd = htmlspecialchars($step['cmd'], ENT_QUOTES);
+        $output = htmlspecialchars($step['output'], ENT_QUOTES);
+        $isFailed = $code !== 0;
+        $icon = $isFailed ? '❌' : '✅';
+        $stepClass = $isFailed ? ' failed' : '';
 
         $html .= <<<HTML
         <div class="step{$stepClass}">
@@ -289,10 +289,10 @@ function baseStyles(): string
 
 function renderSuccessPage(array $steps): string
 {
-    $now       = date('Y-m-d H:i:s');
-    $total     = count($steps);
+    $now = date('Y-m-d H:i:s');
+    $total = count($steps);
     $stepsHtml = renderStepsHtml($steps);
-    $styles    = baseStyles();
+    $styles = baseStyles();
 
     return <<<HTML
     <!DOCTYPE html>
@@ -330,12 +330,12 @@ function renderSuccessPage(array $steps): string
 
 function renderFailurePage(array $steps, array $failed): string
 {
-    $now         = date('Y-m-d H:i:s');
+    $now = date('Y-m-d H:i:s');
     $failedCount = count($failed);
-    $totalCount  = count($steps);
+    $totalCount = count($steps);
     $passedCount = $totalCount - $failedCount;
-    $stepsHtml   = renderStepsHtml($steps);
-    $styles      = baseStyles();
+    $stepsHtml = renderStepsHtml($steps);
+    $styles = baseStyles();
 
     return <<<HTML
     <!DOCTYPE html>
@@ -381,7 +381,7 @@ function renderFailurePage(array $steps, array $failed): string
             <div class="section-title">STEPS ($passedCount/$totalCount PASSED)</div>
             <div class="steps">$stepsHtml</div>
 
-            <div class="footer">⚠️ One or more deployment steps failed. Check the output above for details.</div>
+            <div class="footer"> One or more deployment steps failed. Check the output above for details.</div>
         </div>
     </body>
     </html>
