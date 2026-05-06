@@ -43,16 +43,80 @@ if (empty($SECRET)) {
         foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
             if (str_starts_with(trim($line), '#'))
                 continue;
-            if (str_starts_with($line, 'WEBHOOK_SECRET=')) {
-                $SECRET = trim(substr($line, strlen('WEBHOOK_SECRET=')), " \t\"'");
-                break;
+            if (preg_match('/^\s*WEBHOOK_SECRET\s*=\s*(.*)\s*$/', $line, $m)) {
+                $SECRET = trim($m[1], " \t\"'");
+                if ($SECRET !== '') {
+                    break;
+                }
             }
         }
     }
 }
 
-$PHP = '/usr/local/bin/php';
-$GIT = '/usr/bin/git';
+function resolveBinary(string $name, string $envKey, array $candidatePaths): ?string
+{
+    $env = getenv($envKey) ?: '';
+    if ($env !== '' && is_executable($env)) {
+        return $env;
+    }
+
+    $out = [];
+    $code = 0;
+    exec('command -v ' . escapeshellarg($name) . ' 2>/dev/null', $out, $code);
+    if ($code === 0 && !empty($out[0])) {
+        $path = trim($out[0]);
+        if ($path !== '' && is_executable($path)) {
+            return $path;
+        }
+    }
+
+    foreach ($candidatePaths as $p) {
+        if ($p !== '' && is_executable($p)) {
+            return $p;
+        }
+    }
+
+    return null;
+}
+
+$PHP_BIN = resolveBinary('php', 'DEPLOY_PHP_BIN', [
+    '/usr/local/bin/php',
+    '/usr/bin/php',
+    '/bin/php',
+    '/usr/local/bin/ea-php74',
+    '/usr/local/bin/ea-php80',
+    '/usr/local/bin/ea-php81',
+    '/usr/local/bin/ea-php82',
+    '/usr/local/bin/ea-php83',
+]);
+$GIT_BIN = resolveBinary('git', 'DEPLOY_GIT_BIN', [
+    '/usr/bin/git',
+    '/usr/local/bin/git',
+]);
+$COMPOSER_BIN = resolveBinary('composer', 'DEPLOY_COMPOSER_BIN', [
+    '/usr/local/bin/composer',
+    '/usr/bin/composer',
+    '/opt/cpanel/composer/bin/composer',
+]);
+$COMPOSER_PHP_SCRIPT = null;
+if ($COMPOSER_BIN === null) {
+    foreach (['/opt/cpanel/composer/bin/composer', '/usr/local/bin/composer', '/usr/bin/composer'] as $p) {
+        if (is_file($p) && is_readable($p)) {
+            $COMPOSER_PHP_SCRIPT = $p;
+            break;
+        }
+    }
+}
+
+if ($PHP_BIN === null) {
+    http_response_code(500);
+    $msg = 'PHP binary not found on server (set DEPLOY_PHP_BIN to an executable path)';
+    echo $isBrowser ? renderErrorPage('Configuration Error', $msg) : json_encode(['status' => 0, 'error' => $msg]);
+    exit;
+}
+
+$PHP = escapeshellarg($PHP_BIN);
+$GIT = $GIT_BIN ? escapeshellarg($GIT_BIN) : 'git';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 $token = $_GET['token'] ?? $_SERVER['HTTP_X_WEBHOOK_TOKEN'] ?? '';
@@ -87,7 +151,20 @@ $steps = [];
 $steps[] = run("$GIT pull origin main", $APP_ROOT);
 
 // 2. Install/update PHP dependencies if composer.lock changed
-$steps[] = run('composer install --no-interaction --prefer-dist --optimize-autoloader', $APP_ROOT);
+$composerArgs = 'install --no-interaction --prefer-dist --optimize-autoloader';
+if ($COMPOSER_BIN) {
+    $steps[] = run(escapeshellarg($COMPOSER_BIN) . ' ' . $composerArgs, $APP_ROOT);
+} elseif ($COMPOSER_PHP_SCRIPT) {
+    $steps[] = run("$PHP " . escapeshellarg($COMPOSER_PHP_SCRIPT) . ' ' . $composerArgs, $APP_ROOT);
+} elseif (file_exists($APP_ROOT . '/composer.phar')) {
+    $steps[] = run("$PHP " . escapeshellarg($APP_ROOT . '/composer.phar') . ' ' . $composerArgs, $APP_ROOT);
+} else {
+    $steps[] = [
+        'cmd' => 'composer ' . $composerArgs,
+        'code' => 127,
+        'output' => 'composer not found. Install composer on server, or set DEPLOY_COMPOSER_BIN to composer path, or place composer.phar in app root.',
+    ];
+}
 
 // 3. Run database migrations
 $steps[] = run("$PHP artisan migrate --force", $APP_ROOT);
