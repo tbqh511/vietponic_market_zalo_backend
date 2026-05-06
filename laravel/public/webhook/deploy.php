@@ -397,7 +397,7 @@ function renderFailurePage(array $steps, array $failed): string
             <div class="section-title">STEPS ($passedCount/$totalCount PASSED)</div>
             <div class="steps">$stepsHtml</div>
 
-            <div class="footer"> One or more deployment steps failed. Check the output above for details.</div>
+            <div class="footer">One or more deployment steps failed. Check the output above for details.</div>
         </div>
     </body>
     </html>
