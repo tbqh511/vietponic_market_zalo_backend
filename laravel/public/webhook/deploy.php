@@ -16,8 +16,24 @@ if (!$isBrowser) {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-// deploy.php is at public/webhook/deploy.php → up 2 levels = Laravel root
-$APP_ROOT = dirname(dirname(__DIR__));
+// Resolve Laravel root regardless of where deploy.php lives (laravel/public/webhook/ or public/webhook/)
+// Look for artisan file walking up from this file's directory
+$_dir = __DIR__;
+$APP_ROOT = null;
+for ($i = 0; $i < 5; $i++) {
+    $_dir = dirname($_dir);
+    if (file_exists($_dir . '/artisan') && file_exists($_dir . '/composer.json')) {
+        $APP_ROOT = $_dir;
+        break;
+    }
+}
+if ($APP_ROOT === null) {
+    http_response_code(500);
+    $isBrowser = isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'text/html');
+    $msg = 'Could not locate Laravel root (artisan not found)';
+    echo $isBrowser ? "<h1>Deploy Error</h1><p>$msg</p>" : json_encode(['status' => 0, 'error' => $msg]);
+    exit;
+}
 
 // Read WEBHOOK_SECRET: try server env first, then fall back to Laravel .env file
 $SECRET = getenv('WEBHOOK_SECRET') ?: '';
