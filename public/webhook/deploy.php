@@ -150,23 +150,7 @@ $steps = [];
 // 1. Pull latest code
 $steps[] = run("$GIT pull origin main", $APP_ROOT);
 
-// 2. Install/update PHP dependencies if composer.lock changed
-$composerArgs = 'install --no-interaction --prefer-dist --optimize-autoloader';
-if ($COMPOSER_BIN) {
-    $steps[] = run(escapeshellarg($COMPOSER_BIN) . ' ' . $composerArgs, $APP_ROOT);
-} elseif ($COMPOSER_PHP_SCRIPT) {
-    $steps[] = run("$PHP " . escapeshellarg($COMPOSER_PHP_SCRIPT) . ' ' . $composerArgs, $APP_ROOT);
-} elseif (file_exists($APP_ROOT . '/composer.phar')) {
-    $steps[] = run("$PHP " . escapeshellarg($APP_ROOT . '/composer.phar') . ' ' . $composerArgs, $APP_ROOT);
-} else {
-    $steps[] = [
-        'cmd' => 'composer ' . $composerArgs,
-        'code' => 127,
-        'output' => 'composer not found. Install composer on server, or set DEPLOY_COMPOSER_BIN to composer path, or place composer.phar in app root.',
-    ];
-}
-
-// 3. Run database migrations
+// 2. Run database migrations
 $steps[] = run("$PHP artisan migrate --force", $APP_ROOT);
 
 // 4. Clear all caches
@@ -175,7 +159,7 @@ foreach (['config:clear', 'cache:clear', 'route:clear', 'view:clear'] as $cmd) {
 }
 
 // 5. Rebuild caches
-foreach (['config:cache', 'route:cache', 'view:cache'] as $cmd) {
+foreach (['view:cache'] as $cmd) {
     $steps[] = run("$PHP artisan $cmd", $APP_ROOT);
 }
 
