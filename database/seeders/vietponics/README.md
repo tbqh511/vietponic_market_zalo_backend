@@ -26,6 +26,20 @@ php artisan migrate
 php artisan db:seed --class=Database\\Seeders\\ZaloCategoryProductSeeder
 ```
 
+Nếu server đang để `APP_ENV=production`, cần bật cờ cho phép seeding (khuyến nghị bật tạm thời, chạy xong tắt lại):
+
+- Cách 1: set trong `.env`:
+
+```bash
+ALLOW_VIETPONICS_SEED=1
+```
+
+- Cách 2: set inline khi chạy lệnh (nếu shell/hosting cho phép):
+
+```bash
+ALLOW_VIETPONICS_SEED=1 php artisan db:seed --class=Database\\Seeders\\ZaloCategoryProductSeeder
+```
+
 Hoặc nếu muốn chạy toàn bộ seeding (bao gồm `languages`, `settings`):
 
 ```bash
@@ -39,4 +53,3 @@ Dữ liệu nằm ở:
 - `database/seeders/vietponics/vietponics_seed_data.md`
 
 Seeder đọc trực tiếp file này, parse/validate số lượng (10 categories, 125 products) và quan hệ `category_id` trước khi insert.
-

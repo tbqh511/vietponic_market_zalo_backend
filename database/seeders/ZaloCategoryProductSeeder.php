@@ -13,8 +13,8 @@ class ZaloCategoryProductSeeder extends Seeder
 {
     public function run(): void
     {
-        if (app()->environment('production')) {
-            throw new RuntimeException('Refuse to run ZaloCategoryProductSeeder in production.');
+        if (app()->environment('production') && !env('ALLOW_VIETPONICS_SEED')) {
+            throw new RuntimeException('Refuse to run ZaloCategoryProductSeeder in production. Set ALLOW_VIETPONICS_SEED=1 to override.');
         }
 
         if (!Schema::hasTable('zalo_categories') || !Schema::hasTable('zalo_products')) {
