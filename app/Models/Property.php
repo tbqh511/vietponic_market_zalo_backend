@@ -379,6 +379,11 @@ class Property extends Model
         return $data;
     }
 
+    public function getLegalimagesAttribute()
+    {
+        return [];
+    }
+
     public function getTitleImageAttribute($image)
     {
         return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_TITLE_IMG_PATH') . $image : '';
