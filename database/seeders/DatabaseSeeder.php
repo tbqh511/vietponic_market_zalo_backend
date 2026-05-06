@@ -111,5 +111,7 @@ class DatabaseSeeder extends Seeder
 
             ]
         );
+
+        $this->call(ZaloCategoryProductSeeder::class);
     }
 }
