@@ -14,13 +14,18 @@ Route::get('infouser', [ZaloApiController::class, 'zaloapiuser']);
 Route::post('get-location', [ZaloApiController::class, 'getLocation']);
 Route::post('notify', [ZaloApiController::class, 'notifySDK']);
 
-// ─── Zalo Mini App API – Protected ───────────────────────────────────────────
+// ─── Zalo Mini App API – Protected (Customer JWT) ────────────────────────────
 
 Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::post('prepare-order', [ZaloApiController::class, 'prepareOrder']);
     Route::get('orders', [ZaloApiController::class, 'index']);
     Route::get('orders/{id}', [ZaloApiController::class, 'show']);
     Route::post('orders', [ZaloApiController::class, 'store']);
-    Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']);
     Route::post('link', [ZaloApiController::class, 'link']);
+});
+
+// ─── Zalo Admin API – Protected (X-Admin-Secret header) ──────────────────────
+
+Route::group(['middleware' => ['zalo.admin']], function () {
+    Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']);
 });

@@ -254,9 +254,6 @@ class ZaloApiController extends Controller
     
     public function updateStatus(Request $request, $id)
     {
-        // TODO: Add admin middleware here
-        // This should be protected by admin-only middleware
-
         $request->validate([
             'status' => 'required|string|in:pending,confirmed,preparing,delivering,delivered,cancelled',
         ]);
@@ -581,8 +578,9 @@ class ZaloApiController extends Controller
             return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
         }
 
-        // Liên kết order với checkoutSdkOrderId
+        // Liên kết order với checkoutSdkOrderId và đánh dấu đang chờ xác nhận
         $order->checkout_sdk_order_id = $request->checkoutSdkOrderId;
+        $order->payment_status = 'pending';
         $order->save();
 
         // Dispatch job để check status sau 20 phút
