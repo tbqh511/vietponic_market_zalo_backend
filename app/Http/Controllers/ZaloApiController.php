@@ -281,7 +281,7 @@ class ZaloApiController extends Controller
 
         try {
             // Call Zalo Open API to get user profile
-            $response = Http::withHeaders([
+            $response = Http::timeout(10)->withHeaders([
                 'access_token' => $accessToken,
             ])->get(config('services.zalo.api_base_url') . '/v2.0/me');
 
@@ -337,6 +337,11 @@ class ZaloApiController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Không thể kết nối đến Zalo để xác thực. Vui lòng thử lại.'
+            ], 503);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => true,
