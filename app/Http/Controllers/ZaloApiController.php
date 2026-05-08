@@ -278,17 +278,26 @@ class ZaloApiController extends Controller
         ]);
 
         $accessToken = $request->access_token;
+        $secretKey = config('services.zalo.app_secret');
 
         try {
-            // Call Zalo Open API to get user profile
+            // Call Zalo Graph API to get user profile (same pattern as /get-location)
             $response = Http::timeout(10)->withHeaders([
                 'access_token' => $accessToken,
-            ])->get(config('services.zalo.api_base_url') . '/v2.0/me?fields=id,name,picture');
+                'secret_key'   => $secretKey,
+            ])->get('https://graph.zalo.me/v2.0/me?fields=id,name,picture');
+
+            \Log::info('[authenticate] Zalo API response', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
 
             if (!$response->successful()) {
                 return response()->json([
-                    'error' => true,
-                    'message' => 'Failed to get user profile from Zalo'
+                    'error'   => true,
+                    'message' => 'Failed to get user profile from Zalo',
+                    'zalo_status' => $response->status(),
+                    'zalo_body'   => $response->body(),
                 ], 400);
             }
 
@@ -296,8 +305,9 @@ class ZaloApiController extends Controller
 
             if (!isset($zaloProfile['id'])) {
                 return response()->json([
-                    'error' => true,
-                    'message' => 'Invalid Zalo profile response'
+                    'error'        => true,
+                    'message'      => 'Invalid Zalo profile response',
+                    'zalo_profile' => $zaloProfile,
                 ], 400);
             }
 
