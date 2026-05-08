@@ -21,6 +21,7 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::get('orders', [ZaloApiController::class, 'index']);
     Route::get('orders/{id}', [ZaloApiController::class, 'show']);
     Route::post('orders', [ZaloApiController::class, 'store']);
+    Route::post('create-order', [ZaloApiController::class, 'store']);
     Route::post('link', [ZaloApiController::class, 'link']);
 });
 
