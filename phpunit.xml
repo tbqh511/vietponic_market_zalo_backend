@@ -18,6 +18,7 @@
             <file>./tests/Feature/ZaloNotifyTest.php</file>
             <file>./tests/Feature/CheckPaymentStatusJobTest.php</file>
             <file>./tests/Feature/UpdateOrderStatusTest.php</file>
+            <file>./tests/Feature/OrderListTest.php</file>
         </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
@@ -42,5 +43,7 @@
         <env name="ZALO_APP_SECRET" value="test_app_secret_for_testing"/>
         <!-- Admin API secret – dùng trong ZaloAdminApiMiddleware -->
         <env name="ADMIN_API_SECRET" value="test_admin_secret_for_testing"/>
+        <!-- JWT secret – dùng để ký và xác minh Bearer tokens trong OrderListTest -->
+        <env name="JWT_SECRET" value="test_jwt_secret_for_testing_orders_list"/>
     </php>
 </phpunit>
