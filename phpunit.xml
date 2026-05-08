@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory suffix="Test.php">./tests/Feature</directory>
+        </testsuite>
+        <!-- Testsuite riêng cho toàn bộ luồng Zalo Checkout SDK -->
+        <testsuite name="Zalo">
+            <file>./tests/Unit/ZaloMacCalculationTest.php</file>
+            <file>./tests/Feature/PrepareOrderTest.php</file>
+            <file>./tests/Feature/ZaloNotifyTest.php</file>
+            <file>./tests/Feature/CheckPaymentStatusJobTest.php</file>
+            <file>./tests/Feature/UpdateOrderStatusTest.php</file>
+        </testsuite>
+    </testsuites>
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">./app</directory>
+        </include>
+    </coverage>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:MHN6bnRmY3BjbHBza252OHFqNXl5M2tqdmFiZ3k1Y28="/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- Zalo Checkout SDK secret – dùng trong calculateMac() và CheckPaymentStatus job -->
+        <env name="ZALO_CHECK_OUT_SECRET" value="test_checkout_secret_key_for_testing"/>
+        <!-- Zalo App secret – dùng để xác thực webhook notifySDK() -->
+        <env name="ZALO_APP_SECRET" value="test_app_secret_for_testing"/>
+        <!-- Admin API secret – dùng trong ZaloAdminApiMiddleware -->
+        <env name="ADMIN_API_SECRET" value="test_admin_secret_for_testing"/>
+    </php>
+</phpunit>

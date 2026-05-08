@@ -58,6 +58,21 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "test": [
+            "@php artisan test --env=testing"
+        ],
+        "test:unit": [
+            "@php artisan test --env=testing --testsuite=Unit"
+        ],
+        "test:feature": [
+            "@php artisan test --env=testing --testsuite=Feature"
+        ],
+        "test:zalo": [
+            "@php artisan test --env=testing --testsuite=Zalo"
+        ],
+        "test:coverage": [
+            "@php artisan test --env=testing --coverage --min=80"
         ]
     },
     "extra": {
