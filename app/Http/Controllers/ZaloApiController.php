@@ -281,9 +281,9 @@ class ZaloApiController extends Controller
 
         try {
             // Call Zalo Open API to get user profile
-            $response = Http::timeout(30)->withHeaders([
+            $response = Http::timeout(10)->withHeaders([
                 'access_token' => $accessToken,
-            ])->get(config('services.zalo.api_base_url') . '/v2.0/me');
+            ])->get(config('services.zalo.api_base_url') . '/v2.0/me?fields=id,name,picture');
 
             if (!$response->successful()) {
                 return response()->json([
