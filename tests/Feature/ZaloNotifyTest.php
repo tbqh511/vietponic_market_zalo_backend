@@ -199,6 +199,33 @@ class ZaloNotifyTest extends ZaloTestCase
     }
 
     /**
+     * Method ZALOPAY_SANDBOX (Ví ZaloPay - Sandbox) → returnCode=1 và cập nhật payment_method.
+     * Channel này được Zalo Mini App cấu hình ở Console (Merchant App ID 2553) và
+     * đi qua cùng webhook /notify như COD/BANK, không cần luồng xử lý riêng.
+     */
+    public function test_zalopay_sandbox_method_is_accepted_and_updates_order(): void
+    {
+        $orderId = $this->createTestOrder();
+
+        $response = $this->postJson('/api/notify', [
+            'data' => [
+                'appId'   => self::ZALO_APP_ID,
+                'orderId' => self::SDK_ORDER_ID,
+                'method'  => 'ZALOPAY_SANDBOX',
+            ],
+            'mac' => $this->computeValidMac(method: 'ZALOPAY_SANDBOX'),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['returnCode' => 1, 'returnMessage' => 'Success']);
+
+        $this->assertDatabaseHas('zalo_orders', [
+            'id'             => $orderId,
+            'payment_method' => 'ZALOPAY_SANDBOX',
+        ]);
+    }
+
+    /**
      * Method không hợp lệ (không trong danh sách whitelist) → returnCode=0.
      * Ngăn giao dịch với phương thức thanh toán không được hỗ trợ.
      */
