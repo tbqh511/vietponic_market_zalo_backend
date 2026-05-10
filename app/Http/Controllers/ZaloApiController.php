@@ -502,6 +502,7 @@ class ZaloApiController extends Controller
     {
         try {
             $body = $request->all();
+            Log::info('Zalo notifySDK raw payload', ['body' => $body]);
             $data = $body['data'] ?? null;
             $mac = $body['mac'] ?? null;
 
@@ -593,6 +594,12 @@ class ZaloApiController extends Controller
         if (!$order) {
             return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
         }
+
+        Log::info('Zalo link payload', [
+            'orderId' => $request->orderId,
+            'checkoutSdkOrderId' => $request->checkoutSdkOrderId,
+            'miniAppId' => $request->miniAppId,
+        ]);
 
         // Liên kết order với checkoutSdkOrderId và đánh dấu đang chờ xác nhận
         $order->checkout_sdk_order_id = $request->checkoutSdkOrderId;
