@@ -559,11 +559,12 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            // Update payment method
-            $order->update(['payment_method' => $method]);
-
-            // Optionally update status if needed
-            // $order->update(['status' => 'confirmed']); // Uncomment if needed
+            // Webhook /notify chỉ được Zalo gọi khi giao dịch xác nhận thành công,
+            // nên đây là nguồn truth chính để cập nhật payment_status.
+            $order->update([
+                'payment_method' => $method,
+                'payment_status' => 'success',
+            ]);
 
             return response()->json([
                 'returnCode' => 1,
@@ -598,9 +599,10 @@ class ZaloApiController extends Controller
         $order->payment_status = 'pending';
         $order->save();
 
-        // Dispatch job để check status sau 20 phút
+        // Safety net: poll Zalo nhanh phòng trường hợp webhook /notify không tới.
+        // Job tự reschedule (30s → 2min → 10min) nếu vẫn pending.
         \App\Jobs\CheckPaymentStatus::dispatch($order->id, $request->checkoutSdkOrderId, $request->miniAppId)
-            ->delay(now()->addMinutes(20));
+            ->delay(now()->addSeconds(30));
 
         return response()->json(['message' => 'Đã liên kết đơn hàng thành công!']);
     }

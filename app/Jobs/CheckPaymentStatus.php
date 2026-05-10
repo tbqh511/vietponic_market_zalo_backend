@@ -17,12 +17,14 @@ class CheckPaymentStatus implements ShouldQueue
     protected $orderId;
     protected $checkoutSdkOrderId;
     protected $miniAppId;
+    protected $attempt;
 
-    public function __construct($orderId, $checkoutSdkOrderId, $miniAppId)
+    public function __construct($orderId, $checkoutSdkOrderId, $miniAppId, $attempt = 0)
     {
         $this->orderId = $orderId;
         $this->checkoutSdkOrderId = $checkoutSdkOrderId;
         $this->miniAppId = $miniAppId;
+        $this->attempt = $attempt;
     }
 
     public function handle()
@@ -50,6 +52,14 @@ class CheckPaymentStatus implements ShouldQueue
                 $order->payment_status = 'failed';
             }
             $order->save();
+        }
+
+        $order->refresh();
+        if ($order->payment_status === 'pending' && $this->attempt < 2) {
+            // Backoff: 30s (lần đầu) → 2min → 10min, sau đó dừng.
+            $nextDelay = $this->attempt === 0 ? 120 : 600;
+            self::dispatch($this->orderId, $this->checkoutSdkOrderId, $this->miniAppId, $this->attempt + 1)
+                ->delay(now()->addSeconds($nextDelay));
         }
     }
 }
