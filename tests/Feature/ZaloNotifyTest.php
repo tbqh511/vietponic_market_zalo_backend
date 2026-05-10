@@ -12,16 +12,17 @@ use Tests\ZaloTestCase;
  * Server phải xác thực MAC trước khi cập nhật trạng thái đơn hàng,
  * tránh attacker giả mạo callback để đánh dấu đơn hàng là đã thanh toán.
  *
- * Cấu trúc request:
+ * Cấu trúc request thật từ Zalo:
  *   POST /api/notify
- *   { "data": { "appId": "...", "orderId": "...", "method": "COD" }, "mac": "..." }
+ *   { "data": { ... full payload ... }, "overallMac": "...", "mac": "..." }
  *
- * MAC được Zalo tính: hash_hmac('sha256', "appId=X&orderId=Y&method=Z", ZALO_APP_SECRET)
+ * MAC được Zalo tính: hash_hmac('sha256', ksort(data) → "k1=v1&k2=v2&...", ZALO_CHECK_OUT_SECRET)
+ * Verified bằng cách compute offline với payload thật từ MoMo Sandbox.
  */
 class ZaloNotifyTest extends ZaloTestCase
 {
 
-    private const APP_SECRET      = 'test_app_secret_for_testing';
+    private const CHECKOUT_SECRET = 'test_checkout_secret_key_for_testing';
     private const ZALO_APP_ID     = 'test_mini_app_id_12345';
     private const SDK_ORDER_ID    = 'zalo_sdk_order_abc123';
     private const PAYMENT_METHOD  = 'COD';
@@ -44,16 +45,26 @@ class ZaloNotifyTest extends ZaloTestCase
     }
 
     /**
-     * Tính MAC đúng theo thuật toán Zalo để dùng trong test case hợp lệ.
-     * Format: hash_hmac('sha256', "appId=X&orderId=Y&method=Z", ZALO_APP_SECRET)
+     * Tính MAC đúng theo thuật toán Zalo: ksort(data) → "k1=v1&k2=v2&..." → HMAC-SHA256.
      */
-    private function computeValidMac(
-        string $appId    = self::ZALO_APP_ID,
-        string $orderId  = self::SDK_ORDER_ID,
-        string $method   = self::PAYMENT_METHOD
-    ): string {
-        $raw = "appId={$appId}&orderId={$orderId}&method={$method}";
-        return hash_hmac('sha256', $raw, self::APP_SECRET);
+    private function computeMac(array $data): string
+    {
+        ksort($data);
+        $parts = [];
+        foreach ($data as $k => $v) {
+            $parts[] = "{$k}={$v}";
+        }
+        return hash_hmac('sha256', implode('&', $parts), self::CHECKOUT_SECRET);
+    }
+
+    /** Helper trả data array đầy đủ giống payload thật từ Zalo. */
+    private function makeData(array $overrides = []): array
+    {
+        return array_merge([
+            'appId'   => self::ZALO_APP_ID,
+            'orderId' => self::SDK_ORDER_ID,
+            'method'  => self::PAYMENT_METHOD,
+        ], $overrides);
     }
 
     // ─── Happy path ───────────────────────────────────────────────────────────
@@ -65,23 +76,77 @@ class ZaloNotifyTest extends ZaloTestCase
     public function test_valid_mac_returns_return_code_1_and_updates_order(): void
     {
         $orderId = $this->createTestOrder();
+        $data = $this->makeData();
 
         $response = $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => self::PAYMENT_METHOD,
-            ],
-            'mac' => $this->computeValidMac(),
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
         ]);
 
         $response->assertStatus(200)
             ->assertJson(['returnCode' => 1, 'returnMessage' => 'Success']);
 
-        // Đơn hàng phải được cập nhật payment_method
         $this->assertDatabaseHas('zalo_orders', [
             'id'             => $orderId,
             'payment_method' => self::PAYMENT_METHOD,
+            'payment_status' => 'success',
+        ]);
+    }
+
+    /**
+     * Payload thật của Zalo có thêm fields (amount, resultCode, transId...).
+     * MAC vẫn phải được verify đúng vì algorithm tính trên TOÀN BỘ data sau khi ksort.
+     */
+    public function test_valid_mac_with_full_payload_updates_order(): void
+    {
+        $orderId = $this->createTestOrder();
+        $data = $this->makeData([
+            'amount'         => 15000,
+            'method'         => 'MOMO_SANDBOX',
+            'transId'        => '260511_0001160186878',
+            'extradata'      => '%7B%22myOrderId%22%3A1%7D',
+            'resultCode'     => 1,
+            'message'        => 'Thành công.',
+            'paymentChannel' => 'MOMO_SANDBOX',
+        ]);
+
+        $response = $this->postJson('/api/notify', [
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['returnCode' => 1]);
+
+        $this->assertDatabaseHas('zalo_orders', [
+            'id'             => $orderId,
+            'payment_method' => 'MOMO_SANDBOX',
+            'payment_status' => 'success',
+        ]);
+    }
+
+    /**
+     * resultCode = -1 → giao dịch thất bại → payment_status = 'failed'.
+     */
+    public function test_result_code_minus_1_marks_payment_failed(): void
+    {
+        $orderId = $this->createTestOrder();
+        $data = $this->makeData([
+            'method'     => 'MOMO_SANDBOX',
+            'resultCode' => -1,
+        ]);
+
+        $response = $this->postJson('/api/notify', [
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['returnCode' => 1]);
+
+        $this->assertDatabaseHas('zalo_orders', [
+            'id'             => $orderId,
+            'payment_status' => 'failed',
         ]);
     }
 
@@ -97,21 +162,17 @@ class ZaloNotifyTest extends ZaloTestCase
         $originalMethod = DB::table('zalo_orders')->where('id', $orderId)->value('payment_method');
 
         $response = $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => self::PAYMENT_METHOD,
-            ],
-            'mac' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', // MAC giả
+            'data'       => $this->makeData(),
+            'overallMac' => str_repeat('a', 64),
         ]);
 
         $response->assertStatus(200)
             ->assertJson(['returnCode' => 0]);
 
-        // Đơn hàng KHÔNG được thay đổi
         $this->assertDatabaseHas('zalo_orders', [
             'id'             => $orderId,
-            'payment_method' => $originalMethod, // vẫn null
+            'payment_method' => $originalMethod,
+            'payment_status' => 'pending',
         ]);
     }
 
@@ -123,20 +184,11 @@ class ZaloNotifyTest extends ZaloTestCase
     {
         $this->createTestOrder();
 
-        // MAC đúng cho method=BANK nhưng payload gửi method=COD
-        $macForBank = $this->computeValidMac(
-            appId:   self::ZALO_APP_ID,
-            orderId: self::SDK_ORDER_ID,
-            method:  'BANK'
-        );
+        $macForBank = $this->computeMac($this->makeData(['method' => 'BANK']));
 
         $response = $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => 'COD', // khác với method dùng để tính MAC
-            ],
-            'mac' => $macForBank,
+            'data'       => $this->makeData(['method' => 'COD']),
+            'overallMac' => $macForBank,
         ]);
 
         $response->assertStatus(200)
@@ -151,23 +203,19 @@ class ZaloNotifyTest extends ZaloTestCase
     public function test_missing_data_field_returns_return_code_0(): void
     {
         $this->postJson('/api/notify', [
-            'mac' => $this->computeValidMac(),
+            'overallMac' => $this->computeMac($this->makeData()),
         ])
             ->assertStatus(200)
             ->assertJson(['returnCode' => 0]);
     }
 
     /**
-     * Request thiếu field `mac` → returnCode=0.
+     * Request thiếu field `overallMac` (và không có fallback `mac`) → returnCode=0.
      */
     public function test_missing_mac_field_returns_return_code_0(): void
     {
         $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => self::PAYMENT_METHOD,
-            ],
+            'data' => $this->makeData(),
         ])
             ->assertStatus(200)
             ->assertJson(['returnCode' => 0]);
@@ -179,20 +227,11 @@ class ZaloNotifyTest extends ZaloTestCase
      */
     public function test_nonexistent_order_id_returns_return_code_0(): void
     {
-        $nonExistentSdkId = 'order_that_does_not_exist_xyz';
-        $mac = hash_hmac(
-            'sha256',
-            "appId=" . self::ZALO_APP_ID . "&orderId={$nonExistentSdkId}&method=" . self::PAYMENT_METHOD,
-            self::APP_SECRET
-        );
+        $data = $this->makeData(['orderId' => 'order_that_does_not_exist_xyz']);
 
         $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => $nonExistentSdkId,
-                'method'  => self::PAYMENT_METHOD,
-            ],
-            'mac' => $mac,
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
         ])
             ->assertStatus(200)
             ->assertJson(['returnCode' => 0, 'returnMessage' => 'Order not found']);
@@ -206,14 +245,11 @@ class ZaloNotifyTest extends ZaloTestCase
     public function test_zalopay_sandbox_method_is_accepted_and_updates_order(): void
     {
         $orderId = $this->createTestOrder();
+        $data = $this->makeData(['method' => 'ZALOPAY_SANDBOX']);
 
         $response = $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => 'ZALOPAY_SANDBOX',
-            ],
-            'mac' => $this->computeValidMac(method: 'ZALOPAY_SANDBOX'),
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
         ]);
 
         $response->assertStatus(200)
@@ -233,14 +269,11 @@ class ZaloNotifyTest extends ZaloTestCase
     public function test_momo_sandbox_method_is_accepted_and_updates_order(): void
     {
         $orderId = $this->createTestOrder();
+        $data = $this->makeData(['method' => 'MOMO_SANDBOX']);
 
         $response = $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => 'MOMO_SANDBOX',
-            ],
-            'mac' => $this->computeValidMac(method: 'MOMO_SANDBOX'),
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
         ]);
 
         $response->assertStatus(200)
@@ -254,60 +287,46 @@ class ZaloNotifyTest extends ZaloTestCase
 
     /**
      * Method không hợp lệ (không trong danh sách whitelist) → returnCode=0.
-     * Ngăn giao dịch với phương thức thanh toán không được hỗ trợ.
      */
     public function test_invalid_payment_method_returns_return_code_0(): void
     {
         $this->createTestOrder();
-
-        $invalidMethod = 'PAYPAL'; // không có trong whitelist
-        $mac = hash_hmac(
-            'sha256',
-            "appId=" . self::ZALO_APP_ID . "&orderId=" . self::SDK_ORDER_ID . "&method={$invalidMethod}",
-            self::APP_SECRET
-        );
+        $data = $this->makeData(['method' => 'PAYPAL']);
 
         $this->postJson('/api/notify', [
-            'data' => [
-                'appId'   => self::ZALO_APP_ID,
-                'orderId' => self::SDK_ORDER_ID,
-                'method'  => $invalidMethod,
-            ],
-            'mac' => $mac,
+            'data'       => $data,
+            'overallMac' => $this->computeMac($data),
         ])
             ->assertStatus(200)
             ->assertJson(['returnCode' => 0]);
     }
 
     /**
-     * Khi ZALO_APP_SECRET chưa cấu hình → returnCode=0 (không crash server).
+     * Khi ZALO_CHECK_OUT_SECRET chưa cấu hình → returnCode=0 (không crash server).
      * Server cấu hình sai không được cập nhật đơn hàng một cách bừa bãi.
      */
-    public function test_missing_app_secret_env_returns_return_code_0(): void
+    public function test_missing_checkout_secret_env_returns_return_code_0(): void
     {
         $this->createTestOrder();
 
-        $original = env('ZALO_APP_SECRET');
-        putenv('ZALO_APP_SECRET=');
-        $_ENV['ZALO_APP_SECRET']    = '';
-        $_SERVER['ZALO_APP_SECRET'] = '';
+        $original = env('ZALO_CHECK_OUT_SECRET');
+        putenv('ZALO_CHECK_OUT_SECRET=');
+        $_ENV['ZALO_CHECK_OUT_SECRET']    = '';
+        $_SERVER['ZALO_CHECK_OUT_SECRET'] = '';
 
         try {
+            $data = $this->makeData();
             $response = $this->postJson('/api/notify', [
-                'data' => [
-                    'appId'   => self::ZALO_APP_ID,
-                    'orderId' => self::SDK_ORDER_ID,
-                    'method'  => self::PAYMENT_METHOD,
-                ],
-                'mac' => $this->computeValidMac(),
+                'data'       => $data,
+                'overallMac' => $this->computeMac($data),
             ]);
 
             $response->assertStatus(200)
                 ->assertJson(['returnCode' => 0]);
         } finally {
-            putenv("ZALO_APP_SECRET={$original}");
-            $_ENV['ZALO_APP_SECRET']    = $original;
-            $_SERVER['ZALO_APP_SECRET'] = $original;
+            putenv("ZALO_CHECK_OUT_SECRET={$original}");
+            $_ENV['ZALO_CHECK_OUT_SECRET']    = $original;
+            $_SERVER['ZALO_CHECK_OUT_SECRET'] = $original;
         }
     }
 }

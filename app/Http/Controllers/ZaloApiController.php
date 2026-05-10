@@ -504,9 +504,9 @@ class ZaloApiController extends Controller
             $body = $request->all();
             Log::info('Zalo notifySDK raw payload', ['body' => $body]);
             $data = $body['data'] ?? null;
-            $mac = $body['mac'] ?? null;
+            $overallMac = $body['overallMac'] ?? ($body['mac'] ?? null);
 
-            if (!$data || !$mac) {
+            if (!$data || !$overallMac) {
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Missing data or mac',
@@ -532,19 +532,33 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            $secretKey = env('ZALO_APP_SECRET');
+            // Webhook MAC dùng ZALO_CHECK_OUT_SECRET (giống prepare-order),
+            // không phải ZALO_APP_SECRET — verified bằng cách compute offline với payload thật.
+            $secretKey = env('ZALO_CHECK_OUT_SECRET');
             if (!$secretKey) {
-                Log::error('Missing ZALO_APP_SECRET in env');
+                Log::error('Missing ZALO_CHECK_OUT_SECRET in env');
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Server configuration error',
                 ]);
             }
 
-            $raw = "appId={$appId}&orderId={$orderId}&method={$method}";
+            // overallMac = HMAC-SHA256( ksort(data) → "k1=v1&k2=v2&...", secret )
+            $sortedData = $data;
+            ksort($sortedData);
+            $rawParts = [];
+            foreach ($sortedData as $k => $v) {
+                $rawParts[] = "{$k}={$v}";
+            }
+            $raw = implode('&', $rawParts);
             $expectedMac = hash_hmac('sha256', $raw, $secretKey);
 
-            if (!hash_equals($mac, $expectedMac)) {
+            if (!hash_equals($overallMac, $expectedMac)) {
+                Log::warning('notifySDK: Invalid MAC', [
+                    'orderId' => $orderId,
+                    'expected' => $expectedMac,
+                    'received' => $overallMac,
+                ]);
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Invalid MAC',
@@ -560,11 +574,13 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            // Webhook /notify chỉ được Zalo gọi khi giao dịch xác nhận thành công,
-            // nên đây là nguồn truth chính để cập nhật payment_status.
+            // resultCode=1 thành công, -1 thất bại; nếu thiếu coi như success vì Zalo chỉ gọi /notify khi xong.
+            $resultCode = $data['resultCode'] ?? 1;
+            $paymentStatus = ((int) $resultCode === 1) ? 'success' : 'failed';
+
             $order->update([
                 'payment_method' => $method,
-                'payment_status' => 'success',
+                'payment_status' => $paymentStatus,
             ]);
 
             return response()->json([
