@@ -524,7 +524,7 @@ class ZaloApiController extends Controller
             }
 
             // Validate method
-            if (!in_array($method, ['COD','COD_SANDBOX', 'BANK','BANK_SANDBOX', 'ZALOPAY','ZALOPAY_SANDBOX'])) {
+            if (!in_array($method, ['COD','COD_SANDBOX', 'BANK','BANK_SANDBOX', 'ZALOPAY','ZALOPAY_SANDBOX', 'MOMO','MOMO_SANDBOX'])) {
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Invalid method',
