@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CheckPaymentStatus implements ShouldQueue
 {
@@ -45,13 +46,30 @@ class CheckPaymentStatus implements ShouldQueue
         ]);
 
         if ($response->successful()) {
-            $data = $response->json()['data'];
-            if ($data['returnCode'] == 1) {
+            $body = $response->json() ?? [];
+            // Zalo trả { returnCode, returnMessage, data: {...} } — returnCode ở top-level.
+            // Fallback đọc trong data[] để phòng trường hợp Zalo đổi shape.
+            $returnCode = $body['returnCode'] ?? ($body['data']['returnCode'] ?? null);
+
+            if ($returnCode == 1) {
                 $order->payment_status = 'success';
-            } elseif ($data['returnCode'] == -1) {
+                $order->save();
+            } elseif ($returnCode == -1) {
                 $order->payment_status = 'failed';
+                $order->save();
+            } else {
+                Log::warning('CheckPaymentStatus: returnCode không xác định', [
+                    'orderId' => $this->orderId,
+                    'checkoutSdkOrderId' => $this->checkoutSdkOrderId,
+                    'response' => $body,
+                ]);
             }
-            $order->save();
+        } else {
+            Log::warning('CheckPaymentStatus: HTTP get-status thất bại', [
+                'orderId' => $this->orderId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
         }
 
         $order->refresh();
