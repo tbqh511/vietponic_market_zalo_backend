@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vietponics – Rau Sạch Thủy Canh Đà Lạt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary:       #90c52d;
+    --primary-dark:  #6a9320;
+    --primary-deeper:#4a6614;
+    --primary-light: #d8edaa;
+    --primary-pale:  #f0f7e0;
+    --dark:          #1e2d0a;
+    --dark2:         #2e4210;
+    --gold:          #e8a20c;
+    --gold-light:    #f5c842;
+    --cream:         #f6f9ee;
+    --cream2:        #edf5d5;
+    --white:         #ffffff;
+    --text:          #1e2d0a;
+    --text-muted:    #546038;
+    --text-light:    #89a05c;
+    --border:        #d6e8a8;
+    --border2:       #c5dc8c;
+    --shadow:        0 2px 16px rgba(90,130,20,.10);
+    --shadow-lg:     0 6px 32px rgba(90,130,20,.16);
+    --r:             6px;
+    --r-sm:          4px;
+    --r-pill:        50px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  /* ── NAVBAR ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 clamp(1rem,4vw,3rem);
+  }
+  .nav-inner {
+    max-width: 1280px; margin: auto;
+    display: flex; align-items: center; gap: 20px;
+    height: 66px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 9px;
+    text-decoration: none; flex-shrink: 0;
+  }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: var(--r-sm);
+    background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700; font-size: 18px; color: #fff;
+  }
+  .logo-text { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 22px; color: var(--dark); letter-spacing: -.3px; }
+  .logo-text span { color: var(--primary); }
+  .nav-links { display: flex; gap: 2px; margin: 0 auto; }
+  .nav-links a {
+    text-decoration: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
+    padding: 7px 14px; border-radius: var(--r-sm); transition: all .2s;
+  }
+  .nav-links a:hover { background: var(--primary-pale); color: var(--dark); }
+  .nav-links a.active { color: var(--dark); background: var(--primary-pale); font-weight: 600; }
+  .nav-search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--cream2); border: 1px solid var(--border); border-radius: var(--r-sm);
+    padding: 8px 14px; flex: 0 0 210px;
+  }
+  .nav-search input { border: none; background: transparent; outline: none; font-size: 14px; color: var(--text); width: 100%; font-family: inherit; }
+  .nav-search input::placeholder { color: var(--text-light); }
+  .search-text { font-size: 13px; color: var(--text-light); }
+  .nav-actions { display: flex; align-items: center; gap: 6px; }
+  .nav-action-btn {
+    padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
+    background: transparent; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    transition: all .2s; white-space: nowrap;
+  }
+  .nav-action-btn:hover { background: var(--primary-pale); border-color: var(--primary); color: var(--dark); }
+  .nav-action-btn.cart { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .nav-action-btn.cart:hover { background: var(--primary-dark); }
+
+  /* ── HERO ── */
+  .hero {
+    background: var(--white); overflow: hidden; position: relative;
+    min-height: 580px; display: flex; align-items: center;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 75% at 68% 50%, var(--primary-pale) 0%, transparent 70%),
+      radial-gradient(ellipse 35% 55% at 5% 85%, #fffde8 0%, transparent 60%);
+  }
+  .hero-inner {
+    max-width: 1280px; margin: auto;
+    padding: clamp(3rem,6vw,5rem) clamp(1rem,4vw,3rem);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    width: 100%; position: relative; z-index: 1;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--cream2); border: 1px solid var(--border2);
+    border-radius: var(--r-sm); padding: 5px 14px;
+    font-size: 11px; color: var(--primary-deeper); font-weight: 700;
+    letter-spacing: .8px; text-transform: uppercase; margin-bottom: 20px;
+  }
+  .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.8rem,5vw,4.2rem);
+    font-weight: 700; line-height: 1.08;
+    color: var(--dark); margin-bottom: 18px;
+  }
+  .hero h1 em { font-style: italic; color: var(--primary); }
+  .hero p { font-size: 15px; color: var(--text-muted); margin-bottom: 32px; max-width: 420px; line-height: 1.8; }
+  .hero-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--primary); color: #fff; border: none; border-radius: var(--r-sm);
+    padding: 13px 28px; font-size: 15px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all .22s;
+    box-shadow: 0 3px 12px rgba(144,197,45,.35);
+  }
+  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 5px 18px rgba(144,197,45,.4); }
+  .btn-secondary {
+    background: transparent; color: var(--dark); border: 1.5px solid var(--border2);
+    border-radius: var(--r-sm); padding: 12px 26px; font-size: 15px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all .2s;
+  }
+  .btn-secondary:hover { background: var(--primary-pale); border-color: var(--primary); }
+  .hero-stats { display: flex; gap: 32px; margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--border); }
+  .hero-stat .num { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
+  .hero-stat .lbl { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  .hero-visual { position: relative; display: flex; align-items: center; justify-content: center; }
+  .hero-img-main {
+    width: 100%; max-width: 460px; aspect-ratio: 1;
+    border-radius: var(--r); overflow: hidden;
+    background: linear-gradient(145deg, var(--primary-light) 0%, var(--primary) 60%, var(--primary-deeper) 100%);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .veg-artwork { width: 88%; margin-bottom: -4px; }
+  .float-card {
+    position: absolute; background: white; border-radius: var(--r);
+    box-shadow: var(--shadow-lg); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border);
+  }
+  .float-card-1 { bottom: 10%; left: -6%; animation: floatY 3s ease-in-out infinite; }
+  .float-card-2 { top: 12%; right: -8%; animation: floatY 3.5s ease-in-out infinite .5s; }
+  .float-card-3 { top: 50%; left: -10%; animation: floatY 4s ease-in-out infinite 1s; }
+  @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .fc-dot { width: 38px; height: 38px; border-radius: var(--r-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; }
+  .fc-title { font-weight: 600; font-size: 13px; color: var(--text); white-space: nowrap; }
+  .fc-sub { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  /* ── TRUST STRIP ── */
+  .trust-strip {
+    background: var(--dark); padding: 0 clamp(1rem,4vw,3rem);
+  }
+  .trust-inner {
+    max-width: 1280px; margin: auto;
+    display: flex; justify-content: space-around; align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .trust-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 22px 16px; flex: 1 1 180px;
+    border-right: 1px solid rgba(255,255,255,.1);
+  }
+  .trust-item:last-child { border-right: none; }
+  .trust-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; font-weight: 700;
+    color: var(--primary); line-height: 1; flex-shrink: 0;
+  }
+  .t-title { font-weight: 600; font-size: 14px; color: #fff; }
+  .t-sub { font-size: 12px; color: rgba(255,255,255,.5); }
+
+  /* ── SECTION COMMONS ── */
+  .section { padding: clamp(3rem,5vw,5rem) clamp(1rem,4vw,3rem); }
+  .section-inner { max-width: 1280px; margin: auto; }
+  .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 36px; }
+  .section-label { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.5rem); font-weight: 700; color: var(--dark); line-height: 1.12; }
+  .section-sub { font-size: 14px; color: var(--text-muted); margin-top: 6px; max-width: 380px; }
+  .see-all {
+    font-size: 13px; font-weight: 600; color: var(--dark); text-decoration: none;
+    border: 1px solid var(--border2); border-radius: var(--r-sm);
+    padding: 8px 16px; transition: all .2s; white-space: nowrap;
+  }
+  .see-all:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── PRODUCT CARDS ── */
+  .product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .prod-card {
+    background: var(--white); border-radius: var(--r); border: 1px solid var(--border);
+    overflow: hidden; transition: all .22s; cursor: pointer;
+  }
+  .prod-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  .prod-img {
+    aspect-ratio: 1 / .82; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; position: relative; overflow: hidden;
+    border-radius: 0;
+  }
+  .prod-img::after { content:''; position:absolute; inset:0; background:linear-gradient(to bottom, transparent 55%, rgba(0,0,0,.06)); pointer-events:none; }
+  .prod-tag {
+    position: absolute; top: 10px; left: 10px; z-index: 1;
+    background: var(--primary); color: #fff; font-size: 10px; font-weight: 700;
+    padding: 3px 9px; border-radius: 2px; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .prod-tag.gold { background: var(--gold); }
+  .prod-body { padding: 14px 15px 16px; }
+  .prod-category { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .prod-name { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 10px; line-height: 1.35; }
+  .prod-meta { display: flex; justify-content: space-between; align-items: center; }
+  .prod-price { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; color: var(--dark); }
+  .prod-price small { font-family: 'DM Sans',sans-serif; font-size: 11px; font-weight: 400; color: var(--text-light); }
+  .prod-origin { font-size: 11px; color: var(--text-light); }
+  .add-btn {
+    width: 100%; margin-top: 12px; padding: 9px; border-radius: var(--r-sm);
+    background: var(--primary-pale); color: var(--primary-deeper);
+    border: 1px solid var(--primary-light);
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: all .2s;
+  }
+  .add-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ── PROMO BANNER ── */
+  .promo-banner {
+    margin: 0 clamp(1rem,4vw,3rem);
+    border-radius: var(--r); overflow: hidden;
+    background: linear-gradient(115deg, var(--dark) 0%, var(--dark2) 45%, var(--primary-deeper) 100%);
+    position: relative;
+  }
+  .promo-banner::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(144,197,45,.04) 40px, rgba(144,197,45,.04) 80px);
+  }
+  .promo-inner {
+    max-width: 1280px; margin: auto;
+    padding: clamp(2.5rem,5vw,4rem) clamp(2rem,5vw,4rem);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center;
+    position: relative; z-index: 1;
+  }
+  .promo-visual {
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+    gap: 10px; height: 280px;
+  }
+  .promo-tile {
+    border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center;
+    font-size: 36px; overflow: hidden;
+  }
+  .pt1 { background: var(--primary); grid-column: span 1; grid-row: span 2; font-size: 48px; }
+  .pt2 { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); }
+  .pt3 { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); }
+  .promo-badge { display: inline-flex; background: rgba(144,197,45,.2); border: 1px solid rgba(144,197,45,.4); border-radius: 2px; padding: 4px 12px; font-size: 10px; font-weight: 700; color: var(--primary-light); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+  .promo-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem,3.5vw,3rem); font-weight: 700; color: #fff; line-height: 1.08; margin-bottom: 14px; }
+  .promo-content h2 em { color: var(--gold-light); font-style: italic; }
+  .promo-content p { color: rgba(255,255,255,.65); font-size: 14px; line-height: 1.8; margin-bottom: 24px; }
+  .promo-feats { display: flex; flex-direction: column; gap: 9px; margin-bottom: 28px; }
+  .promo-feat { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.85); font-size: 14px; }
+  .promo-feat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+  .btn-gold {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--primary); color: var(--dark); border: none;
+    border-radius: var(--r-sm); padding: 13px 26px; font-size: 14px; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all .2s;
+    box-shadow: 0 3px 14px rgba(144,197,45,.45);
+  }
+  .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(144,197,45,.55); background: var(--primary-dark); color: #fff; }
+
+  /* ── CAT FILTER ── */
+  .cat-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; }
+  .cat-pill {
+    padding: 7px 18px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--white); color: var(--text-muted);
+    cursor: pointer; transition: all .2s;
+  }
+  .cat-pill:hover, .cat-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+
+  /* ── CATEGORY TILES ── */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 220px);
+    gap: 12px;
+  }
+  .cat-tile {
+    border-radius: var(--r); overflow: hidden; position: relative; cursor: pointer;
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 20px;
+    transition: transform .22s;
+  }
+  .cat-tile:hover { transform: scale(1.02); }
+  .ct-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 56px; }
+  .ct-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,25,5,.65) 0%, transparent 60%); }
+  .ct-content { position: relative; z-index: 1; }
+  .ct-label { font-size: 17px; font-weight: 700; color: #fff; font-family: 'Cormorant Garamond', serif; }
+  .ct-count { font-size: 11px; color: rgba(255,255,255,.7); margin-bottom: 10px; }
+  .ct-btn { display: inline-block; background: rgba(255,255,255,.2); backdrop-filter:blur(4px); border-radius: 2px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #fff; letter-spacing: .5px; }
+  .ct-btn:hover { background: var(--primary); }
+  .ct1 { background: linear-gradient(135deg, #3a6b1a, #82c43a); }
+  .ct2 { background: linear-gradient(135deg, #1a4728, #2d8050); }
+  .ct3 { background: linear-gradient(135deg, #7a3a1a, #c47a32); }
+  .ct4 { background: linear-gradient(135deg, #3a4a1e, #7a8a3a); }
+  .ct5 { background: linear-gradient(135deg, #1a2a50, #3a5a90); }
+  .ct6 { background: linear-gradient(135deg, #5a2a1a, #a05030); }
+
+  /* ── STORE SECTION ── */
+  .store-section { background: var(--white); }
+  .store-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .store-visual {
+    border-radius: var(--r); overflow: hidden; position: relative;
+    height: 420px; background: linear-gradient(145deg, var(--primary-light), var(--primary), var(--primary-deeper));
+    display: flex; align-items: center; justify-content: center; font-size: 80px;
+  }
+  .store-badge {
+    position: absolute; bottom: 24px; right: 24px;
+    background: white; border-radius: var(--r-sm); padding: 14px 18px;
+    box-shadow: var(--shadow-lg); text-align: center;
+  }
+  .store-badge .sb-num { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
+  .store-badge .sb-unit { font-size: 13px; font-weight: 600; color: var(--primary); }
+  .store-badge .sb-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .eyebrow { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .store-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.8rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
+  .store-content p { color: var(--text-muted); font-size: 15px; line-height: 1.8; margin-bottom: 28px; }
+  .store-feats { display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; }
+  .store-feat { display: flex; gap: 14px; align-items: flex-start; }
+  .sf-num { width: 32px; height: 32px; border-radius: var(--r-sm); background: var(--primary-pale); border: 1px solid var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--primary-deeper); flex-shrink: 0; }
+  .sf-title { font-weight: 600; font-size: 14px; color: var(--text); }
+  .sf-desc { font-size: 13px; color: var(--text-muted); }
+
+  /* ── TESTIMONIALS ── */
+  .testi-section { background: var(--cream); }
+  .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .testi-card {
+    background: var(--white); border-radius: var(--r); border: 1px solid var(--border);
+    padding: 24px; transition: box-shadow .2s;
+  }
+  .testi-card:hover { box-shadow: var(--shadow); }
+  .stars { display: flex; gap: 2px; margin-bottom: 14px; }
+  .star { width: 13px; height: 13px; fill: var(--gold-light); }
+  .testi-text { font-size: 14px; color: var(--text-muted); line-height: 1.75; margin-bottom: 18px; font-style: italic; }
+  .testi-author { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .testi-name { font-weight: 600; font-size: 13px; color: var(--text); }
+  .testi-location { font-size: 11px; color: var(--text-light); }
+
+  /* ── APP SECTION ── */
+  .app-section { background: var(--white); }
+  .app-inner {
+    max-width: 1280px; margin: auto;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    padding: clamp(3rem,6vw,5rem) clamp(1rem,4vw,3rem);
+  }
+  .app-visual { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .app-phone {
+    background: var(--dark); border-radius: 24px; padding: 18px 14px;
+    width: 155px; min-height: 270px;
+    display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 18px 48px rgba(30,45,10,.3);
+    position: relative; overflow: hidden;
+  }
+  .app-phone::before { content:''; position:absolute; top:12px; left:50%; transform:translateX(-50%); width:44px; height:4px; background:rgba(255,255,255,.25); border-radius:2px; }
+  .app-header { margin-top:10px; background:rgba(255,255,255,.08); border-radius:var(--r-sm); padding:8px 10px; }
+  .app-header .ah-title { font-size:10px; font-weight:700; color:var(--primary); }
+  .app-header .ah-sub { font-size:9px; color:rgba(255,255,255,.4); }
+  .app-mini-card { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:7px 8px; display:flex; align-items:center; gap:7px; }
+  .amc-dot { width:26px; height:26px; border-radius:4px; flex-shrink:0; }
+  .amc-lines { flex:1; }
+  .amc-l1 { height:5px; background:rgba(255,255,255,.55); border-radius:2px; width:80%; margin-bottom:3px; }
+  .amc-l2 { height:4px; background:rgba(255,255,255,.25); border-radius:2px; width:50%; }
+  .app-btn-row { display:flex; gap:5px; margin-top:4px; }
+  .app-action { flex:1; background:var(--primary); border-radius:3px; padding:6px; text-align:center; font-size:9px; font-weight:700; color:var(--dark); }
+  .app-content .eyebrow { margin-bottom: 10px; }
+  .app-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.7rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
+  .app-content p { color: var(--text-muted); font-size: 15px; line-height: 1.8; margin-bottom: 28px; }
+  .app-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .app-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--dark); color: #fff; border-radius: var(--r-sm);
+    padding: 11px 18px; text-decoration: none; transition: all .2s; border: 1.5px solid transparent;
+  }
+  .app-btn:hover { background: var(--dark2); transform: translateY(-1px); }
+  .app-btn.zalo { background: var(--primary); color: var(--dark); }
+  .app-btn.zalo:hover { background: var(--primary-dark); color: #fff; }
+  .app-btn-text .line-s { font-size: 10px; opacity: .65; }
+  .app-btn-text .line-b { font-size: 14px; font-weight: 700; }
+  .app-platform { width: 20px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+  .ap-ios { background: #fff; color: var(--dark); }
+  .ap-android { background: #a4c639; color: #fff; }
+  .ap-zalo { background: #fff; color: #0068ff; }
+
+  /* ── FOOTER ── */
+  footer { background: var(--dark); color: rgba(255,255,255,.8); padding: clamp(2.5rem,5vw,4rem) clamp(1rem,4vw,3rem) 0; }
+  .footer-inner { max-width: 1280px; margin: auto; }
+  .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; padding-bottom: 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .footer-logo-text { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .footer-logo-text span { color: var(--primary); }
+  .footer-desc { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.8; margin-bottom: 20px; }
+  .footer-contacts { display: flex; flex-direction: column; gap: 8px; }
+  .fci { font-size: 13px; color: rgba(255,255,255,.6); }
+  .fci strong { color: rgba(255,255,255,.85); font-weight: 600; }
+  .footer-col-title { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.5); margin-bottom: 16px; }
+  .footer-links { display: flex; flex-direction: column; gap: 10px; }
+  .footer-links a { font-size: 13px; color: rgba(255,255,255,.6); text-decoration: none; transition: color .2s; }
+  .footer-links a:hover { color: var(--primary); }
+  .newsletter-input { display: flex; gap: 6px; margin-top: 10px; }
+  .newsletter-input input { flex: 1; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: var(--r-sm); padding: 9px 13px; font-size: 13px; color: #fff; font-family: inherit; outline: none; }
+  .newsletter-input input::placeholder { color: rgba(255,255,255,.35); }
+  .newsletter-input button { background: var(--primary); color: var(--dark); border: none; border-radius: var(--r-sm); padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all .2s; }
+  .newsletter-input button:hover { background: var(--primary-dark); color: #fff; }
+  .footer-bottom { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; font-size: 12px; color: rgba(255,255,255,.38); flex-wrap: wrap; gap: 8px; }
+  .footer-bottom a { color: rgba(255,255,255,.5); text-decoration: none; }
+  .footer-bottom a:hover { color: var(--primary); }
+  .payment-icons { display: flex; gap: 6px; }
+  .pay-icon { background: rgba(255,255,255,.1); border-radius: 3px; padding: 4px 10px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.6); }
+</style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">V</div>
+      <span class="logo-text">Viet<span>ponics</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#" class="active">Trang chủ</a>
+      <a href="#">Sản phẩm</a>
+      <a href="#">Về chúng tôi</a>
+      <a href="#">Blog</a>
+      <a href="#">Liên hệ</a>
+    </div>
+    <div class="nav-search">
+      <span class="search-text">Tìm kiếm…</span>
+      <input placeholder="Rau, củ, quả…">
+    </div>
+    <div class="nav-actions">
+      <button class="nav-action-btn">Yêu thích</button>
+      <button class="nav-action-btn cart">Giỏ hàng (3)</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge"><div class="dot"></div>Thủy canh sạch từ Đà Lạt</div>
+      <h1>Sống Xanh,<br><em>Sống Khỏe</em><br>Mỗi Ngày</h1>
+      <p>Rau sạch thủy canh trồng không đất, không thuốc trừ sâu — tươi xanh mỗi sáng trực tiếp từ vườn Đà Lạt đến bàn ăn của bạn.</p>
+      <div class="hero-actions">
+        <button class="btn-primary">Khám phá ngay</button>
+        <button class="btn-secondary">Xem cách trồng</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num">125+</div><div class="lbl">Loại rau sạch</div></div>
+        <div class="hero-stat"><div class="num">2.4K+</div><div class="lbl">Khách hài lòng</div></div>
+        <div class="hero-stat"><div class="num">100%</div><div class="lbl">Hữu cơ tự nhiên</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-img-main">
+        <svg class="veg-artwork" viewBox="0 0 380 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Ground shadow -->
+          <ellipse cx="190" cy="268" rx="110" ry="18" fill="rgba(0,0,0,.12)"/>
+          <!-- Main lettuce head -->
+          <ellipse cx="190" cy="230" rx="88" ry="24" fill="#1a4010" opacity=".5"/>
+          <path d="M110 215 Q130 172 190 162 Q248 172 268 215 Q245 228 190 233 Q133 228 110 215Z" fill="#52b320"/>
+          <path d="M122 210 Q140 178 190 170 Q238 180 256 208 Q235 220 190 224 Q143 220 122 210Z" fill="#74cc38"/>
+          <path d="M135 205 Q152 182 190 176 Q226 184 242 203 Q224 214 190 218 Q154 214 135 205Z" fill="#a0e04e"/>
+          <path d="M148 200 Q162 186 190 182 Q216 188 228 199 Q215 208 190 211 Q163 208 148 200Z" fill="#c4f07a"/>
+          <!-- Left herb stalk -->
+          <path d="M72 200 Q67 165 76 142 Q80 118 74 95" stroke="#3a8c18" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <ellipse cx="68" cy="130" rx="20" ry="13" fill="#52b320" transform="rotate(-22 68 130)"/>
+          <ellipse cx="82" cy="108" rx="17" ry="11" fill="#74cc38" transform="rotate(12 82 108)"/>
+          <ellipse cx="63" cy="102" rx="14" ry="9" fill="#3a8c18" transform="rotate(-35 63 102)"/>
+          <!-- Tomato cluster -->
+          <circle cx="292" cy="185" r="26" fill="#c23b22"/>
+          <circle cx="292" cy="185" r="21" fill="#e85d3c"/>
+          <circle cx="292" cy="185" r="14" fill="#f08060" opacity=".5"/>
+          <path d="M284 162 Q292 150 300 162" stroke="#3a8c18" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M292 162 Q292 155 292 150" stroke="#3a8c18" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- Cucumber -->
+          <ellipse cx="100" cy="230" rx="18" ry="24" fill="#4a7c20" transform="rotate(-15 100 230)"/>
+          <ellipse cx="100" cy="230" rx="13" ry="19" fill="#90d040" transform="rotate(-15 100 230)"/>
+          <ellipse cx="100" cy="230" rx="8" ry="12" fill="#e8f5c0" opacity=".6" transform="rotate(-15 100 230)"/>
+          <!-- Water drops -->
+          <path d="M210 85 Q213 76 216 85 Q216 92 210 92 Q204 92 204 85 Q207 76 210 85Z" fill="rgba(255,255,255,.85)"/>
+          <path d="M248 110 Q250 104 252 110 Q252 115 248 115 Q244 115 244 110 Q246 104 248 110Z" fill="rgba(255,255,255,.85)"/>
+          <path d="M165 78 Q167 72 169 78 Q169 83 165 83 Q161 83 161 78 Q163 72 165 78Z" fill="rgba(255,255,255,.7)"/>
+          <!-- Herb leaves top -->
+          <path d="M190 140 Q210 110 230 90 Q220 120 210 135" fill="rgba(144,197,45,.35)" stroke="none"/>
+          <path d="M190 140 Q165 108 148 88 Q162 118 175 138" fill="rgba(82,179,32,.3)" stroke="none"/>
+        </svg>
+      </div>
+      <!-- Float cards -->
+      <div class="float-card float-card-1">
+        <div class="fc-dot" style="background:var(--primary-deeper)">VP</div>
+        <div><div class="fc-title">Chứng nhận VietGAP</div><div class="fc-sub">Kiểm định hàng tuần</div></div>
+      </div>
+      <div class="float-card float-card-2">
+        <div class="fc-dot" style="background:var(--gold)">4H</div>
+        <div><div class="fc-title">Giao trong 4 giờ</div><div class="fc-sub">Từ vườn đến bàn ăn</div></div>
+      </div>
+      <div class="float-card float-card-3">
+        <div class="fc-dot" style="background:var(--primary)">★</div>
+        <div><div class="fc-title">1.2K đánh giá</div><div class="fc-sub">4.9 / 5 sao</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ TRUST STRIP ══ -->
+<div class="trust-strip">
+  <div class="trust-inner">
+    <div class="trust-item">
+      <div class="trust-num">100%</div>
+      <div><div class="t-title">Hữu Cơ Tự Nhiên</div><div class="t-sub">Không hoá chất độc hại</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-num">48h</div>
+      <div><div class="t-title">Thu Hoạch & Giao Hàng</div><div class="t-sub">Từ vườn đến tay bạn</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-num">50K</div>
+      <div><div class="t-title">Miễn Phí Vận Chuyển</div><div class="t-sub">Đơn hàng từ 50.000đ</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-num">125+</div>
+      <div><div class="t-title">Loại Rau Sạch</div><div class="t-sub">Trải dài 10 danh mục</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-num">4.9</div>
+      <div><div class="t-title">Đánh Giá Trung Bình</div><div class="t-sub">Từ 2.400+ khách hàng</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FEATURED PRODUCTS ══ -->
+<section class="section" style="background: var(--white)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Nổi bật</div>
+        <div class="section-title">Rau Thủy Canh Bán Chạy Nhất</div>
+        <div class="section-sub">Tươi ngon từ vườn Đà Lạt, giao nhanh mỗi buổi sáng</div>
+      </div>
+      <a href="#" class="see-all">Xem tất cả</a>
+    </div>
+    <div class="product-grid">
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#d0e8b0,#90c040)">
+          <span style="font-size:58px">🥬</span>
+          <div class="prod-tag">Bán chạy</div>
+        </div>
+        <div class="prod-body">
+          <div class="prod-category">Rau lá xanh</div>
+          <div class="prod-name">Xà lách thủy canh Đà Lạt</div>
+          <div class="prod-meta">
+            <div class="prod-price">25.000<small>đ/túi</small></div>
+            <div class="prod-origin">Đà Lạt</div>
+          </div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#c8e8d0,#70b888)">
+          <span style="font-size:58px">🌿</span>
+        </div>
+        <div class="prod-body">
+          <div class="prod-category">Rau thơm</div>
+          <div class="prod-name">Cải thảo thủy canh hữu cơ</div>
+          <div class="prod-meta">
+            <div class="prod-price">30.000<small>đ/bó</small></div>
+            <div class="prod-origin">Đà Lạt</div>
+          </div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#faecc0,#e8c050)">
+          <span style="font-size:58px">🌽</span>
+          <div class="prod-tag gold">Mới về</div>
+        </div>
+        <div class="prod-body">
+          <div class="prod-category">Rau củ quả</div>
+          <div class="prod-name">Baby corn thủy canh non</div>
+          <div class="prod-meta">
+            <div class="prod-price">45.000<small>đ/200g</small></div>
+            <div class="prod-origin">Đà Lạt</div>
+          </div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#f8d8c8,#e07050)">
+          <span style="font-size:58px">🍅</span>
+        </div>
+        <div class="prod-body">
+          <div class="prod-category">Cà chua</div>
+          <div class="prod-name">Cà chua bi cherry thủy canh</div>
+          <div class="prod-meta">
+            <div class="prod-price">35.000<small>đ/hộp</small></div>
+            <div class="prod-origin">Đà Lạt</div>
+          </div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PROMO BANNER ══ -->
+<div class="promo-banner">
+  <div class="promo-inner">
+    <div class="promo-visual">
+      <div class="promo-tile pt1">🥗</div>
+      <div class="promo-tile pt2">🌱</div>
+      <div class="promo-tile pt3">🥦</div>
+    </div>
+    <div class="promo-content">
+      <div class="promo-badge">Ưu đãi hôm nay</div>
+      <h2>Combo Rau Sạch<br><em>Cuối Tuần</em></h2>
+      <p>Mua combo 5 loại rau thủy canh tươi được chọn lọc kỹ càng — tiết kiệm hơn 30% so với mua lẻ. Giao tận nhà trước 8 giờ sáng.</p>
+      <div class="promo-feats">
+        <div class="promo-feat"><div class="promo-feat-dot"></div>5 loại rau được tuyển chọn theo mùa</div>
+        <div class="promo-feat"><div class="promo-feat-dot"></div>1kg rau cải và rau lá xanh tươi</div>
+        <div class="promo-feat"><div class="promo-feat-dot"></div>Giao miễn phí toàn quốc trong ngày</div>
+      </div>
+      <button class="btn-gold">Mua combo chỉ 99.000đ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CATEGORY FILTER + PRODUCTS ══ -->
+<section class="section" style="background:var(--cream)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Khám phá</div>
+        <div class="section-title">Thực Phẩm Sạch Cho Sức Khoẻ</div>
+        <div class="section-sub">Chọn lọc từ vườn thủy canh uy tín nhất Đà Lạt</div>
+      </div>
+    </div>
+    <div class="cat-filter">
+      <button class="cat-pill active">Tất cả</button>
+      <button class="cat-pill">Rau lá</button>
+      <button class="cat-pill">Rau củ</button>
+      <button class="cat-pill">Cà chua</button>
+      <button class="cat-pill">Rau mầm</button>
+      <button class="cat-pill">Gia vị</button>
+      <button class="cat-pill">Gói combo</button>
+    </div>
+    <div class="product-grid">
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#d8e8c8,#80b850)"><span style="font-size:58px">🥦</span></div>
+        <div class="prod-body">
+          <div class="prod-category">Rau củ</div>
+          <div class="prod-name">Bông cải xanh Baby thủy canh</div>
+          <div class="prod-meta"><div class="prod-price">55.000<small>đ/bó</small></div><div class="prod-origin">Đà Lạt</div></div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#e8f0d0,#b8c878)">
+          <span style="font-size:58px">🌱</span>
+          <div class="prod-tag">Organic</div>
+        </div>
+        <div class="prod-body">
+          <div class="prod-category">Rau mầm</div>
+          <div class="prod-name">Rau mầm hướng dương thủy canh</div>
+          <div class="prod-meta"><div class="prod-price">40.000<small>đ/khay</small></div><div class="prod-origin">Đà Lạt</div></div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#d8eed8,#78c878)"><span style="font-size:58px">🥒</span></div>
+        <div class="prod-body">
+          <div class="prod-category">Rau củ</div>
+          <div class="prod-name">Dưa leo mini baby hydro</div>
+          <div class="prod-meta"><div class="prod-price">38.000<small>đ/kg</small></div><div class="prod-origin">Đà Lạt</div></div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="prod-img" style="background:linear-gradient(145deg,#f8e0c8,#e89858)"><span style="font-size:58px">🫑</span></div>
+        <div class="prod-body">
+          <div class="prod-category">Rau củ</div>
+          <div class="prod-name">Ớt chuông đỏ thủy canh</div>
+          <div class="prod-meta"><div class="prod-price">50.000<small>đ/túi</small></div><div class="prod-origin">Đà Lạt</div></div>
+          <button class="add-btn">Thêm vào giỏ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CATEGORY TILES ══ -->
+<section class="section" style="background:var(--white)">
+  <div class="section-inner">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Danh mục</div>
+        <div class="section-title">Khám Phá Theo Danh Mục</div>
+        <div class="section-sub">125+ sản phẩm trải dài 10 danh mục rau sạch</div>
+      </div>
+    </div>
+    <div class="cat-grid">
+      <div class="cat-tile ct1">
+        <div class="ct-bg">🥬</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Rau Lá Xanh</div>
+          <div class="ct-count">28 sản phẩm</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+      <div class="cat-tile ct2">
+        <div class="ct-bg">🌿</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Rau Thơm & Gia Vị</div>
+          <div class="ct-count">16 sản phẩm</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+      <div class="cat-tile ct3">
+        <div class="ct-bg">🍅</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Cà Chua & Ớt</div>
+          <div class="ct-count">14 sản phẩm</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+      <div class="cat-tile ct4">
+        <div class="ct-bg">🌱</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Rau Mầm</div>
+          <div class="ct-count">12 sản phẩm</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+      <div class="cat-tile ct5">
+        <div class="ct-bg">🥗</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Combo Rau Sạch</div>
+          <div class="ct-count">8 combo</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+      <div class="cat-tile ct6">
+        <div class="ct-bg">🫐</div>
+        <div class="ct-overlay"></div>
+        <div class="ct-content">
+          <div class="ct-label">Trái Cây Hữu Cơ</div>
+          <div class="ct-count">22 sản phẩm</div>
+          <div class="ct-btn">Xem ngay</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ABOUT / STORE ══ -->
+<section class="section store-section">
+  <div class="section-inner">
+    <div class="store-inner">
+      <div class="store-visual">
+        <span>🌾</span>
+        <div class="store-badge">
+          <div class="sb-num">48h</div>
+          <div class="sb-unit">Tươi bảo đảm</div>
+          <div class="sb-desc">kể từ khi thu hoạch</div>
+        </div>
+      </div>
+      <div class="store-content">
+        <div class="eyebrow">Về Vietponics</div>
+        <h2>Vườn Thủy Canh Công Nghệ Cao Giữa Lòng Đà Lạt</h2>
+        <p>Vietponics ứng dụng công nghệ thủy canh hiện đại — trồng rau không cần đất, kiểm soát chặt chẽ dinh dưỡng và nhiệt độ — để mang đến rau sạch tiêu chuẩn quốc tế ngay tại Việt Nam.</p>
+        <div class="store-feats">
+          <div class="store-feat">
+            <div class="sf-num">01</div>
+            <div><div class="sf-title">Được chứng nhận VietGAP & GlobalGAP</div><div class="sf-desc">Kiểm định định kỳ bởi bên thứ ba độc lập</div></div>
+          </div>
+          <div class="store-feat">
+            <div class="sf-num">02</div>
+            <div><div class="sf-title">Thu hoạch & đóng gói trong 2 giờ</div><div class="sf-desc">Giữ nguyên dưỡng chất và độ tươi tối đa</div></div>
+          </div>
+          <div class="store-feat">
+            <div class="sf-num">03</div>
+            <div><div class="sf-title">Đa dạng 125+ loại rau sạch</div><div class="sf-desc">Trải dài 10 danh mục từ rau lá đến trái cây</div></div>
+          </div>
+        </div>
+        <button class="btn-primary">Tham quan vườn ảo</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ TESTIMONIALS ══ -->
+<section class="section testi-section">
+  <div class="section-inner">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Phản hồi</div>
+        <div class="section-title">Khách Hàng Nói Gì?</div>
+        <div class="section-sub">Hơn 2.400 gia đình đã tin tưởng Vietponics</div>
+      </div>
+      <a href="#" class="see-all">Xem tất cả đánh giá</a>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="stars">
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="testi-text">"Rau của Vietponics tươi hơn nhiều so với siêu thị. Mình đặt lúc tối, sáng hôm sau đã nhận được rau còn đẫm sương. Cả nhà đều thích!"</div>
+        <div class="testi-author">
+          <div class="avatar" style="background:var(--primary-deeper)">LN</div>
+          <div><div class="testi-name">Lê Ngọc Anh</div><div class="testi-location">TP. Hồ Chí Minh</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="stars">
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="testi-text">"Tôi bán nhà hàng chay, đặt rau Vietponics mỗi tuần. Rau đẹp, không héo, không thuốc — khách khen liên tục. Giá lại rất phải chăng so với chất lượng."</div>
+        <div class="testi-author">
+          <div class="avatar" style="background:var(--gold)">TM</div>
+          <div><div class="testi-name">Trần Minh Khoa</div><div class="testi-location">Đà Nẵng</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="stars">
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="testi-text">"Đặt qua Zalo Mini App siêu tiện, không cần cài app riêng. Giao dịch nhanh, theo dõi đơn hàng thời gian thực. Vietponics là lựa chọn số 1 của gia đình!"</div>
+        <div class="testi-author">
+          <div class="avatar" style="background:var(--dark2)">HT</div>
+          <div><div class="testi-name">Hoàng Thị Bích</div><div class="testi-location">Hà Nội</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ APP SECTION ══ -->
+<section class="app-section">
+  <div class="app-inner">
+    <div class="app-visual">
+      <div class="app-phone">
+        <div class="app-header"><div class="ah-title">Vietponics</div><div class="ah-sub">Rau sạch thủy canh</div></div>
+        <div class="app-mini-card"><div class="amc-dot" style="background:var(--primary)"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
+        <div class="app-mini-card"><div class="amc-dot" style="background:var(--gold)"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
+        <div class="app-mini-card"><div class="amc-dot" style="background:#e06050"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
+        <div class="app-btn-row"><div class="app-action">Đặt hàng</div><div class="app-action" style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.7)">Giỏ hàng</div></div>
+      </div>
+    </div>
+    <div class="app-content">
+      <div class="eyebrow">Zalo Mini App</div>
+      <h2>Đặt Rau Sạch Ngay Trên Zalo — Không Cần Cài App</h2>
+      <p>Vietponics tích hợp hoàn toàn trên Zalo Mini App. Duyệt sản phẩm, đặt hàng, thanh toán ZaloPay và theo dõi giao hàng — tất cả trong một ứng dụng quen thuộc.</p>
+      <div class="app-btns">
+        <a href="#" class="app-btn">
+          <div class="app-platform ap-ios">A</div>
+          <div class="app-btn-text"><div class="line-s">Tải về trên</div><div class="line-b">App Store</div></div>
+        </a>
+        <a href="#" class="app-btn">
+          <div class="app-platform ap-android">G</div>
+          <div class="app-btn-text"><div class="line-s">Có trên</div><div class="line-b">Google Play</div></div>
+        </a>
+        <a href="#" class="app-btn zalo">
+          <div class="app-platform ap-zalo">Z</div>
+          <div class="app-btn-text"><div class="line-s">Mở trên</div><div class="line-b">Zalo App</div></div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo-text">Viet<span>ponics</span></div>
+        <div class="footer-desc">Mang rau sạch thủy canh tươi ngon từ vùng cao nguyên Đà Lạt đến mọi bàn ăn Việt Nam. Cam kết sạch, tươi và bền vững.</div>
+        <div class="footer-contacts">
+          <div class="fci"><strong>Điện thoại:</strong> 0263 123 4567</div>
+          <div class="fci"><strong>Email:</strong> hello@vietponics.vn</div>
+          <div class="fci"><strong>Địa chỉ:</strong> 12 Đường Hoa Hồng, TP. Đà Lạt, Lâm Đồng</div>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Sản Phẩm</div>
+        <div class="footer-links">
+          <a href="#">Rau lá xanh</a>
+          <a href="#">Rau củ quả</a>
+          <a href="#">Rau mầm</a>
+          <a href="#">Trái cây hữu cơ</a>
+          <a href="#">Combo tiết kiệm</a>
+          <a href="#">Đăng ký định kỳ</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Thông Tin</div>
+        <div class="footer-links">
+          <a href="#">Về Vietponics</a>
+          <a href="#">Quy trình sản xuất</a>
+          <a href="#">Chứng nhận chất lượng</a>
+          <a href="#">Blog sức khoẻ</a>
+          <a href="#">Tuyển dụng</a>
+          <a href="#">Liên hệ đại lý</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Nhận Ưu Đãi Mỗi Tuần</div>
+        <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:0;line-height:1.7">Đăng ký nhận bản tin và ưu đãi độc quyền từ Vietponics.</p>
+        <div class="newsletter-input">
+          <input placeholder="Email của bạn…">
+          <button>Đăng ký</button>
+        </div>
+        <div style="margin-top:20px">
+          <div class="footer-col-title">Giờ Mở Cửa</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:2">Thứ 2 – Thứ 6: 6:00 – 21:00<br>Thứ 7 – CN: 7:00 – 20:00</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 Vietponics. Tất cả quyền được bảo lưu. &nbsp;·&nbsp; <a href="#">Chính sách bảo mật</a> &nbsp;·&nbsp; <a href="#">Điều khoản sử dụng</a></span>
+      <div class="payment-icons">
+        <div class="pay-icon">VISA</div>
+        <div class="pay-icon">MASTERCARD</div>
+        <div class="pay-icon">MOMO</div>
+        <div class="pay-icon">ZALOPAY</div>
+        <div class="pay-icon">COD</div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orig = btn.textContent;
+      btn.textContent = 'Đã thêm vào giỏ';
+      btn.style.background = 'var(--primary)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--primary)';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  });
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.prod-card, .testi-card, .cat-tile, .store-feat').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(14px)';
+    el.style.transition = 'opacity .45s ease, transform .45s ease';
+    obs.observe(el);
+  });
+</script>
+</body>
+</html>
