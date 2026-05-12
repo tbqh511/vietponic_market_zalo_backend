@@ -42,11 +42,21 @@
 
   /* ── NAVBAR ── */
   nav {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(255,255,255,.95);
-    backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 200;
+    background: transparent;
     border-bottom: 1px solid var(--border);
     padding: 0 clamp(1rem,4vw,3rem);
+    isolation: isolate;
+  }
+  nav::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: -1;
+    pointer-events: none;
   }
   .nav-inner {
     max-width: 1280px; margin: auto;
@@ -452,8 +462,9 @@
   nav.nav-open .nav-toggle-lines span:nth-child(2){opacity:0}
   nav.nav-open .nav-toggle-lines span:nth-child(3){top:11px;transform:rotate(-45deg)}
   .nav-drawer{display:flex;align-items:center;gap:20px;margin-left:auto}
-  .nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .3s;z-index:100}
-  nav.nav-open .nav-backdrop{opacity:1;pointer-events:auto}
+  .nav-drawer-top,.nav-close{display:none}
+  .nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .3s;z-index:210}
+  nav.nav-open + .nav-backdrop{opacity:1;pointer-events:auto}
   .feature-grid{display:grid;grid-template-columns:1fr;gap:14px}
   .feature-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:16px;box-shadow:0 2px 4px rgba(0,0,0,.1);display:flex;gap:14px;align-items:flex-start}
   .feature-icon{width:40px;height:40px;border-radius:8px;background:var(--primary-pale);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -469,7 +480,7 @@
   @media (min-width:1024px){.feature-grid{grid-template-columns:repeat(3,1fr)}.testi-track{grid-auto-flow:row;grid-auto-columns:unset;grid-template-columns:repeat(3,1fr);overflow:visible}.testi-card{min-height:360px}}
   @media (min-width:1440px){.section{padding:5rem 3rem}}
   @media (max-width:1023.98px){.hero-inner{grid-template-columns:1fr;gap:28px}.float-card{display:none}.store-inner,.promo-inner,.app-inner{grid-template-columns:1fr;gap:28px}.product-grid{grid-template-columns:repeat(2,1fr)}.cat-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,200px)}}
-  @media (max-width:767.98px){.product-grid{grid-template-columns:1fr}.nav-toggle{display:flex;margin-left:auto}.nav-drawer{position:fixed;top:0;right:0;height:100vh;width:min(92vw,380px);background:var(--white);border-left:1px solid var(--border);flex-direction:column;align-items:stretch;gap:14px;padding:18px;transform:translateX(105%);transition:transform .3s;z-index:101}.nav-open .nav-drawer{transform:translateX(0)}.nav-links{flex-direction:column;gap:6px;margin:0}.nav-links a{justify-content:flex-start}.nav-search{flex:0 0 auto;width:100%}.nav-actions{flex-direction:column;align-items:stretch}.nav-action-btn{width:100%}}
+  @media (max-width:767.98px){.product-grid{grid-template-columns:1fr}.nav-toggle{display:flex;margin-left:auto}.nav-drawer{position:fixed;top:0;right:0;height:100vh;width:min(92vw,380px);background:var(--white);border-left:1px solid var(--border);flex-direction:column;align-items:stretch;gap:14px;padding:18px;transform:translateX(105%);transition:transform .3s;z-index:220}.nav-open .nav-drawer{transform:translateX(0)}.nav-drawer-top{display:flex;justify-content:flex-end;align-items:center;min-height:48px}.nav-close{width:48px;height:48px;border-radius:8px;border:1px solid var(--border);background:var(--primary-pale);color:var(--dark);cursor:pointer;transition:background .3s,border-color .3s,transform .3s;font:inherit;font-size:24px;line-height:1}.nav-close:hover,.nav-close:focus-visible{background:var(--primary-light);border-color:var(--primary)}.nav-links{flex-direction:column;gap:6px;margin:0}.nav-links a{justify-content:flex-start}.nav-search{flex:0 0 auto;width:100%}.nav-actions{flex-direction:column;align-items:stretch}.nav-action-btn{width:100%}}
 </style>
 </head>
 <body>
@@ -485,6 +496,9 @@
       <span class="nav-toggle-lines" aria-hidden="true"><span></span><span></span><span></span></span>
     </button>
     <div class="nav-drawer" id="navDrawer">
+      <div class="nav-drawer-top">
+        <button class="nav-close" type="button" data-nav-close="true" aria-label="Đóng menu">×</button>
+      </div>
       <div class="nav-links" aria-label="Điều hướng">
         <a href="#" class="active">Trang chủ</a>
         <a href="#tinh-nang">Tính năng</a>
@@ -502,8 +516,8 @@
       </div>
     </div>
   </div>
-  <div class="nav-backdrop" data-nav-close="true" aria-hidden="true"></div>
 </nav>
+<div class="nav-backdrop" data-nav-close="true" aria-hidden="true"></div>
 
 <!-- ══ HERO ══ -->
 <section class="hero">
@@ -1072,7 +1086,7 @@
   const nav = document.querySelector('nav');
   const navToggle = document.querySelector('.nav-toggle');
   const navDrawer = document.getElementById('navDrawer');
-  const navBackdrop = document.querySelector('[data-nav-close="true"]');
+  const navCloseEls = document.querySelectorAll('[data-nav-close="true"]');
   const focusablesSelector = 'a[href],button:not([disabled]),input:not([disabled])';
   let lastFocused = null;
   const setNavOpen = (open) => {
@@ -1089,7 +1103,7 @@
     }
   };
   navToggle?.addEventListener('click', () => setNavOpen(!nav.classList.contains('nav-open')));
-  navBackdrop?.addEventListener('click', () => setNavOpen(false));
+  navCloseEls?.forEach((el) => el.addEventListener('click', () => setNavOpen(false)));
   navDrawer?.addEventListener('click', (e) => {
     const el = e.target;
     if (el && el.tagName === 'A') setNavOpen(false);
