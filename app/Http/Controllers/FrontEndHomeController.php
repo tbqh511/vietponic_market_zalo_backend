@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ZaloCategory;
 use App\Models\ZaloProduct;
 use Illuminate\Http\Request;
 
@@ -13,12 +14,28 @@ class FrontEndHomeController extends Controller
     public function index()
     {
         $newestProducts = ZaloProduct::with('category')
+            ->whereHas('category', fn($q) => $q->where('name', 'Rau lá & rau thủy canh'))
             ->orderBy('id', 'DESC')
+            ->take(8)
+            ->get();
+
+        $allCategories = ZaloCategory::orderBy('id')->get();
+
+        $featuredCategories = ZaloCategory::withCount('products')
+            ->orderBy('id')
             ->take(6)
             ->get();
 
+        $exploreProducts = ZaloProduct::with('category')
+            ->orderBy('id', 'DESC')
+            ->take(8)
+            ->get();
+
         return view('frontend_home', [
-            'newestProducts' => $newestProducts,
+            'newestProducts'     => $newestProducts,
+            'allCategories'      => $allCategories,
+            'featuredCategories' => $featuredCategories,
+            'exploreProducts'    => $exploreProducts,
         ]);
     }
 

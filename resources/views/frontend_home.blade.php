@@ -332,16 +332,16 @@
   .cat-pill:hover,.cat-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
 
   /* ── CATEGORY TILES ── */
-  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 220px); gap: 12px; }
-  .cat-tile { border-radius: var(--r); overflow: hidden; position: relative; cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px; transition: transform .22s; }
-  .cat-tile:hover { transform: scale(1.02); }
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 240px); gap: 14px; }
+  .cat-tile { border-radius: var(--r); overflow: hidden; position: relative; cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; padding: 20px 18px; transition: transform .22s, box-shadow .22s; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+  .cat-tile:hover { transform: scale(1.025); box-shadow: 0 8px 28px rgba(0,0,0,.28); }
   .ct-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 56px; }
-  .ct-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,25,5,.65) 0%, transparent 60%); }
-  .ct-content { position: relative; z-index: 1; }
-  .ct-label { font-size: 17px; font-weight: 700; color: #fff; font-family: 'Lora', serif; }
-  .ct-count { font-size: 11px; color: rgba(255,255,255,.7); margin-bottom: 10px; }
-  .ct-btn { display: inline-block; background: rgba(255,255,255,.2); backdrop-filter:blur(4px); border-radius: 2px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #fff; letter-spacing: .5px; }
-  .ct-btn:hover { background: var(--primary); }
+  .ct-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.45) 45%, rgba(0,0,0,.08) 100%); }
+  .ct-content { position: relative; z-index: 1; text-align: center; }
+  .ct-label { font-size: 17px; font-weight: 800; color: #fff; font-family: 'Lora', serif; text-shadow: 0 2px 8px rgba(0,0,0,.9), 0 1px 3px rgba(0,0,0,.8); letter-spacing: .2px; line-height: 1.3; }
+  .ct-count { font-size: 12px; font-weight: 600; color: #fff; opacity: .95; margin: 4px 0 12px; text-shadow: 0 1px 4px rgba(0,0,0,.8); background: rgba(0,0,0,.3); display: inline-block; padding: 2px 8px; border-radius: 20px; }
+  .ct-btn { display: inline-block; background: var(--primary); border-radius: 4px; padding: 6px 14px; font-size: 12px; font-weight: 700; color: #fff; letter-spacing: .5px; box-shadow: 0 2px 8px rgba(0,0,0,.3); transition: background .2s, transform .15s; }
+  .ct-btn:hover { background: var(--primary-dark,#2d7a1f); transform: translateY(-1px); }
   .ct1 { background: linear-gradient(135deg, #3a6b1a, #82c43a); }
   .ct2 { background: linear-gradient(135deg, #1a4728, #2d8050); }
   .ct3 { background: linear-gradient(135deg, #7a3a1a, #c47a32); }
@@ -426,7 +426,7 @@
     .float-card { display: none; }
     .store-inner,.promo-inner,.app-inner { grid-template-columns: 1fr; gap: 28px; }
     .product-grid { grid-template-columns: repeat(2, 1fr); }
-    .cat-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 200px); }
+    .cat-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 210px); }
   }
   @media (max-width: 767.98px) {
     .product-grid { grid-template-columns: 1fr; }
@@ -709,56 +709,37 @@
           <div class="section-title">Thực Phẩm Sạch Cho Sức Khoẻ</div>
           <div class="section-sub">Chọn lọc từ vườn thủy canh uy tín nhất Đà Lạt</div>
         </div>
+        <a href="#" class="see-all">Xem tất cả</a>
       </div>
-      <div class="cat-filter" role="group" aria-label="Lọc theo danh mục">
-        <button class="cat-pill active" type="button">Tất cả</button>
-        <button class="cat-pill" type="button">Rau lá</button>
-        <button class="cat-pill" type="button">Rau củ</button>
-        <button class="cat-pill" type="button">Cà chua</button>
-        <button class="cat-pill" type="button">Rau mầm</button>
-        <button class="cat-pill" type="button">Gia vị</button>
-        <button class="cat-pill" type="button">Gói combo</button>
+      <div class="cat-filter" id="explore-filter" role="group" aria-label="Lọc theo danh mục">
+        <button class="cat-pill active" type="button" data-id="">Tất cả</button>
+        @foreach($allCategories as $cat)
+          <button class="cat-pill" type="button" data-id="{{ $cat->id }}">{{ $cat->name }}</button>
+        @endforeach
       </div>
-      <div class="product-grid">
-        <div class="prod-card">
-          <div class="prod-img" style="background:linear-gradient(145deg,#d8e8c8,#80b850)"><span style="font-size:58px">🥦</span></div>
-          <div class="prod-body">
-            <div class="prod-category">Rau củ</div>
-            <div class="prod-name">Bông cải xanh Baby thủy canh</div>
-            <div class="prod-meta"><div class="prod-price">55.000<small>đ/bó</small></div><div class="prod-origin">Đà Lạt</div></div>
-            <button class="add-btn" type="button">Thêm vào giỏ</button>
+      <div class="product-grid" id="explore-grid">
+        @forelse($exploreProducts as $product)
+          <div class="prod-card" data-category-id="{{ $product->category_id }}">
+            <div class="prod-img" style="background:linear-gradient(145deg,var(--primary-light),var(--primary))">
+              @if(!empty($product->image))
+                <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" loading="lazy">
+              @else
+                <span style="font-size:52px">🥬</span>
+              @endif
+            </div>
+            <div class="prod-body">
+              <div class="prod-category">{{ $product->category->name ?? 'Rau sạch' }}</div>
+              <div class="prod-name">{{ $product->name }}</div>
+              <div class="prod-meta">
+                <div class="prod-price">{{ number_format((float)$product->price) }}<small>đ</small></div>
+                <div class="prod-origin">Đà Lạt</div>
+              </div>
+              <button class="add-btn" type="button">Thêm vào giỏ</button>
+            </div>
           </div>
-        </div>
-        <div class="prod-card">
-          <div class="prod-img" style="background:linear-gradient(145deg,#e8f0d0,#b8c878)">
-            <span style="font-size:58px">🌱</span>
-            <div class="prod-tag">Organic</div>
-          </div>
-          <div class="prod-body">
-            <div class="prod-category">Rau mầm</div>
-            <div class="prod-name">Rau mầm hướng dương thủy canh</div>
-            <div class="prod-meta"><div class="prod-price">40.000<small>đ/khay</small></div><div class="prod-origin">Đà Lạt</div></div>
-            <button class="add-btn" type="button">Thêm vào giỏ</button>
-          </div>
-        </div>
-        <div class="prod-card">
-          <div class="prod-img" style="background:linear-gradient(145deg,#d8eed8,#78c878)"><span style="font-size:58px">🥒</span></div>
-          <div class="prod-body">
-            <div class="prod-category">Rau củ</div>
-            <div class="prod-name">Dưa leo mini baby hydro</div>
-            <div class="prod-meta"><div class="prod-price">38.000<small>đ/kg</small></div><div class="prod-origin">Đà Lạt</div></div>
-            <button class="add-btn" type="button">Thêm vào giỏ</button>
-          </div>
-        </div>
-        <div class="prod-card">
-          <div class="prod-img" style="background:linear-gradient(145deg,#f8e0c8,#e89858)"><span style="font-size:58px">🫑</span></div>
-          <div class="prod-body">
-            <div class="prod-category">Rau củ</div>
-            <div class="prod-name">Ớt chuông đỏ thủy canh</div>
-            <div class="prod-meta"><div class="prod-price">50.000<small>đ/túi</small></div><div class="prod-origin">Đà Lạt</div></div>
-            <button class="add-btn" type="button">Thêm vào giỏ</button>
-          </div>
-        </div>
+        @empty
+          <p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem 0;">Chưa có sản phẩm nào.</p>
+        @endforelse
       </div>
     </div>
   </section>
@@ -770,64 +751,34 @@
         <div>
           <div class="section-label">Danh mục</div>
           <div class="section-title">Khám Phá Theo Danh Mục</div>
-          <div class="section-sub">125+ sản phẩm trải dài 10 danh mục rau sạch</div>
+          <div class="section-sub">{{ $allCategories->count() }} danh mục rau sạch, tươi ngon mỗi ngày</div>
         </div>
+        <a href="#san-pham" class="see-all">Xem tất cả</a>
       </div>
+      @php
+        $ctColors = ['ct1','ct2','ct3','ct4','ct5','ct6'];
+        $ctEmojis = ['🥬','🌿','🍅','🌱','🥗','🫐'];
+      @endphp
       <div class="cat-grid">
-        <div class="cat-tile ct1">
-          <div class="ct-bg">🥬</div>
+        @forelse($featuredCategories as $i => $cat)
+        <a href="#san-pham" class="cat-tile {{ $ctColors[$i % 6] }}" data-filter-id="{{ $cat->id }}" style="text-decoration:none">
+          <div class="ct-bg">
+            @if($cat->getRawOriginal('image'))
+              <img src="{{ $cat->image }}" alt="{{ $cat->name }}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0;">
+            @else
+              {{ $ctEmojis[$i % 6] }}
+            @endif
+          </div>
           <div class="ct-overlay"></div>
           <div class="ct-content">
-            <div class="ct-label">Rau Lá Xanh</div>
-            <div class="ct-count">28 sản phẩm</div>
+            <div class="ct-label">{{ $cat->name }}</div>
+            <div class="ct-count">{{ $cat->products_count }} sản phẩm</div>
             <div class="ct-btn">Xem ngay</div>
           </div>
-        </div>
-        <div class="cat-tile ct2">
-          <div class="ct-bg">🌿</div>
-          <div class="ct-overlay"></div>
-          <div class="ct-content">
-            <div class="ct-label">Rau Thơm & Gia Vị</div>
-            <div class="ct-count">16 sản phẩm</div>
-            <div class="ct-btn">Xem ngay</div>
-          </div>
-        </div>
-        <div class="cat-tile ct3">
-          <div class="ct-bg">🍅</div>
-          <div class="ct-overlay"></div>
-          <div class="ct-content">
-            <div class="ct-label">Cà Chua & Ớt</div>
-            <div class="ct-count">14 sản phẩm</div>
-            <div class="ct-btn">Xem ngay</div>
-          </div>
-        </div>
-        <div class="cat-tile ct4">
-          <div class="ct-bg">🌱</div>
-          <div class="ct-overlay"></div>
-          <div class="ct-content">
-            <div class="ct-label">Rau Mầm</div>
-            <div class="ct-count">12 sản phẩm</div>
-            <div class="ct-btn">Xem ngay</div>
-          </div>
-        </div>
-        <div class="cat-tile ct5">
-          <div class="ct-bg">🥗</div>
-          <div class="ct-overlay"></div>
-          <div class="ct-content">
-            <div class="ct-label">Combo Rau Sạch</div>
-            <div class="ct-count">8 combo</div>
-            <div class="ct-btn">Xem ngay</div>
-          </div>
-        </div>
-        <div class="cat-tile ct6">
-          <div class="ct-bg">🫐</div>
-          <div class="ct-overlay"></div>
-          <div class="ct-content">
-            <div class="ct-label">Trái Cây Hữu Cơ</div>
-            <div class="ct-count">22 sản phẩm</div>
-            <div class="ct-btn">Xem ngay</div>
-          </div>
-        </div>
+        </a>
+        @empty
+        <p style="color:var(--text-muted)">Chưa có danh mục nào.</p>
+        @endforelse
       </div>
     </div>
   </section>
@@ -952,14 +903,6 @@
         <h2>Đặt Rau Sạch Ngay Trên Zalo — Không Cần Cài App</h2>
         <p>Vietponics tích hợp hoàn toàn trên Zalo Mini App. Duyệt sản phẩm, đặt hàng, thanh toán ZaloPay và theo dõi giao hàng — tất cả trong một ứng dụng quen thuộc.</p>
         <div class="app-btns">
-          <a href="#" class="app-btn">
-            <div class="app-platform ap-ios">A</div>
-            <div class="app-btn-text"><div class="line-s">Tải về trên</div><div class="line-b">App Store</div></div>
-          </a>
-          <a href="#" class="app-btn">
-            <div class="app-platform ap-android">G</div>
-            <div class="app-btn-text"><div class="line-s">Có trên</div><div class="line-b">Google Play</div></div>
-          </a>
           <a href="#" class="app-btn zalo">
             <div class="app-platform ap-zalo">Z</div>
             <div class="app-btn-text"><div class="line-s">Mở trên</div><div class="line-b">Zalo App</div></div>
@@ -1023,11 +966,112 @@
     });
   })();
 
-  /* Category pill filter */
-  document.querySelectorAll('.cat-pill').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.cat-pill').forEach(function(b) { b.classList.remove('active'); });
+  /* ── Explore section: category pill filter with AJAX ── */
+  (function () {
+    var filter = document.getElementById('explore-filter');
+    var grid   = document.getElementById('explore-grid');
+    if (!filter || !grid) return;
+
+    function bindAddBtn(btn) {
+      btn.addEventListener('click', function () {
+        var orig = btn.textContent;
+        btn.textContent = 'Đã thêm vào giỏ ✓';
+        btn.style.background = 'var(--primary)'; btn.style.color = 'var(--dark)'; btn.style.borderColor = 'var(--primary)';
+        setTimeout(function () { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+      });
+    }
+
+    var scrollObs = null;
+    if ('IntersectionObserver' in window) {
+      scrollObs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) { e.target.style.opacity = '1'; e.target.style.transform = 'translateY(0)'; } });
+      }, { threshold: 0.08 });
+    }
+    function observeCard(card) {
+      if (!scrollObs) return;
+      card.style.opacity = '0'; card.style.transform = 'translateY(14px)'; card.style.transition = 'opacity .45s ease, transform .45s ease';
+      scrollObs.observe(card);
+    }
+
+    function makeCard(product) {
+      var card = document.createElement('div');
+      card.className = 'prod-card';
+      card.setAttribute('data-category-id', product.category_id);
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'prod-img';
+      imgWrap.style.background = 'linear-gradient(145deg,var(--primary-light),var(--primary))';
+      if (product.image) {
+        var img = document.createElement('img');
+        img.src = product.image; img.alt = product.name; img.loading = 'lazy';
+        imgWrap.appendChild(img);
+      } else {
+        var fb = document.createElement('span'); fb.style.fontSize = '52px'; fb.textContent = '🥬';
+        imgWrap.appendChild(fb);
+      }
+      card.appendChild(imgWrap);
+
+      var body = document.createElement('div'); body.className = 'prod-body';
+      var catEl = document.createElement('div'); catEl.className = 'prod-category'; catEl.textContent = product.category_name || 'Rau sạch';
+      var nameEl = document.createElement('div'); nameEl.className = 'prod-name'; nameEl.textContent = product.name;
+      var meta = document.createElement('div'); meta.className = 'prod-meta';
+      var priceEl = document.createElement('div'); priceEl.className = 'prod-price';
+      priceEl.innerHTML = (parseFloat(product.price) || 0).toLocaleString('vi-VN') + '<small>đ</small>';
+      var originEl = document.createElement('div'); originEl.className = 'prod-origin'; originEl.textContent = 'Đà Lạt';
+      meta.appendChild(priceEl); meta.appendChild(originEl);
+      var addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.type = 'button'; addBtn.textContent = 'Thêm vào giỏ';
+      bindAddBtn(addBtn);
+      body.appendChild(catEl); body.appendChild(nameEl); body.appendChild(meta); body.appendChild(addBtn);
+      card.appendChild(body);
+      return card;
+    }
+
+    function renderProducts(products) {
+      grid.innerHTML = '';
+      var slice = products.slice(0, 8);
+      if (!slice.length) {
+        var empty = document.createElement('p');
+        empty.style.cssText = 'color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem 0;';
+        empty.textContent = 'Chưa có sản phẩm nào trong danh mục này.';
+        grid.appendChild(empty); return;
+      }
+      slice.forEach(function (p) { var c = makeCard(p); grid.appendChild(c); observeCard(c); });
+    }
+
+    function setLoading(on) {
+      grid.style.opacity = on ? '0.45' : '1';
+      grid.style.pointerEvents = on ? 'none' : '';
+      grid.style.transition = 'opacity .2s';
+    }
+
+    filter.addEventListener('click', function (e) {
+      var btn = e.target.closest('.cat-pill');
+      if (!btn) return;
+      filter.querySelectorAll('.cat-pill').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
+      var catId = btn.getAttribute('data-id');
+      var url = '/api/products' + (catId ? '?categoryId=' + encodeURIComponent(catId) : '');
+      setLoading(true);
+      fetch(url)
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (json) { setLoading(false); if (!json.error) renderProducts(json.data); })
+        .catch(function (err) { setLoading(false); console.error('Explore filter error:', err); });
+    });
+  })();
+
+  /* Category tile → scroll to explore section and apply filter */
+  document.querySelectorAll('.cat-tile[data-filter-id]').forEach(function(tile) {
+    tile.addEventListener('click', function(e) {
+      e.preventDefault();
+      var catId = tile.getAttribute('data-filter-id');
+      var exploreSection = document.getElementById('san-pham');
+      var filterBtn = document.querySelector('#explore-filter .cat-pill[data-id="' + catId + '"]');
+      if (exploreSection) {
+        exploreSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (filterBtn) {
+        setTimeout(function() { filterBtn.click(); }, 500);
+      }
     });
   });
 

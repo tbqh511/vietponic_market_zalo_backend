@@ -15,6 +15,11 @@ class ZaloCategory extends Model
     public $incrementing = false;
     protected $keyType = 'int';
 
+    public function products()
+    {
+        return $this->hasMany(ZaloProduct::class, 'category_id');
+    }
+
     public function getImageAttribute($image)
     {
         if (!$image) return '';

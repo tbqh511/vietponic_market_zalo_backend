@@ -16,3 +16,5 @@ yarn-error.log
 /.vscode
 .DS_Store
 /public/images/zalo_products/
+/public/images/zalo_categories/
+
