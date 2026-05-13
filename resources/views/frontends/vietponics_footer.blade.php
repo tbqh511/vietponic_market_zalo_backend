@@ -2,7 +2,7 @@
   <div class="footer-inner">
     <div class="footer-grid">
       <div>
-        <div class="footer-logo-text">Viet<span>ponics</span></div>
+        <img src="{{ asset('images/logo-vietponics.png') }}" alt="Vietponics" class="footer-logo-img">
         <div class="footer-desc">Mang rau sạch thủy canh tươi ngon từ vùng cao nguyên Đà Lạt đến mọi bàn ăn Việt Nam. Cam kết sạch, tươi và bền vững.</div>
         <div class="footer-contacts">
           <div class="fci"><strong>Điện thoại:</strong> 0263 123 4567</div>

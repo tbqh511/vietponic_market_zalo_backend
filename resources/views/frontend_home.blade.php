@@ -64,15 +64,8 @@
     display: flex; align-items: center; gap: 9px;
     text-decoration: none; flex-shrink: 0;
   }
-  .logo-mark {
-    width: 36px; height: 36px; border-radius: var(--r-sm);
-    background: var(--primary);
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Lora', serif;
-    font-weight: 700; font-size: 18px; color: #fff;
-  }
-  .logo-text { font-family: 'Lora', serif; font-weight: 700; font-size: 22px; color: var(--dark); letter-spacing: -.3px; }
-  .logo-text span { color: var(--primary); }
+  .logo-img { height: 40px; width: auto; display: block; object-fit: contain; }
+
   .nav-links { display: flex; gap: 2px; margin: 0 auto; }
   .nav-links a {
     text-decoration: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
@@ -116,8 +109,7 @@
   footer { background: var(--dark); color: rgba(255,255,255,.8); padding: clamp(2.5rem,5vw,4rem) clamp(1rem,4vw,3rem) 0; }
   .footer-inner { max-width: 1280px; margin: auto; }
   .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; padding-bottom: 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
-  .footer-logo-text { font-family: 'Lora', serif; font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 12px; }
-  .footer-logo-text span { color: var(--primary); }
+  .footer-logo-img { height: 48px; width: auto; object-fit: contain; margin-bottom: 12px; display: block; filter: brightness(0) invert(1); }
   .footer-desc { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.8; margin-bottom: 20px; }
   .footer-contacts { display: flex; flex-direction: column; gap: 8px; }
   .fci { font-size: 13px; color: rgba(255,255,255,.6); }
@@ -271,10 +263,10 @@
   .prod-body { padding: 14px 15px 16px; }
   .prod-category { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
   .prod-name { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 10px; line-height: 1.35; }
-  .prod-meta { display: flex; justify-content: space-between; align-items: center; }
+  .prod-meta { display: flex; justify-content: flex-end; align-items: center; }
   .prod-price { font-family: 'Lora', serif; font-size: 22px; font-weight: 700; color: var(--dark); }
   .prod-price small { font-family: 'Be Vietnam Pro',sans-serif; font-size: 11px; font-weight: 400; color: var(--text-light); }
-  .prod-origin { font-size: 11px; color: var(--text-light); }
+  .prod-origin { display: none; }
   .add-btn {
     width: 100%; margin-top: 12px; padding: 9px; border-radius: var(--r-sm);
     background: var(--primary-pale); color: var(--primary-deeper);
@@ -382,7 +374,7 @@
   /* ── APP SECTION ── */
   .app-section { background: var(--white); }
   .app-inner { max-width: 1280px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; padding: clamp(3rem,6vw,5rem) clamp(1rem,4vw,3rem); }
-  .app-visual { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .app-visual { display: flex; align-items: center; justify-content: center; gap: 16px; max-height: 600px; }
   .app-phone { background: var(--dark); border-radius: 24px; padding: 18px 14px; width: 155px; min-height: 270px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 18px 48px rgba(30,45,10,.3); position: relative; overflow: hidden; }
   .app-phone::before { content:''; position:absolute; top:12px; left:50%; transform:translateX(-50%); width:44px; height:4px; background:rgba(255,255,255,.25); border-radius:2px; }
   .app-header { margin-top:10px; background:rgba(255,255,255,.08); border-radius:var(--r-sm); padding:8px 10px; }
@@ -682,9 +674,9 @@
   <div class="promo-banner">
     <div class="promo-inner">
       <div class="promo-visual">
-        <div class="promo-tile pt1">🥗</div>
-        <div class="promo-tile pt2">🌱</div>
-        <div class="promo-tile pt3">🥦</div>
+        <div class="promo-tile pt1"><img src="{{ asset('images/vegetable-box/Banner.jpg') }}" alt="Rau tươi" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" /></div>
+        <div class="promo-tile pt2"><img src="{{ asset('images/vegetable-box/banner1.jpg') }}" alt="Rau thủy canh" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" /></div>
+        <div class="promo-tile pt3"><img src="{{ asset('images/vegetable-box/banner2.jpg') }}" alt="Rau sạch" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" /></div>
       </div>
       <div class="promo-content">
         <div class="promo-badge">Ưu đãi hôm nay</div>
@@ -788,7 +780,7 @@
     <div class="section-inner">
       <div class="store-inner">
         <div class="store-visual">
-          <span>🌾</span>
+          <img src="{{ asset('images/banner.jpeg') }}" alt="Vietponics banner" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
           <div class="store-badge">
             <div class="sb-num">48h</div>
             <div class="sb-unit">Tươi bảo đảm</div>
@@ -890,13 +882,7 @@
   <section class="app-section">
     <div class="app-inner">
       <div class="app-visual">
-        <div class="app-phone">
-          <div class="app-header"><div class="ah-title">Vietponics</div><div class="ah-sub">Rau sạch thủy canh</div></div>
-          <div class="app-mini-card"><div class="amc-dot" style="background:var(--primary)"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
-          <div class="app-mini-card"><div class="amc-dot" style="background:var(--gold)"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
-          <div class="app-mini-card"><div class="amc-dot" style="background:#e06050"></div><div class="amc-lines"><div class="amc-l1"></div><div class="amc-l2"></div></div></div>
-          <div class="app-btn-row"><div class="app-action">Đặt hàng</div><div class="app-action" style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.7)">Giỏ hàng</div></div>
-        </div>
+        <img src="{{ asset('images/mobi-banner.png') }}" alt="Vietponics app" style="max-height:560px;width:auto;max-width:100%;object-fit:contain;display:block;margin:0 auto;drop-shadow(0 24px 48px rgba(0,0,0,.15));" />
       </div>
       <div class="app-content">
         <div class="eyebrow">Zalo Mini App</div>

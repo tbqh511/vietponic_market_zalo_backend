@@ -1,8 +1,7 @@
 <nav>
   <div class="nav-inner">
     <a href="{{ url('/') }}" class="logo">
-      <div class="logo-mark">V</div>
-      <span class="logo-text">Viet<span>ponics</span></span>
+      <img src="{{ asset('images/logo-vietponics.png') }}" alt="Vietponics" class="logo-img">
     </a>
     <button class="nav-toggle" type="button" aria-controls="navDrawer" aria-expanded="false" aria-label="Mở menu">
       <span class="nav-toggle-lines" aria-hidden="true"><span></span><span></span><span></span></span>
