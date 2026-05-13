@@ -2,13 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
-use App\Models\Customer;
-use App\Models\Property;
-use Carbon\Carbon;
+use App\Models\ZaloProduct;
 use Illuminate\Http\Request;
-use App\Models\LocationsStreet;
-use App\Models\LocationsWard;
 
 class FrontEndHomeController extends Controller
 {
@@ -17,84 +12,13 @@ class FrontEndHomeController extends Controller
      */
     public function index()
     {
-        // Get the list of streets in the areas
-        $locationsStreets = LocationsStreet::all();
-
-        // Get the district code from configuration
-        $districtCode = config('location.district_code');
-        // If there's a district code, get the list of wards in that district
-        $locationsWards = ($districtCode != null) ? LocationsWard::where('district_code', $districtCode)->orderByRaw("CASE
-        WHEN full_name LIKE 'phường%' THEN 1
-        WHEN full_name LIKE 'Xã%' THEN 2
-        ELSE 3 END, CAST(SUBSTRING_INDEX(full_name, ' ', -1) AS UNSIGNED), full_name")->get() : LocationsWard::orderByRaw("CASE
-        WHEN full_name LIKE 'phường%' THEN 1
-        WHEN full_name LIKE 'Xã%' THEN 2
-        ELSE 3 END, CAST(SUBSTRING_INDEX(full_name, ' ', -1) AS UNSIGNED), full_name")->get();
-
-        // Get the list of product categories
-        $categories = Category::all();
-
-        // Get list top agent
-        $agents = Customer::withCount('property')->orderBy('property_count', 'desc')->get();
-
-
-        // Set parameters for the product query
-        $offset = 0;
-        $limit = 6;
-        $sort = 'updated_at';
-        $order = 'DESC';
-
-        // Get the list of newest products
-        $newestProducts = Property::with('customer')
-            ->with('user')
-            ->with('category:id,category,image')
-            ->with('parameters')
-            ->with('ward')
-            ->with('street')
-            ->where('status', '1')
-            ->orderBy($sort, $order)
-            ->skip($offset)
-            ->take($limit)
+        $newestProducts = ZaloProduct::with('category')
+            ->orderBy('id', 'DESC')
+            ->take(6)
             ->get();
 
-        //get info for homepage
-        $infos= [
-            [
-                'title' => 'Bất động sản',
-                'value' => Property::count()
-            ],
-            [
-                'title' => 'Đối tác',
-                'value' => Customer::count()
-            ],
-            [
-                'title' => 'Khách hàng hài lòng',
-                'value' => 0
-            ],
-            [
-                'title' => 'Bất động sản mới trong tuần',
-                'value' => Property::where('created_at', '>=', Carbon::now()->subDays(7))->count()
-            ],
-            // Các cặp title và value khác có thể thêm vào đây
-        ];
-
-        //dd($newestProducts[0]->parameters[0]->pivot->pivot_value);
-        //dd($newestProducts[0]->parameters[0]->pivot->value);
-        // $valueOfParameterId15 = $newestProducts[0]->parameters->where('name', config('global.area'))->first()->pivot->value;
-        // dd($valueOfParameterId15);
-        //dd($newestProducts[2]->number_floor);
-        //dd(config('global.number_floor'));
-        //dd($newestProducts);
-        // $property = Property::with('customer')->with('user')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->with('ward')->with('street')->with('host')->get();
-        // Return the frontend_home view with the necessary data
-
         return view('frontend_home', [
-            'locationsStreets' => $locationsStreets,
-            'locationsWards' => $locationsWards,
-            'categories' => $categories,
             'newestProducts' => $newestProducts,
-            'agents' => $agents,
-            'infos' => $infos,
         ]);
     }
 
@@ -103,33 +27,14 @@ class FrontEndHomeController extends Controller
      */
     public function about()
     {
-        // Get list top agent
-        $agents = Customer::withCount('property')->orderBy('property_count', 'desc')->get();
-
-        //get info for homepage
-        $infos= [
-            [
-                'title' => 'Bất động sản',
-                'value' => Property::count()
-            ],
-            [
-                'title' => 'Đối tác',
-                'value' => Customer::count()
-            ],
-            [
-                'title' => 'Khách hàng hài lòng',
-                'value' => 0
-            ],
-            [
-                'title' => 'Bất động sản mới trong tuần',
-                'value' => Property::where('created_at', '>=', Carbon::now()->subDays(7))->count()
-            ],
-            // Các cặp title và value khác có thể thêm vào đây
+        $infos = [
+            ['title' => 'Loại rau sạch', 'value' => ZaloProduct::count()],
+            ['title' => 'Khách hài lòng', 'value' => 2400],
+            ['title' => 'Năm kinh nghiệm', 'value' => 5],
+            ['title' => 'Đơn giao mỗi ngày', 'value' => 150],
         ];
 
-
         return view('about', [
-            'agents' => $agents,
             'infos' => $infos,
         ]);
     }

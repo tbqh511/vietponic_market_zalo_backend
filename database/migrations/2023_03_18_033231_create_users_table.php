@@ -24,7 +24,7 @@ return new class extends Migration
             $table->tinyInteger('type')->comment('0:Admin 1:Users');
             $table->text('permissions');
             $table->integer('status')->comment('0:Inactive 1:Active');
-            $table->string('fcm_id');
+            $table->string('fcm_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
@@ -38,6 +38,7 @@ return new class extends Migration
             'type' => 0,
             'permissions' => '',
             'status' => '1',
+            'fcm_id' => '',
         ]];
         DB::table('users')->insert($data);
     }

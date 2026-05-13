@@ -1,7 +1,6 @@
 @extends('frontends.vietponics_master')
 
 @push('styles')
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -30,7 +29,7 @@
   }
   html { scroll-behavior: smooth; }
   body {
-    font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background: var(--cream);
     color: var(--text);
     font-size: 15px;
@@ -69,10 +68,10 @@
     width: 36px; height: 36px; border-radius: var(--r-sm);
     background: var(--primary);
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Lora', serif;
     font-weight: 700; font-size: 18px; color: #fff;
   }
-  .logo-text { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 22px; color: var(--dark); letter-spacing: -.3px; }
+  .logo-text { font-family: 'Lora', serif; font-weight: 700; font-size: 22px; color: var(--dark); letter-spacing: -.3px; }
   .logo-text span { color: var(--primary); }
   .nav-links { display: flex; gap: 2px; margin: 0 auto; }
   .nav-links a {
@@ -117,7 +116,7 @@
   footer { background: var(--dark); color: rgba(255,255,255,.8); padding: clamp(2.5rem,5vw,4rem) clamp(1rem,4vw,3rem) 0; }
   .footer-inner { max-width: 1280px; margin: auto; }
   .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; padding-bottom: 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
-  .footer-logo-text { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .footer-logo-text { font-family: 'Lora', serif; font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 12px; }
   .footer-logo-text span { color: var(--primary); }
   .footer-desc { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.8; margin-bottom: 20px; }
   .footer-contacts { display: flex; flex-direction: column; gap: 8px; }
@@ -164,7 +163,7 @@
   }
   .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
   .hero h1 {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: 'Lora', serif;
     font-size: clamp(2.8rem,5vw,4.2rem);
     font-weight: 700; line-height: 1.08;
     color: var(--dark); margin-bottom: 18px;
@@ -187,7 +186,7 @@
   }
   .btn-secondary:hover { background: var(--primary-pale); border-color: var(--primary); }
   .hero-stats { display: flex; gap: 32px; margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--border); }
-  .hero-stat .num { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
+  .hero-stat .num { font-family: 'Lora', serif; font-size: 26px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
   .hero-stat .lbl { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
   .hero-visual { position: relative; display: flex; align-items: center; justify-content: center; }
   .hero-img-main {
@@ -223,7 +222,7 @@
     border-right: 1px solid rgba(255,255,255,.1);
   }
   .trust-item:last-child { border-right: none; }
-  .trust-num { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 700; color: var(--primary); line-height: 1; flex-shrink: 0; }
+  .trust-num { font-family: 'Lora', serif; font-size: 28px; font-weight: 700; color: var(--primary); line-height: 1; flex-shrink: 0; }
   .t-title { font-weight: 600; font-size: 14px; color: #fff; }
   .t-sub { font-size: 12px; color: rgba(255,255,255,.5); }
 
@@ -232,7 +231,7 @@
   .section-inner { max-width: 1280px; margin: auto; }
   .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 36px; }
   .section-label { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.5rem); font-weight: 700; color: var(--dark); line-height: 1.12; }
+  .section-title { font-family: 'Lora', serif; font-size: clamp(1.8rem,3vw,2.5rem); font-weight: 700; color: var(--dark); line-height: 1.12; }
   .section-sub { font-size: 14px; color: var(--text-muted); margin-top: 6px; max-width: 380px; }
   .see-all {
     font-size: 13px; font-weight: 600; color: var(--dark); text-decoration: none;
@@ -273,8 +272,8 @@
   .prod-category { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
   .prod-name { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 10px; line-height: 1.35; }
   .prod-meta { display: flex; justify-content: space-between; align-items: center; }
-  .prod-price { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; color: var(--dark); }
-  .prod-price small { font-family: 'DM Sans',sans-serif; font-size: 11px; font-weight: 400; color: var(--text-light); }
+  .prod-price { font-family: 'Lora', serif; font-size: 22px; font-weight: 700; color: var(--dark); }
+  .prod-price small { font-family: 'Be Vietnam Pro',sans-serif; font-size: 11px; font-weight: 400; color: var(--text-light); }
   .prod-origin { font-size: 11px; color: var(--text-light); }
   .add-btn {
     width: 100%; margin-top: 12px; padding: 9px; border-radius: var(--r-sm);
@@ -308,7 +307,7 @@
   .pt2 { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); }
   .pt3 { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); }
   .promo-badge { display: inline-flex; background: rgba(144,197,45,.2); border: 1px solid rgba(144,197,45,.4); border-radius: 2px; padding: 4px 12px; font-size: 10px; font-weight: 700; color: var(--primary-light); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
-  .promo-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem,3.5vw,3rem); font-weight: 700; color: #fff; line-height: 1.08; margin-bottom: 14px; }
+  .promo-content h2 { font-family: 'Lora', serif; font-size: clamp(2rem,3.5vw,3rem); font-weight: 700; color: #fff; line-height: 1.08; margin-bottom: 14px; }
   .promo-content h2 em { color: var(--gold-light); font-style: italic; }
   .promo-content p { color: rgba(255,255,255,.65); font-size: 14px; line-height: 1.8; margin-bottom: 24px; }
   .promo-feats { display: flex; flex-direction: column; gap: 9px; margin-bottom: 28px; }
@@ -339,7 +338,7 @@
   .ct-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 56px; }
   .ct-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,25,5,.65) 0%, transparent 60%); }
   .ct-content { position: relative; z-index: 1; }
-  .ct-label { font-size: 17px; font-weight: 700; color: #fff; font-family: 'Cormorant Garamond', serif; }
+  .ct-label { font-size: 17px; font-weight: 700; color: #fff; font-family: 'Lora', serif; }
   .ct-count { font-size: 11px; color: rgba(255,255,255,.7); margin-bottom: 10px; }
   .ct-btn { display: inline-block; background: rgba(255,255,255,.2); backdrop-filter:blur(4px); border-radius: 2px; padding: 4px 12px; font-size: 11px; font-weight: 600; color: #fff; letter-spacing: .5px; }
   .ct-btn:hover { background: var(--primary); }
@@ -355,11 +354,11 @@
   .store-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
   .store-visual { border-radius: var(--r); overflow: hidden; position: relative; height: 420px; background: linear-gradient(145deg, var(--primary-light), var(--primary), var(--primary-deeper)); display: flex; align-items: center; justify-content: center; font-size: 80px; }
   .store-badge { position: absolute; bottom: 24px; right: 24px; background: white; border-radius: var(--r-sm); padding: 14px 18px; box-shadow: var(--shadow-lg); text-align: center; }
-  .store-badge .sb-num { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
+  .store-badge .sb-num { font-family: 'Lora', serif; font-size: 32px; font-weight: 700; color: var(--primary-deeper); line-height: 1; }
   .store-badge .sb-unit { font-size: 13px; font-weight: 600; color: var(--primary); }
   .store-badge .sb-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
   .eyebrow { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-  .store-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.8rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
+  .store-content h2 { font-family: 'Lora', serif; font-size: clamp(1.8rem,3vw,2.8rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
   .store-content p { color: var(--text-muted); font-size: 15px; line-height: 1.8; margin-bottom: 28px; }
   .store-feats { display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; }
   .store-feat { display: flex; gap: 14px; align-items: flex-start; }
@@ -396,7 +395,7 @@
   .amc-l2 { height:4px; background:rgba(255,255,255,.25); border-radius:2px; width:50%; }
   .app-btn-row { display:flex; gap:5px; margin-top:4px; }
   .app-action { flex:1; background:var(--primary); border-radius:3px; padding:6px; text-align:center; font-size:9px; font-weight:700; color:var(--dark); }
-  .app-content h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.8rem,3vw,2.7rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
+  .app-content h2 { font-family: 'Lora', serif; font-size: clamp(1.8rem,3vw,2.7rem); font-weight: 700; color: var(--dark); margin-bottom: 14px; line-height: 1.12; }
   .app-content p { color: var(--text-muted); font-size: 15px; line-height: 1.8; margin-bottom: 28px; }
   .app-btns { display: flex; gap: 10px; flex-wrap: wrap; }
   .app-btn { display: flex; align-items: center; gap: 10px; background: var(--dark); color: #fff; border-radius: var(--r-sm); padding: 11px 18px; text-decoration: none; transition: all .2s; border: 1.5px solid transparent; }
