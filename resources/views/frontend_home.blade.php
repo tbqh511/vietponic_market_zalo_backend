@@ -2,114 +2,13 @@
 
 @push('styles')
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --primary:       #90c52d;
-    --primary-dark:  #6a9320;
-    --primary-deeper:#4a6614;
-    --primary-light: #d8edaa;
-    --primary-pale:  #f0f7e0;
-    --dark:          #1e2d0a;
-    --dark2:         #2e4210;
-    --gold:          #e8a20c;
-    --gold-light:    #f5c842;
-    --cream:         #f6f9ee;
-    --cream2:        #edf5d5;
-    --white:         #ffffff;
-    --text:          #1e2d0a;
-    --text-muted:    #546038;
-    --text-light:    #89a05c;
-    --border:        #d6e8a8;
-    --border2:       #c5dc8c;
-    --shadow:        0 2px 16px rgba(90,130,20,.10);
-    --shadow-lg:     0 6px 32px rgba(90,130,20,.16);
-    --r:             6px;
-    --r-sm:          4px;
-    --r-pill:        50px;
-  }
-  html { scroll-behavior: smooth; }
-  body {
-    font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: var(--cream);
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.65;
-    overflow-x: hidden;
-  }
-
-  /* ── NAVBAR ── */
-  nav {
-    position: sticky; top: 0; z-index: 200;
-    background: transparent;
-    border-bottom: 1px solid var(--border);
-    padding: 0 clamp(1rem,4vw,3rem);
-    isolation: isolate;
-  }
-  nav::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: -1;
-    pointer-events: none;
-  }
-  .nav-inner {
-    max-width: 1280px; margin: auto;
-    display: flex; align-items: center; gap: 20px;
-    height: 66px;
-  }
-  .logo {
-    display: flex; align-items: center; gap: 9px;
-    text-decoration: none; flex-shrink: 0;
-  }
-  .logo-img { height: 40px; width: auto; display: block; object-fit: contain; }
-
-  .nav-links { display: flex; gap: 2px; margin: 0 auto; }
-  .nav-links a {
-    text-decoration: none; color: var(--text-muted); font-size: 14px; font-weight: 500;
-    padding: 7px 14px; border-radius: var(--r-sm); transition: all .2s;
-  }
-  .nav-links a:hover { background: var(--primary-pale); color: var(--dark); }
-  .nav-links a.active { color: var(--dark); background: var(--primary-pale); font-weight: 600; }
-  .nav-search {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--cream2); border: 1px solid var(--border); border-radius: var(--r-sm);
-    padding: 8px 14px; flex: 0 0 210px;
-  }
-  .nav-search input { border: none; background: transparent; outline: none; font-size: 14px; color: var(--text); width: 100%; font-family: inherit; }
-  .nav-search input::placeholder { color: var(--text-light); }
-  .nav-actions { display: flex; align-items: center; gap: 6px; }
-  .nav-action-btn {
-    padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
-    background: transparent; cursor: pointer; font-family: inherit;
-    font-size: 13px; font-weight: 500; color: var(--text-muted);
-    transition: all .2s; white-space: nowrap;
-  }
-  .nav-action-btn:hover { background: var(--primary-pale); border-color: var(--primary); color: var(--dark); }
-  .nav-action-btn.cart { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .nav-action-btn.cart:hover { background: var(--primary-dark); }
-  .nav-toggle { width:48px; height:48px; border-radius:8px; border:1px solid var(--border); background:transparent; display:none; align-items:center; justify-content:center; cursor:pointer; transition:background .3s,border-color .3s,transform .3s; }
-  .nav-toggle:hover, .nav-toggle:focus-visible { background:var(--primary-pale); border-color:var(--primary); }
-  .nav-toggle-lines { width:24px; height:24px; position:relative; }
-  .nav-toggle-lines span { position:absolute; left:3px; right:3px; height:2px; background:var(--dark); border-radius:2px; transition:transform .3s,top .3s,opacity .3s; }
-  .nav-toggle-lines span:nth-child(1){ top:7px; }
-  .nav-toggle-lines span:nth-child(2){ top:11px; }
-  .nav-toggle-lines span:nth-child(3){ top:15px; }
-  nav.nav-open .nav-toggle-lines span:nth-child(1){ top:11px; transform:rotate(45deg); }
-  nav.nav-open .nav-toggle-lines span:nth-child(2){ opacity:0; }
-  nav.nav-open .nav-toggle-lines span:nth-child(3){ top:11px; transform:rotate(-45deg); }
-  .nav-drawer { display:flex; align-items:center; gap:20px; margin-left:auto; }
-  .nav-drawer-top, .nav-close { display:none; }
-  .nav-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); opacity:0; pointer-events:none; transition:opacity .3s; z-index:210; }
-  nav.nav-open + .nav-backdrop { opacity:1; pointer-events:auto; }
+  .vp-home { max-width: 100%; }
 
   /* ── FOOTER ── */
-  footer { background: var(--dark); color: rgba(255,255,255,.8); padding: clamp(2.5rem,5vw,4rem) clamp(1rem,4vw,3rem) 0; }
+  footer { background: var(--dark); color: rgba(255,255,255,.8); padding: clamp(2.5rem,5vw,4rem) clamp(1rem,4vw,3rem) 0; overflow: hidden; }
   .footer-inner { max-width: 1280px; margin: auto; }
   .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; padding-bottom: 3rem; border-bottom: 1px solid rgba(255,255,255,.1); }
-  .footer-logo-img { height: 48px; width: auto; object-fit: contain; margin-bottom: 12px; display: block; filter: brightness(0) invert(1); }
+  .footer-logo-img { height: 96px; width: auto; object-fit: contain; margin-bottom: 12px; display: block; }
   .footer-desc { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.8; margin-bottom: 20px; }
   .footer-contacts { display: flex; flex-direction: column; gap: 8px; }
   .fci { font-size: 13px; color: rgba(255,255,255,.6); }
@@ -194,7 +93,7 @@
     display: flex; align-items: center; gap: 10px;
     border: 1px solid var(--border);
   }
-  .float-card-1 { bottom: 10%; left: -6%; animation: floatY 3s ease-in-out infinite; }
+  .float-card-1 { bottom: 68%; left: -6%; animation: floatY 3s ease-in-out infinite; }
   .float-card-2 { top: 12%; right: -8%; animation: floatY 3.5s ease-in-out infinite .5s; }
   .float-card-3 { top: 50%; left: -10%; animation: floatY 4s ease-in-out infinite 1s; }
   @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
@@ -419,22 +318,14 @@
     .store-inner,.promo-inner,.app-inner { grid-template-columns: 1fr; gap: 28px; }
     .product-grid { grid-template-columns: repeat(2, 1fr); }
     .cat-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 210px); }
+    .footer-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
   }
   @media (max-width: 767.98px) {
     .product-grid { grid-template-columns: 1fr; }
     .cat-grid { grid-template-columns: 1fr; grid-template-rows: none; }
     .cat-tile { min-height: 180px; }
-    .nav-toggle { display: flex; margin-left: auto; }
-    .nav-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(92vw, 380px); background: var(--white); border-left: 1px solid var(--border); flex-direction: column; align-items: stretch; gap: 14px; padding: 18px; transform: translateX(105%); transition: transform .3s; z-index: 220; overflow-y: auto; }
-    .nav-open .nav-drawer { transform: translateX(0); }
-    .nav-drawer-top { display: flex; justify-content: flex-end; align-items: center; min-height: 48px; }
-    .nav-close { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--border); background: var(--primary-pale); color: var(--dark); cursor: pointer; transition: background .3s, border-color .3s, transform .3s; font: inherit; font-size: 24px; line-height: 1; }
-    .nav-close:hover, .nav-close:focus-visible { background: var(--primary-light); border-color: var(--primary); }
-    .nav-links { flex-direction: column; gap: 6px; margin: 0; }
-    .nav-links a { justify-content: flex-start; }
-    .nav-search { flex: 0 0 auto; width: 100%; }
-    .nav-actions { flex-direction: column; align-items: stretch; }
-    .nav-action-btn { width: 100%; }
+    .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+    .promo-visual { height: 200px; }
   }
 </style>
 @endpush
@@ -462,31 +353,7 @@
       </div>
       <div class="hero-visual">
         <div class="hero-img-main">
-          <svg class="veg-artwork" viewBox="0 0 380 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="190" cy="268" rx="110" ry="18" fill="rgba(0,0,0,.12)"/>
-            <ellipse cx="190" cy="230" rx="88" ry="24" fill="#1a4010" opacity=".5"/>
-            <path d="M110 215 Q130 172 190 162 Q248 172 268 215 Q245 228 190 233 Q133 228 110 215Z" fill="#52b320"/>
-            <path d="M122 210 Q140 178 190 170 Q238 180 256 208 Q235 220 190 224 Q143 220 122 210Z" fill="#74cc38"/>
-            <path d="M135 205 Q152 182 190 176 Q226 184 242 203 Q224 214 190 218 Q154 214 135 205Z" fill="#a0e04e"/>
-            <path d="M148 200 Q162 186 190 182 Q216 188 228 199 Q215 208 190 211 Q163 208 148 200Z" fill="#c4f07a"/>
-            <path d="M72 200 Q67 165 76 142 Q80 118 74 95" stroke="#3a8c18" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <ellipse cx="68" cy="130" rx="20" ry="13" fill="#52b320" transform="rotate(-22 68 130)"/>
-            <ellipse cx="82" cy="108" rx="17" ry="11" fill="#74cc38" transform="rotate(12 82 108)"/>
-            <ellipse cx="63" cy="102" rx="14" ry="9" fill="#3a8c18" transform="rotate(-35 63 102)"/>
-            <circle cx="292" cy="185" r="26" fill="#c23b22"/>
-            <circle cx="292" cy="185" r="21" fill="#e85d3c"/>
-            <circle cx="292" cy="185" r="14" fill="#f08060" opacity=".5"/>
-            <path d="M284 162 Q292 150 300 162" stroke="#3a8c18" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-            <path d="M292 162 Q292 155 292 150" stroke="#3a8c18" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <ellipse cx="100" cy="230" rx="18" ry="24" fill="#4a7c20" transform="rotate(-15 100 230)"/>
-            <ellipse cx="100" cy="230" rx="13" ry="19" fill="#90d040" transform="rotate(-15 100 230)"/>
-            <ellipse cx="100" cy="230" rx="8" ry="12" fill="#e8f5c0" opacity=".6" transform="rotate(-15 100 230)"/>
-            <path d="M210 85 Q213 76 216 85 Q216 92 210 92 Q204 92 204 85 Q207 76 210 85Z" fill="rgba(255,255,255,.85)"/>
-            <path d="M248 110 Q250 104 252 110 Q252 115 248 115 Q244 115 244 110 Q246 104 248 110Z" fill="rgba(255,255,255,.85)"/>
-            <path d="M165 78 Q167 72 169 78 Q169 83 165 83 Q161 83 161 78 Q163 72 165 78Z" fill="rgba(255,255,255,.7)"/>
-            <path d="M190 140 Q210 110 230 90 Q220 120 210 135" fill="rgba(144,197,45,.35)" stroke="none"/>
-            <path d="M190 140 Q165 108 148 88 Q162 118 175 138" fill="rgba(82,179,32,.3)" stroke="none"/>
-          </svg>
+          <img src="{{ asset('images/home-banner.png') }}" alt="Vietponic Banner" class="veg-artwork" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
         </div>
         <div class="float-card float-card-1">
           <div class="fc-dot" style="background:var(--primary-deeper)">VP</div>
@@ -903,55 +770,6 @@
 
 @push('scripts')
 <script>
-  /* Mobile nav drawer */
-  (function() {
-    var nav = document.querySelector('nav');
-    var navToggle = document.querySelector('.nav-toggle');
-    var navDrawer = document.getElementById('navDrawer');
-    var navCloseEls = document.querySelectorAll('[data-nav-close="true"]');
-    var focusablesSelector = 'a[href],button:not([disabled]),input:not([disabled])';
-    var lastFocused = null;
-
-    function setNavOpen(open) {
-      if (!nav || !navToggle || !navDrawer) return;
-      nav.classList.toggle('nav-open', open);
-      navToggle.setAttribute('aria-expanded', String(open));
-      document.body.style.overflow = open ? 'hidden' : '';
-      if (open) {
-        lastFocused = document.activeElement;
-        var first = navDrawer.querySelector(focusablesSelector);
-        if (first) first.focus();
-      } else if (lastFocused && typeof lastFocused.focus === 'function') {
-        lastFocused.focus();
-      }
-    }
-
-    if (navToggle) {
-      navToggle.addEventListener('click', function() {
-        setNavOpen(!nav.classList.contains('nav-open'));
-      });
-    }
-    navCloseEls.forEach(function(el) {
-      el.addEventListener('click', function() { setNavOpen(false); });
-    });
-    if (navDrawer) {
-      navDrawer.addEventListener('click', function(e) {
-        if (e.target && e.target.tagName === 'A') setNavOpen(false);
-      });
-    }
-    document.addEventListener('keydown', function(e) {
-      if (!nav || !nav.classList.contains('nav-open')) return;
-      if (e.key === 'Escape') { setNavOpen(false); return; }
-      if (e.key !== 'Tab') return;
-      var focusables = Array.prototype.slice.call(navDrawer.querySelectorAll(focusablesSelector));
-      if (focusables.length === 0) return;
-      var first = focusables[0];
-      var last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    });
-  })();
-
   /* ── Explore section: category pill filter with AJAX ── */
   (function () {
     var filter = document.getElementById('explore-filter');
