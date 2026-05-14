@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\ZaloApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,13 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::post('create-order', [ZaloApiController::class, 'store']);
     Route::post('checkout', [ZaloApiController::class, 'store']);
     Route::post('link', [ZaloApiController::class, 'link']);
+
+    // ─── Affiliate (customer-facing) ─────────────────────────────────────
+    Route::post('affiliate/register', [AffiliateController::class, 'register']);
+    Route::get('affiliate/me', [AffiliateController::class, 'me']);
+    Route::patch('affiliate/bank', [AffiliateController::class, 'updateBank']);
+    Route::get('affiliate/commissions', [AffiliateController::class, 'commissions']);
+    Route::post('affiliate/apply-referral', [AffiliateController::class, 'applyReferral']);
 });
 
 // ─── Zalo Admin API – Protected (X-Admin-Secret header) ──────────────────────

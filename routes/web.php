@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ZaloOrderController;
 use App\Http\Controllers\Admin\ZaloOrderItemController;
 use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
+use App\Http\Controllers\Admin\AffiliatePartnerController;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Frontend / Landing Page ──────────────────────────────────────────────────
@@ -104,6 +105,14 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('banners', BannerController::class);
         Route::get('zalo-orders/{order}/items/create', [ZaloOrderItemController::class, 'create'])->name('zalo-order-items.create');
         Route::resource('zalo-order-items', ZaloOrderItemController::class)->except(['index']);
+
+        // ─── Affiliate Management ─────────────────────────────────────────────
+        Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);
+        Route::patch('affiliate-partners/{id}/status', [AffiliatePartnerController::class, 'updateStatus'])->name('affiliate-partners.status');
+        Route::post('affiliate-partners/{id}/payouts', [AffiliatePartnerController::class, 'createPayout'])->name('affiliate-partners.payouts.create');
+        Route::patch('affiliate-settings/commission-rate', [AffiliatePartnerController::class, 'updateCommissionRate'])->name('affiliate-settings.commission-rate');
+        Route::patch('affiliate-settings/auto-approve', [AffiliatePartnerController::class, 'toggleAutoApprove'])->name('affiliate-settings.auto-approve');
+        Route::patch('affiliate-settings/enabled', [AffiliatePartnerController::class, 'toggleEnabled'])->name('affiliate-settings.enabled');
     });
 });
 

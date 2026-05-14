@@ -71,6 +71,9 @@
         "test:zalo": [
             "@php artisan test --env=testing --testsuite=Zalo"
         ],
+        "test:affiliate": [
+            "@php artisan test --env=testing --testsuite=Affiliate"
+        ],
         "test:coverage": [
             "@php artisan test --env=testing --coverage --min=80"
         ]

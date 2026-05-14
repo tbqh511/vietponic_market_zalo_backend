@@ -22,6 +22,17 @@ class Customer extends Authenticatable implements JWTSubject
         'fcm_id',
         'logintype',
         'isActive',
+        'affiliate_code',
+        'referred_by_customer_id',
+        'affiliate_status',
+        'affiliate_approved_at',
+        'affiliate_bank_name',
+        'affiliate_bank_account',
+        'affiliate_bank_holder',
+    ];
+
+    protected $casts = [
+        'affiliate_approved_at' => 'datetime',
     ];
 
     protected $hidden = [
@@ -48,6 +59,26 @@ class Customer extends Authenticatable implements JWTSubject
     public function property()
     {
         return $this->hasMany(Property::class, 'added_by');
+    }
+
+    public function referrer()
+    {
+        return $this->belongsTo(Customer::class, 'referred_by_customer_id');
+    }
+
+    public function referrals()
+    {
+        return $this->hasMany(Customer::class, 'referred_by_customer_id');
+    }
+
+    public function commissionsEarned()
+    {
+        return $this->hasMany(AffiliateCommission::class, 'referrer_customer_id');
+    }
+
+    public function payouts()
+    {
+        return $this->hasMany(AffiliatePayout::class, 'referrer_customer_id');
     }
 
     public function getProfileAttribute($image)

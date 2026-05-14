@@ -20,6 +20,14 @@
             <file>./tests/Feature/UpdateOrderStatusTest.php</file>
             <file>./tests/Feature/OrderListTest.php</file>
         </testsuite>
+        <!-- Testsuite cho hệ thống Affiliate -->
+        <testsuite name="Affiliate">
+            <file>./tests/Unit/AffiliateCommissionCalculationTest.php</file>
+            <file>./tests/Unit/AffiliateCodeGeneratorTest.php</file>
+            <file>./tests/Feature/AffiliateRegistrationTest.php</file>
+            <file>./tests/Feature/ApplyReferralTest.php</file>
+            <file>./tests/Feature/CommissionCreditedOnPaymentTest.php</file>
+        </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>

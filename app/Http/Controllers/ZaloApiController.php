@@ -584,6 +584,10 @@ class ZaloApiController extends Controller
                 'payment_status' => $paymentStatus,
             ]);
 
+            if ($paymentStatus === 'success') {
+                event(new \App\Events\OrderPaymentSucceeded($order->id));
+            }
+
             return response()->json([
                 'returnCode' => 1,
                 'returnMessage' => 'Success',

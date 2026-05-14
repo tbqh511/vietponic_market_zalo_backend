@@ -86,6 +86,7 @@ class CheckPaymentStatus implements ShouldQueue
             if ($returnCode == 1) {
                 $order->payment_status = 'success';
                 $order->save();
+                event(new \App\Events\OrderPaymentSucceeded($order->id));
             } elseif ($returnCode == -1) {
                 $order->payment_status = 'failed';
                 $order->save();
