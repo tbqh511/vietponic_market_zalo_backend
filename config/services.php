@@ -35,6 +35,7 @@ return [
         'app_id' => env('ZALO_APP_ID'),
         'app_secret' => env('ZALO_APP_SECRET'),
         'api_base_url' => env('ZALO_API_BASE_URL', 'https://openapi.zalo.me'),
+        'mini_app_id' => env('ZALO_MINI_APP_ID'),
     ],
 
 ];

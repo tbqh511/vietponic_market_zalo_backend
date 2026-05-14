@@ -29,6 +29,10 @@ class AffiliateController extends Controller
 
     private function referralBaseUrl(): string
     {
+        $miniAppId = config('services.zalo.mini_app_id');
+        if ($miniAppId) {
+            return 'https://zalo.me/s/' . $miniAppId . '/';
+        }
         $row = Setting::where('type', 'affiliate_referral_base_url')->first();
         return $row->data ?? 'https://zalo.me/s/2984181565024919663/';
     }
