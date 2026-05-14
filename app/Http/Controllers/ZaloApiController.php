@@ -10,6 +10,7 @@ use App\Models\ZaloOrder;
 use App\Models\ZaloOrderItem;
 use App\Models\ZaloDelivery;
 use App\Models\Customer;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 
 class ZaloApiController extends Controller
 {
+    public function __construct(private StockService $stockService) {}
     public function categories()
     {
         $data = ZaloCategory::orderBy('id')->get();
@@ -148,6 +150,21 @@ class ZaloApiController extends Controller
             ]);
         }
 
+        // Kiểm tra tồn kho trước khi tạo đơn
+        $stockItems = collect($items)->map(fn ($i) => [
+            'product_id' => $i['product_id'],
+            'quantity'   => (int) $i['quantity'],
+        ])->all();
+
+        $stockCheck = $this->stockService->checkAvailability($stockItems);
+        if ($stockCheck !== true) {
+            return response()->json([
+                'error'    => true,
+                'message'  => 'Một số sản phẩm không đủ số lượng tồn kho',
+                'shortages' => $stockCheck,
+            ], 422);
+        }
+
         // Bọc trong DB Transaction để tránh orphan data
         $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $request, $products) {
             $createdAt = Carbon::parse($request->created_at);
@@ -196,6 +213,16 @@ class ZaloApiController extends Controller
         });
 
         $order->load(['items', 'delivery']);
+
+        // Đặt giữ tồn kho cho đơn hàng vừa tạo
+        try {
+            $this->stockService->reserveItems($order->id, $stockItems);
+        } catch (\Throwable $e) {
+            Log::error('reserveItems failed after order creation', [
+                'order_id' => $order->id,
+                'message'  => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Đã tạo đơn hàng thành công!',
@@ -264,7 +291,20 @@ class ZaloApiController extends Controller
             return response()->json(['error' => true, 'message' => 'Order not found'], 404);
         }
 
+        $previousStatus = $order->status;
         $order->update(['status' => $request->status]);
+
+        // Giải phóng tồn kho reserved khi đơn bị huỷ
+        if ($request->status === 'cancelled' && $previousStatus !== 'cancelled') {
+            try {
+                $this->stockService->releaseReservation($order->id);
+            } catch (\Throwable $e) {
+                Log::error('releaseReservation failed on cancellation', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
+        }
 
         $order->load(['items', 'delivery']);
 

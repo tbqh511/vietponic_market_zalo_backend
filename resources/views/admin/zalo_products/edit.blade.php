@@ -65,6 +65,9 @@
                 </div>
                 <button class="btn btn-primary">Save</button>
                 <a href="{{ route('zalo-products.index') }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ route('inventory.show', $product->id) }}" class="btn btn-outline-info ms-2">
+                    <i class="fas fa-boxes"></i> Quản lý tồn kho
+                </a>
             </form>
         </div>
     </div>

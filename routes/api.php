@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\ZaloApiController;
+use App\Http\Controllers\Admin\StockApiController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Zalo Mini App API – Public ───────────────────────────────────────────────
@@ -39,4 +40,11 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
 
 Route::group(['middleware' => ['zalo.admin']], function () {
     Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']);
+
+    // ─── Inventory Admin API ──────────────────────────────────────────────────
+    Route::get('admin/inventory', [StockApiController::class, 'index']);
+    Route::get('admin/inventory/low-stock', [StockApiController::class, 'lowStock']);
+    Route::get('admin/inventory/{id}/movements', [StockApiController::class, 'movements']);
+    Route::post('admin/inventory/{id}/import', [StockApiController::class, 'import']);
+    Route::post('admin/inventory/{id}/adjust', [StockApiController::class, 'adjust']);
 });

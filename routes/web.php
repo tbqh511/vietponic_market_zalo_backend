@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ZaloOrderItemController;
 use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
+use App\Http\Controllers\Admin\StockController;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Frontend / Landing Page ──────────────────────────────────────────────────
@@ -105,6 +106,16 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('banners', BannerController::class);
         Route::get('zalo-orders/{order}/items/create', [ZaloOrderItemController::class, 'create'])->name('zalo-order-items.create');
         Route::resource('zalo-order-items', ZaloOrderItemController::class)->except(['index']);
+
+        // ─── Inventory Management ─────────────────────────────────────────────
+        Route::get('inventory', [StockController::class, 'index'])->name('inventory.index');
+        Route::get('inventory/low-stock', [StockController::class, 'lowStock'])->name('inventory.low-stock');
+        Route::get('inventory/report', [StockController::class, 'report'])->name('inventory.report');
+        Route::get('inventory/{inventory}', [StockController::class, 'show'])->name('inventory.show');
+        Route::get('inventory/{inventory}/import', [StockController::class, 'importForm'])->name('inventory.import');
+        Route::post('inventory/{inventory}/import', [StockController::class, 'importStore'])->name('inventory.import.store');
+        Route::post('inventory/{inventory}/adjust', [StockController::class, 'adjust'])->name('inventory.adjust');
+        Route::post('inventory/{inventory}/reorder-point', [StockController::class, 'reorderPoint'])->name('inventory.reorder-point');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);

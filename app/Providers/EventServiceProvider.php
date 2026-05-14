@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Events\OrderPaymentSucceeded;
+use App\Listeners\DeductStockOnPayment;
 use App\Listeners\RecordAffiliateCommission;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -22,6 +23,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         OrderPaymentSucceeded::class => [
             RecordAffiliateCommission::class,
+            DeductStockOnPayment::class,
         ],
     ];
 

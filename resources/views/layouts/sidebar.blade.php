@@ -50,6 +50,9 @@
                                 <li class="submenu-item">
                                     <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
                                 </li>
+                                <li class="submenu-item">
+                                    <a href="{{ route('inventory.index') }}">{{ __('Quản lý Tồn kho') }}</a>
+                                </li>
                             </ul>
                         </li>
                     {{--@endif--}}
