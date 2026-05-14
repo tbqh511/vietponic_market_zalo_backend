@@ -115,6 +115,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::get('inventory/{inventory}/import', [StockController::class, 'importForm'])->name('inventory.import');
         Route::post('inventory/{inventory}/import', [StockController::class, 'importStore'])->name('inventory.import.store');
         Route::post('inventory/{inventory}/adjust', [StockController::class, 'adjust'])->name('inventory.adjust');
+        Route::post('inventory/{inventory}/quick-export', [StockController::class, 'quickExport'])->name('inventory.quick-export');
         Route::post('inventory/{inventory}/reorder-point', [StockController::class, 'reorderPoint'])->name('inventory.reorder-point');
 
         // ─── Affiliate Management ─────────────────────────────────────────────

@@ -41,8 +41,8 @@
                         <div class="form-text">Số lượng thực tế nhập vào kho.</div>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Ghi chú <span class="text-danger">*</span></label>
-                        <textarea name="note" class="form-control" rows="3" required
+                        <label class="form-label fw-semibold">Ghi chú</label>
+                        <textarea name="note" class="form-control" rows="3"
                                   placeholder="VD: Nhập từ nhà cung cấp ABC, ngày 14/05/2026">{{ old('note') }}</textarea>
                     </div>
 

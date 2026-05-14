@@ -16,6 +16,10 @@ class StockController extends Controller
     {
         $query = ZaloProduct::with('category');
 
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
@@ -29,7 +33,7 @@ class StockController extends Controller
             };
         }
 
-        $products   = $query->orderBy('name')->get();
+        $products   = $query->orderBy('name')->paginate(25)->withQueryString();
         $categories = ZaloCategory::orderBy('id')->get();
 
         return view('admin.inventory.index', compact('products', 'categories'));
@@ -50,19 +54,27 @@ class StockController extends Controller
     {
         $request->validate([
             'quantity' => 'required|integer|min:1',
-            'note'     => 'required|string|max:500',
+            'note'     => 'nullable|string|max:500',
         ]);
 
         $this->stockService->importStock(
             $inventory->id,
             (int) $request->quantity,
-            $request->note,
+            $request->note ?: 'Nhập kho',
             auth()->id()
         );
 
+        $msg = 'Nhập kho thành công. Tồn kho đã được cập nhật.';
+
+        // If coming from the list page, go back there; otherwise go to detail
+        $referer = $request->headers->get('referer', '');
+        if (str_contains($referer, route('inventory.index'))) {
+            return redirect()->to($referer)->with('success', $msg);
+        }
+
         return redirect()
             ->route('inventory.show', $inventory->id)
-            ->with('success', 'Nhập kho thành công. Tồn kho đã được cập nhật.');
+            ->with('success', $msg);
     }
 
     public function adjust(Request $request, ZaloProduct $inventory)
@@ -82,6 +94,23 @@ class StockController extends Controller
         return redirect()
             ->route('inventory.show', $inventory->id)
             ->with('success', 'Điều chỉnh tồn kho thành công.');
+    }
+
+    public function quickExport(Request $request, ZaloProduct $inventory)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1',
+            'note'     => 'nullable|string|max:500',
+        ]);
+
+        $qty  = (int) $request->quantity;
+        $note = $request->note ?: 'Xuất kho nhanh từ danh sách';
+
+        // reuse adjustStock by subtracting: new_qty = current - export_qty
+        $newQty = max(0, $inventory->stock - $qty);
+        $this->stockService->adjustStock($inventory->id, $newQty, $note, auth()->id());
+
+        return back()->with('success', "Đã xuất {$qty} đơn vị khỏi kho \"{$inventory->name}\".");
     }
 
     public function reorderPoint(Request $request, ZaloProduct $inventory)
