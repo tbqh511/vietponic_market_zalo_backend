@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\FarmPartnerAdminController;
+use App\Http\Controllers\Admin\ZaloCustomerController;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Frontend / Landing Page ──────────────────────────────────────────────────
@@ -122,6 +123,11 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         // ─── Farm Partner Management ──────────────────────────────────────────
         Route::resource('farm-partners', FarmPartnerAdminController::class);
         Route::patch('farm-partners/{id}/status', [FarmPartnerAdminController::class, 'updateStatus'])->name('farm-partners.status');
+
+        // ─── Customer Management ──────────────────────────────────────────────
+        Route::resource('zalo-customers', ZaloCustomerController::class)->except(['create', 'store']);
+        Route::patch('zalo-customers/{id}/toggle-farm-partner', [ZaloCustomerController::class, 'toggleFarmPartner'])->name('zalo-customers.toggle-farm-partner');
+        Route::patch('zalo-customers/{id}/toggle-active', [ZaloCustomerController::class, 'toggleActive'])->name('zalo-customers.toggle-active');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);

@@ -25,4 +25,9 @@ class FarmPartner extends Model
     {
         return $query->where('status', 'active');
     }
+
+    public function logs()
+    {
+        return $this->hasMany(FarmPartnerLog::class);
+    }
 }

@@ -53,6 +53,9 @@
                                 <li class="submenu-item">
                                     <a href="{{ route('inventory.index') }}">{{ __('Quản lý Tồn kho') }}</a>
                                 </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('zalo-customers') }}">{{ __('Khách hàng') }}</a>
+                                </li>
                             </ul>
                         </li>
                     {{--@endif--}}

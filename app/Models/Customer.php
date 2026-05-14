@@ -87,6 +87,11 @@ class Customer extends Authenticatable implements JWTSubject
         return $this->hasOne(FarmPartner::class);
     }
 
+    public function farmPartnerLogs()
+    {
+        return $this->hasMany(FarmPartnerLog::class);
+    }
+
     public function getProfileAttribute($image)
     {
         return $image != ''
