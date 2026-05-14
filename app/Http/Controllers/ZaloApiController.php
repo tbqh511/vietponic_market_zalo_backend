@@ -316,9 +316,11 @@ class ZaloApiController extends Controller
     {
         $request->validate([
             'access_token' => 'required|string',
+            'phone_token'  => 'nullable|string',
         ]);
 
         $accessToken = $request->access_token;
+        $phoneToken  = $request->phone_token;
         $secretKey = config('services.zalo.app_secret');
 
         try {
@@ -352,22 +354,43 @@ class ZaloApiController extends Controller
                 ], 400);
             }
 
+            // Decode phone token nếu có
+            $phoneNumber = null;
+            if ($phoneToken) {
+                $phoneResponse = Http::timeout(10)->withHeaders([
+                    'access_token' => $accessToken,
+                    'code'         => $phoneToken,
+                    'secret_key'   => $secretKey,
+                ])->get('https://graph.zalo.me/v2.0/me/info');
+
+                if ($phoneResponse->successful()) {
+                    $phoneNumber = $phoneResponse->json('data.number');
+                }
+
+                \Log::info('[authenticate] Phone decode response', [
+                    'status' => $phoneResponse->status(),
+                    'number' => $phoneNumber,
+                ]);
+            }
+
             // Find or create customer based on Zalo ID
             $customer = Customer::where('firebase_id', $zaloProfile['id'])->first();
 
             if (!$customer) {
-                // Create new customer
                 $customer = Customer::create([
-                    'name' => $zaloProfile['name'] ?? 'Zalo User',
-                    'email' => isset($zaloProfile['id']) ? $zaloProfile['id'] . '@zalo.user' : null,
+                    'name'        => $zaloProfile['name'] ?? 'Zalo User',
+                    'email'       => $zaloProfile['id'] . '@zalo.user',
                     'firebase_id' => $zaloProfile['id'],
-                    'mobile' => null, // Will be updated when user provides phone
-                    'profile' => null,
-                    'address' => null,
-                    'fcm_id' => null,
-                    'logintype' => 'zalo',
-                    'isActive' => 1,
+                    'mobile'      => $phoneNumber,
+                    'profile'     => null,
+                    'address'     => null,
+                    'fcm_id'      => null,
+                    'logintype'   => 'zalo',
+                    'isActive'    => 1,
                 ]);
+            } elseif ($phoneNumber && !$customer->mobile) {
+                // Cập nhật số điện thoại nếu chưa có
+                $customer->update(['mobile' => $phoneNumber]);
             }
 
             // Generate JWT token
