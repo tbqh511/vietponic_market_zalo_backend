@@ -54,11 +54,10 @@
                         <th>Họ tên</th>
                         <th>SĐT</th>
                         <th>Email</th>
-                        <th>Đăng nhập</th>
                         <th class="text-center">Trạng thái</th>
                         <th class="text-center">Farm Partner</th>
                         <th>Ngày tham gia</th>
-                        <th>Thao tác</th>
+                        <th style="min-width:220px;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,44 +65,71 @@
                     <tr>
                         <td class="text-muted small">{{ $c->id }}</td>
                         <td>
-                            @if($c->name)
-                                {{ $c->name }}
-                            @else
-                                <span class="text-muted">—</span>
+                            <a href="{{ route('zalo-customers.show', $c->id) }}" class="fw-semibold text-decoration-none">
+                                {{ $c->name ?: '—' }}
+                            </a>
+                            @if($c->logintype)
+                                <br><span class="badge bg-secondary" style="font-size:0.65rem;">{{ $c->logintype }}</span>
                             @endif
                         </td>
-                        <td>{{ $c->mobile ?: '—' }}</td>
+                        <td class="small">{{ $c->mobile ?: '—' }}</td>
                         <td class="small text-muted">{{ $c->email ?: '—' }}</td>
-                        <td><span class="badge bg-secondary">{{ $c->logintype ?: '—' }}</span></td>
+
+                        {{-- Toggle Active --}}
                         <td class="text-center">
-                            @if($c->isActive)
-                                <span class="badge bg-success">Hoạt động</span>
-                            @else
-                                <span class="badge bg-danger">Tắt</span>
-                            @endif
+                            <form action="{{ route('zalo-customers.toggle-active', $c->id) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm('{{ $c->isActive ? 'Vô hiệu hoá' : 'Kích hoạt' }} tài khoản {{ addslashes($c->name ?: '#'.$c->id) }}?')">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-sm {{ $c->isActive ? 'btn-success' : 'btn-outline-danger' }}"
+                                        title="{{ $c->isActive ? 'Đang hoạt động — nhấn để vô hiệu hoá' : 'Đã tắt — nhấn để kích hoạt' }}"
+                                        style="min-width:90px;">
+                                    @if($c->isActive)
+                                        <i class="bi bi-check-circle-fill"></i> Hoạt động
+                                    @else
+                                        <i class="bi bi-slash-circle"></i> Đã tắt
+                                    @endif
+                                </button>
+                            </form>
                         </td>
+
+                        {{-- Toggle Farm Partner --}}
                         <td class="text-center">
-                            @if($c->farmPartner)
-                                @if($c->farmPartner->status === 'active')
-                                    <span class="badge bg-primary">Farm Active</span>
-                                @else
-                                    <span class="badge bg-warning text-dark">Farm Inactive</span>
-                                @endif
-                            @else
-                                <span class="text-muted small">—</span>
-                            @endif
+                            <form action="{{ route('zalo-customers.toggle-farm-partner', $c->id) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm('{{ !$c->farmPartner ? 'Đăng ký Farm Partner cho' : ($c->farmPartner->status === 'active' ? 'Tắt Farm Partner của' : 'Bật lại Farm Partner cho') }} {{ addslashes($c->name ?: '#'.$c->id) }}?')">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" style="min-width:110px;"
+                                        class="btn btn-sm {{ !$c->farmPartner ? 'btn-outline-primary' : ($c->farmPartner->status === 'active' ? 'btn-primary' : 'btn-outline-warning') }}">
+                                    @if(!$c->farmPartner)
+                                        <i class="bi bi-plus-circle"></i> Thêm Farm
+                                    @elseif($c->farmPartner->status === 'active')
+                                        <i class="bi bi-tree-fill"></i> Farm Active
+                                    @else
+                                        <i class="bi bi-tree"></i> Farm Inactive
+                                    @endif
+                                </button>
+                            </form>
                         </td>
+
                         <td class="small text-muted">{{ $c->created_at?->format('d/m/Y') }}</td>
+
                         <td>
-                            <a href="{{ route('zalo-customers.show', $c->id) }}"
-                               class="btn btn-sm btn-primary">Xem</a>
-                            <a href="{{ route('zalo-customers.edit', $c->id) }}"
-                               class="btn btn-sm btn-secondary">Sửa</a>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <a href="{{ route('zalo-customers.show', $c->id) }}"
+                                   class="btn btn-sm btn-outline-primary" title="Xem chi tiết">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ route('zalo-customers.edit', $c->id) }}"
+                                   class="btn btn-sm btn-outline-secondary" title="Sửa thông tin">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">Chưa có khách hàng nào</td>
+                        <td colspan="8" class="text-center text-muted py-4">Chưa có khách hàng nào</td>
                     </tr>
                 @endforelse
                 </tbody>
