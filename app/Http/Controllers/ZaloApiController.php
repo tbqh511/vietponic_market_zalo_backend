@@ -379,11 +379,12 @@ class ZaloApiController extends Controller
                 'data' => [
                     'token' => $token,
                     'user' => [
-                        'id' => $customer->id,
-                        'name' => $customer->name,
-                        'email' => $customer->email,
-                        'profile' => $customer->profile,
-                        'mobile' => $customer->mobile,
+                        'id'              => $customer->id,
+                        'name'            => $customer->name,
+                        'email'           => $customer->email,
+                        'profile'         => $customer->profile,
+                        'mobile'          => $customer->mobile,
+                        'is_farm_partner' => $customer->farmPartner()->where('status', 'active')->exists(),
                     ]
                 ]
             ]);

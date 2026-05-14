@@ -177,6 +177,60 @@ class StockService
     }
 
     /**
+     * Manually import stock by a farm-partner customer (not admin).
+     * Uses farm_customer_id (FK → customers) instead of created_by (FK → users/admin).
+     */
+    public function importStockByFarm(int $productId, int $qty, string $note, int $farmCustomerId): void
+    {
+        DB::transaction(function () use ($productId, $qty, $note, $farmCustomerId) {
+            $product = ZaloProduct::lockForUpdate()->findOrFail($productId);
+            $before  = $product->stock;
+
+            $product->increment('stock', $qty);
+            $product->refresh();
+
+            StockMovement::create([
+                'product_id'       => $product->id,
+                'order_id'         => null,
+                'movement_type'    => 'import',
+                'quantity_change'  => $qty,
+                'quantity_before'  => $before,
+                'quantity_after'   => $product->stock,
+                'note'             => $note,
+                'created_by'       => null,
+                'farm_customer_id' => $farmCustomerId,
+            ]);
+        });
+    }
+
+    /**
+     * Manually export stock (subtract quantity). Used by farm-partners.
+     * Uses farm_customer_id (FK → customers) instead of created_by (FK → users/admin).
+     */
+    public function exportStock(int $productId, int $qty, string $note, int $farmCustomerId): void
+    {
+        DB::transaction(function () use ($productId, $qty, $note, $farmCustomerId) {
+            $product = ZaloProduct::lockForUpdate()->findOrFail($productId);
+            $before  = $product->stock;
+
+            $product->decrement('stock', $qty);
+            $product->refresh();
+
+            StockMovement::create([
+                'product_id'       => $product->id,
+                'order_id'         => null,
+                'movement_type'    => 'export',
+                'quantity_change'  => -$qty,
+                'quantity_before'  => $before,
+                'quantity_after'   => $product->stock,
+                'note'             => $note,
+                'created_by'       => null,
+                'farm_customer_id' => $farmCustomerId,
+            ]);
+        });
+    }
+
+    /**
      * Adjust stock to an exact quantity (manual correction).
      */
     public function adjustStock(int $productId, int $newQty, string $note, int $adminId): void

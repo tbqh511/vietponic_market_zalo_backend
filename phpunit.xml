@@ -20,6 +20,10 @@
             <file>./tests/Feature/UpdateOrderStatusTest.php</file>
             <file>./tests/Feature/OrderListTest.php</file>
         </testsuite>
+        <!-- Testsuite cho Farm Partner -->
+        <testsuite name="Farm">
+            <file>./tests/Feature/FarmStockTest.php</file>
+        </testsuite>
         <!-- Testsuite cho hệ thống Affiliate -->
         <testsuite name="Affiliate">
             <file>./tests/Unit/AffiliateCommissionCalculationTest.php</file>

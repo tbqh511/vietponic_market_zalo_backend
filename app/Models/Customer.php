@@ -47,7 +47,8 @@ class Customer extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'customer_id' => $this->id,
+            'customer_id'     => $this->id,
+            'is_farm_partner' => $this->farmPartner()->where('status', 'active')->exists(),
         ];
     }
 
@@ -79,6 +80,11 @@ class Customer extends Authenticatable implements JWTSubject
     public function payouts()
     {
         return $this->hasMany(AffiliatePayout::class, 'referrer_customer_id');
+    }
+
+    public function farmPartner()
+    {
+        return $this->hasOne(FarmPartner::class);
     }
 
     public function getProfileAttribute($image)

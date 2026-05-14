@@ -51,5 +51,6 @@ class Kernel extends HttpKernel
         'coming.soon' => \App\Http\Middleware\ComingSoonMiddleware::class,
         'zalo.jwt' => \App\Http\Middleware\ZaloJwtMiddleware::class,
         'zalo.admin' => \App\Http\Middleware\ZaloAdminApiMiddleware::class,
+        'zalo.farm' => \App\Http\Middleware\ZaloFarmMiddleware::class,
     ];
 }

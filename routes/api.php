@@ -3,6 +3,7 @@
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\Admin\StockApiController;
+use App\Http\Controllers\Farm\FarmStockController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Zalo Mini App API – Public ───────────────────────────────────────────────
@@ -34,6 +35,15 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::get('affiliate/commissions', [AffiliateController::class, 'commissions']);
     Route::get('affiliate/referrals', [AffiliateController::class, 'referrals']);
     Route::post('affiliate/apply-referral', [AffiliateController::class, 'applyReferral']);
+});
+
+// ─── Farm Partner API – Protected (JWT + farm_partner role) ──────────────────
+
+Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
+    Route::get('inventory', [FarmStockController::class, 'index']);
+    Route::get('inventory/{id}/movements', [FarmStockController::class, 'movements']);
+    Route::post('inventory/{id}/import', [FarmStockController::class, 'import']);
+    Route::post('inventory/{id}/export', [FarmStockController::class, 'export']);
 });
 
 // ─── Zalo Admin API – Protected (X-Admin-Secret header) ──────────────────────

@@ -18,6 +18,7 @@ class StockMovement extends Model
         'quantity_after',
         'note',
         'created_by',
+        'farm_customer_id',
     ];
 
     protected $casts = [

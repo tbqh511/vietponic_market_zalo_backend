@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
+use App\Http\Controllers\Admin\FarmPartnerAdminController;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Frontend / Landing Page ──────────────────────────────────────────────────
@@ -117,6 +118,10 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('inventory/{inventory}/adjust', [StockController::class, 'adjust'])->name('inventory.adjust');
         Route::post('inventory/{inventory}/quick-export', [StockController::class, 'quickExport'])->name('inventory.quick-export');
         Route::post('inventory/{inventory}/reorder-point', [StockController::class, 'reorderPoint'])->name('inventory.reorder-point');
+
+        // ─── Farm Partner Management ──────────────────────────────────────────
+        Route::resource('farm-partners', FarmPartnerAdminController::class);
+        Route::patch('farm-partners/{id}/status', [FarmPartnerAdminController::class, 'updateStatus'])->name('farm-partners.status');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);
