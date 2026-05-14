@@ -30,7 +30,7 @@ class AffiliateController extends Controller
     private function referralBaseUrl(): string
     {
         $row = Setting::where('type', 'affiliate_referral_base_url')->first();
-        return $row->data ?? 'https://zalo.me/s/';
+        return $row->data ?? 'https://zalo.me/s/2984181565024919663/';
     }
 
     public function register(Request $request)

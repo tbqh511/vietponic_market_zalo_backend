@@ -10,7 +10,7 @@ return new class extends Migration
         Setting::firstOrCreate(['type' => 'affiliate_commission_rate'], ['data' => '5']);
         Setting::firstOrCreate(['type' => 'affiliate_auto_approve'], ['data' => '1']);
         Setting::firstOrCreate(['type' => 'affiliate_enabled'], ['data' => '1']);
-        Setting::firstOrCreate(['type' => 'affiliate_referral_base_url'], ['data' => 'https://zalo.me/s/']);
+        Setting::firstOrCreate(['type' => 'affiliate_referral_base_url'], ['data' => 'https://zalo.me/s/2984181565024919663/']);
     }
 
     public function down(): void

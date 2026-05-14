@@ -47,6 +47,9 @@
                                 <li class="submenu-item">
                                     <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
                                 </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
+                                </li>
                             </ul>
                         </li>
                     {{--@endif--}}
