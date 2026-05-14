@@ -22,8 +22,9 @@
         <input id="navSearch" type="search" placeholder="Tìm rau, củ, quả…" autocomplete="off" inputmode="search">
       </div>
       <div class="nav-actions">
-        <button class="nav-action-btn" type="button">Yêu thích</button>
-        <button class="nav-action-btn cart" type="button">Giỏ hàng (3)</button>
+        <a href="https://zalo.me/s/2984181565024919663" target="_blank" rel="noopener" class="nav-action-btn cart" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px">
+          <span style="font-size:15px;font-weight:800;letter-spacing:-.5px">Z</span> Mở Mini App
+        </a>
       </div>
     </div>
   </div>

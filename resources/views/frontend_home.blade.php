@@ -451,8 +451,10 @@
         <a href="#" class="see-all">Xem tất cả</a>
       </div>
       <div class="product-grid">
+        @php $zaloAppId = '2984181565024919663'; @endphp
         @forelse($newestProducts as $product)
-        <div class="prod-card">
+        @php $zaloProductUrl = 'https://zalo.me/s/' . $zaloAppId . '?path=' . urlencode('/product/' . $product->id); @endphp
+        <div class="prod-card" onclick="window.open('{{ $zaloProductUrl }}','_blank','noopener')" style="cursor:pointer">
           <div class="prod-img" style="background:linear-gradient(145deg,var(--primary-light),var(--primary))">
             @if(!empty($product->image))
               <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" loading="lazy">
@@ -470,11 +472,11 @@
               <div class="prod-price">{{ number_format((float)$product->price) }}<small>đ</small></div>
               <div class="prod-origin">Đà Lạt</div>
             </div>
-            <button class="add-btn">Thêm vào giỏ</button>
+            <a href="{{ $zaloProductUrl }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
           </div>
         </div>
         @empty
-        <div class="prod-card">
+        <div class="prod-card" style="cursor:pointer" onclick="window.open('https://zalo.me/s/{{ $zaloAppId }}','_blank','noopener')">
           <div class="prod-img" style="background:linear-gradient(145deg,#d0e8b0,#90c040)">
             <span style="font-size:58px">🥬</span>
             <div class="prod-tag">Bán chạy</div>
@@ -486,10 +488,10 @@
               <div class="prod-price">25.000<small>đ/túi</small></div>
               <div class="prod-origin">Đà Lạt</div>
             </div>
-            <button class="add-btn">Thêm vào giỏ</button>
+            <a href="https://zalo.me/s/{{ $zaloAppId }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
           </div>
         </div>
-        <div class="prod-card">
+        <div class="prod-card" style="cursor:pointer" onclick="window.open('https://zalo.me/s/{{ $zaloAppId }}','_blank','noopener')">
           <div class="prod-img" style="background:linear-gradient(145deg,#c8e8d0,#70b888)">
             <span style="font-size:58px">🌿</span>
           </div>
@@ -500,10 +502,10 @@
               <div class="prod-price">30.000<small>đ/bó</small></div>
               <div class="prod-origin">Đà Lạt</div>
             </div>
-            <button class="add-btn">Thêm vào giỏ</button>
+            <a href="https://zalo.me/s/{{ $zaloAppId }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
           </div>
         </div>
-        <div class="prod-card">
+        <div class="prod-card" style="cursor:pointer" onclick="window.open('https://zalo.me/s/{{ $zaloAppId }}','_blank','noopener')">
           <div class="prod-img" style="background:linear-gradient(145deg,#faecc0,#e8c050)">
             <span style="font-size:58px">🌽</span>
             <div class="prod-tag gold">Mới về</div>
@@ -515,10 +517,10 @@
               <div class="prod-price">45.000<small>đ/200g</small></div>
               <div class="prod-origin">Đà Lạt</div>
             </div>
-            <button class="add-btn">Thêm vào giỏ</button>
+            <a href="https://zalo.me/s/{{ $zaloAppId }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
           </div>
         </div>
-        <div class="prod-card">
+        <div class="prod-card" style="cursor:pointer" onclick="window.open('https://zalo.me/s/{{ $zaloAppId }}','_blank','noopener')">
           <div class="prod-img" style="background:linear-gradient(145deg,#f8d8c8,#e07050)">
             <span style="font-size:58px">🍅</span>
           </div>
@@ -529,7 +531,7 @@
               <div class="prod-price">35.000<small>đ/hộp</small></div>
               <div class="prod-origin">Đà Lạt</div>
             </div>
-            <button class="add-btn">Thêm vào giỏ</button>
+            <a href="https://zalo.me/s/{{ $zaloAppId }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
           </div>
         </div>
         @endforelse
@@ -578,7 +580,8 @@
       </div>
       <div class="product-grid" id="explore-grid">
         @forelse($exploreProducts as $product)
-          <div class="prod-card" data-category-id="{{ $product->category_id }}">
+          @php $zaloProductUrl = 'https://zalo.me/s/2984181565024919663?path=' . urlencode('/product/' . $product->id); @endphp
+          <div class="prod-card" data-category-id="{{ $product->category_id }}" data-product-id="{{ $product->id }}" data-zalo-url="{{ $zaloProductUrl }}" onclick="window.open(this.dataset.zaloUrl,'_blank','noopener')" style="cursor:pointer">
             <div class="prod-img" style="background:linear-gradient(145deg,var(--primary-light),var(--primary))">
               @if(!empty($product->image))
                 <img src="{{ asset($product->image) }}" alt="{{ $product->name }}" loading="lazy">
@@ -593,7 +596,7 @@
                 <div class="prod-price">{{ number_format((float)$product->price) }}<small>đ</small></div>
                 <div class="prod-origin">Đà Lạt</div>
               </div>
-              <button class="add-btn" type="button">Thêm vào giỏ</button>
+              <a href="{{ $zaloProductUrl }}" target="_blank" rel="noopener" class="add-btn" style="text-decoration:none;display:block;text-align:center">Thêm vào giỏ</a>
             </div>
           </div>
         @empty
@@ -620,7 +623,8 @@
       @endphp
       <div class="cat-grid">
         @forelse($featuredCategories as $i => $cat)
-        <a href="#san-pham" class="cat-tile {{ $ctColors[$i % 6] }}" data-filter-id="{{ $cat->id }}" style="text-decoration:none">
+        @php $zaloCatUrl = 'https://zalo.me/s/2984181565024919663?path=' . urlencode('/category/' . $cat->id); @endphp
+        <a href="{{ $zaloCatUrl }}" target="_blank" rel="noopener" class="cat-tile {{ $ctColors[$i % 6] }}" data-filter-id="{{ $cat->id }}" style="text-decoration:none">
           <div class="ct-bg">
             @if($cat->getRawOriginal('image'))
               <img src="{{ $cat->image }}" alt="{{ $cat->name }}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0;">
@@ -756,7 +760,7 @@
         <h2>Đặt Rau Sạch Ngay Trên Zalo — Không Cần Cài App</h2>
         <p>Vietponics tích hợp hoàn toàn trên Zalo Mini App. Duyệt sản phẩm, đặt hàng, thanh toán ZaloPay và theo dõi giao hàng — tất cả trong một ứng dụng quen thuộc.</p>
         <div class="app-btns">
-          <a href="#" class="app-btn zalo">
+          <a href="https://zalo.me/s/2984181565024919663" target="_blank" rel="noopener" class="app-btn zalo">
             <div class="app-platform ap-zalo">Z</div>
             <div class="app-btn-text"><div class="line-s">Mở trên</div><div class="line-b">Zalo App</div></div>
           </a>
@@ -776,15 +780,6 @@
     var grid   = document.getElementById('explore-grid');
     if (!filter || !grid) return;
 
-    function bindAddBtn(btn) {
-      btn.addEventListener('click', function () {
-        var orig = btn.textContent;
-        btn.textContent = 'Đã thêm vào giỏ ✓';
-        btn.style.background = 'var(--primary)'; btn.style.color = 'var(--dark)'; btn.style.borderColor = 'var(--primary)';
-        setTimeout(function () { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
-      });
-    }
-
     var scrollObs = null;
     if ('IntersectionObserver' in window) {
       scrollObs = new IntersectionObserver(function (entries) {
@@ -797,10 +792,18 @@
       scrollObs.observe(card);
     }
 
+    var ZALO_APP_ID = '2984181565024919663';
+    function zaloProductUrl(productId) {
+      return 'https://zalo.me/s/' + ZALO_APP_ID + '?path=' + encodeURIComponent('/product/' + productId);
+    }
+
     function makeCard(product) {
       var card = document.createElement('div');
       card.className = 'prod-card';
       card.setAttribute('data-category-id', product.category_id);
+      card.style.cursor = 'pointer';
+      var url = zaloProductUrl(product.id);
+      card.addEventListener('click', function () { window.open(url, '_blank', 'noopener'); });
 
       var imgWrap = document.createElement('div');
       imgWrap.className = 'prod-img';
@@ -823,9 +826,12 @@
       priceEl.innerHTML = (parseFloat(product.price) || 0).toLocaleString('vi-VN') + '<small>đ</small>';
       var originEl = document.createElement('div'); originEl.className = 'prod-origin'; originEl.textContent = 'Đà Lạt';
       meta.appendChild(priceEl); meta.appendChild(originEl);
-      var addBtn = document.createElement('button'); addBtn.className = 'add-btn'; addBtn.type = 'button'; addBtn.textContent = 'Thêm vào giỏ';
-      bindAddBtn(addBtn);
-      body.appendChild(catEl); body.appendChild(nameEl); body.appendChild(meta); body.appendChild(addBtn);
+      var addLink = document.createElement('a');
+      addLink.className = 'add-btn'; addLink.href = url; addLink.target = '_blank'; addLink.rel = 'noopener';
+      addLink.style.cssText = 'text-decoration:none;display:block;text-align:center';
+      addLink.textContent = 'Thêm vào giỏ';
+      addLink.addEventListener('click', function (e) { e.stopPropagation(); });
+      body.appendChild(catEl); body.appendChild(nameEl); body.appendChild(meta); body.appendChild(addLink);
       card.appendChild(body);
       return card;
     }
@@ -862,39 +868,6 @@
         .catch(function (err) { setLoading(false); console.error('Explore filter error:', err); });
     });
   })();
-
-  /* Category tile → scroll to explore section and apply filter */
-  document.querySelectorAll('.cat-tile[data-filter-id]').forEach(function(tile) {
-    tile.addEventListener('click', function(e) {
-      e.preventDefault();
-      var catId = tile.getAttribute('data-filter-id');
-      var exploreSection = document.getElementById('san-pham');
-      var filterBtn = document.querySelector('#explore-filter .cat-pill[data-id="' + catId + '"]');
-      if (exploreSection) {
-        exploreSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      if (filterBtn) {
-        setTimeout(function() { filterBtn.click(); }, 500);
-      }
-    });
-  });
-
-  /* Add-to-cart feedback */
-  document.querySelectorAll('.add-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var orig = btn.textContent;
-      btn.textContent = 'Đã thêm vào giỏ ✓';
-      btn.style.background = 'var(--primary)';
-      btn.style.color = 'var(--dark)';
-      btn.style.borderColor = 'var(--primary)';
-      setTimeout(function() {
-        btn.textContent = orig;
-        btn.style.background = '';
-        btn.style.color = '';
-        btn.style.borderColor = '';
-      }, 2000);
-    });
-  });
 
   /* Scroll-in animation via IntersectionObserver */
   if ('IntersectionObserver' in window) {
