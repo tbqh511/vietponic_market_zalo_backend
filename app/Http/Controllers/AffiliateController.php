@@ -9,6 +9,7 @@ use App\Models\ZaloOrder;
 use App\Support\AffiliateCodeGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AffiliateController extends Controller
 {
@@ -169,6 +170,85 @@ class AffiliateController extends Controller
                 'total' => $paginator->total(),
             ],
         ]);
+    }
+
+    public function referrals(Request $request)
+    {
+        if ($r = $this->ensureEnabled()) return $r;
+        $customerId = (int) $request->attributes->get('zalo_customer_id');
+
+        $perPage = min(50, max(5, (int) $request->query('per_page', 20)));
+
+        $ordersAgg = DB::table('zalo_orders')
+            ->selectRaw('customer_id, COUNT(*) as orders_count, COALESCE(SUM(CAST(total AS DECIMAL(20,2))),0) as orders_total')
+            ->groupBy('customer_id');
+        $commissionAgg = DB::table('affiliate_commissions')
+            ->where('referrer_customer_id', $customerId)
+            ->selectRaw('referred_customer_id, COALESCE(SUM(commission_amount),0) as commission_total')
+            ->groupBy('referred_customer_id');
+
+        $paginator = Customer::where('customers.referred_by_customer_id', $customerId)
+            ->leftJoinSub($ordersAgg, 'o', function ($j) {
+                $j->on('o.customer_id', '=', 'customers.id');
+            })
+            ->leftJoinSub($commissionAgg, 'c', function ($j) {
+                $j->on('c.referred_customer_id', '=', 'customers.id');
+            })
+            ->select(
+                'customers.id',
+                'customers.name',
+                'customers.mobile',
+                'customers.created_at',
+                DB::raw('COALESCE(o.orders_count, 0) as orders_count'),
+                DB::raw('COALESCE(o.orders_total, 0) as orders_total'),
+                DB::raw('COALESCE(c.commission_total, 0) as commission_total')
+            )
+            ->orderByDesc('customers.id')
+            ->paginate($perPage);
+
+        $items = $paginator->getCollection()->map(function ($row) {
+            return [
+                'id' => (int) $row->id,
+                'name' => $this->maskName($row->name),
+                'mobile_masked' => $this->maskMobile($row->mobile),
+                'joined_at' => $row->created_at,
+                'orders_count' => (int) $row->orders_count,
+                'orders_total' => (float) $row->orders_total,
+                'commission_total' => (int) $row->commission_total,
+            ];
+        });
+
+        return response()->json([
+            'error' => false,
+            'data' => $items,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    private function maskName(?string $name): string
+    {
+        $name = trim((string) $name);
+        if ($name === '') return 'Khách ẩn danh';
+        $parts = preg_split('/\s+/u', $name);
+        return collect($parts)->map(function ($p) {
+            $len = mb_strlen($p);
+            if ($len <= 1) return $p;
+            return mb_substr($p, 0, 1) . str_repeat('*', max(1, $len - 1));
+        })->implode(' ');
+    }
+
+    private function maskMobile(?string $mobile): ?string
+    {
+        $mobile = trim((string) $mobile);
+        if ($mobile === '') return null;
+        $len = strlen($mobile);
+        if ($len <= 4) return str_repeat('*', $len);
+        return substr($mobile, 0, 3) . str_repeat('*', max(0, $len - 5)) . substr($mobile, -2);
     }
 
     public function applyReferral(Request $request)

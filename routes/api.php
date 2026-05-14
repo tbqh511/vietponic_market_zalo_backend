@@ -31,6 +31,7 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::get('affiliate/me', [AffiliateController::class, 'me']);
     Route::patch('affiliate/bank', [AffiliateController::class, 'updateBank']);
     Route::get('affiliate/commissions', [AffiliateController::class, 'commissions']);
+    Route::get('affiliate/referrals', [AffiliateController::class, 'referrals']);
     Route::post('affiliate/apply-referral', [AffiliateController::class, 'applyReferral']);
 });
 

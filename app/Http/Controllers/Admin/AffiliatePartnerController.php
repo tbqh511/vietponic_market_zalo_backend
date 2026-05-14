@@ -46,12 +46,40 @@ class AffiliatePartnerController extends Controller
             ->get()
             ->keyBy('status');
         $commissions = AffiliateCommission::where('referrer_customer_id', $partner->id)
-            ->orderByDesc('created_at')->paginate(20);
+            ->orderByDesc('created_at')->paginate(20, ['*'], 'commissions_page');
         $referralsCount = Customer::where('referred_by_customer_id', $partner->id)->count();
         $payouts = AffiliatePayout::where('referrer_customer_id', $partner->id)
             ->orderByDesc('created_at')->limit(10)->get();
 
-        return view('admin.affiliate_partners.show', compact('partner', 'stats', 'commissions', 'referralsCount', 'payouts'));
+        $ordersAgg = DB::table('zalo_orders')
+            ->selectRaw('customer_id, COUNT(*) as orders_count, COALESCE(SUM(CAST(total AS DECIMAL(20,2))),0) as orders_total')
+            ->groupBy('customer_id');
+        $commissionAgg = DB::table('affiliate_commissions')
+            ->where('referrer_customer_id', $partner->id)
+            ->selectRaw('referred_customer_id, COALESCE(SUM(commission_amount),0) as commission_total')
+            ->groupBy('referred_customer_id');
+
+        $referrals = Customer::where('customers.referred_by_customer_id', $partner->id)
+            ->leftJoinSub($ordersAgg, 'o', function ($j) {
+                $j->on('o.customer_id', '=', 'customers.id');
+            })
+            ->leftJoinSub($commissionAgg, 'c', function ($j) {
+                $j->on('c.referred_customer_id', '=', 'customers.id');
+            })
+            ->select(
+                'customers.id',
+                'customers.name',
+                'customers.mobile',
+                'customers.email',
+                'customers.created_at',
+                DB::raw('COALESCE(o.orders_count, 0) as orders_count'),
+                DB::raw('COALESCE(o.orders_total, 0) as orders_total'),
+                DB::raw('COALESCE(c.commission_total, 0) as commission_total')
+            )
+            ->orderByDesc('customers.id')
+            ->paginate(20, ['*'], 'referrals_page');
+
+        return view('admin.affiliate_partners.show', compact('partner', 'stats', 'commissions', 'referralsCount', 'payouts', 'referrals'));
     }
 
     public function edit($id)

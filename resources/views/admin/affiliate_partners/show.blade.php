@@ -104,6 +104,54 @@
         </div>
     </div>
 
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Khách hàng đã giới thiệu</h5>
+            <span class="badge bg-info">{{ $referralsCount }} khách</span>
+        </div>
+        <div class="card-body">
+            @if($referrals->count())
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Họ tên</th>
+                                <th>SĐT</th>
+                                <th>Email</th>
+                                <th class="text-end">Số đơn</th>
+                                <th class="text-end">Tổng chi tiêu</th>
+                                <th class="text-end">Hoa hồng đã sinh</th>
+                                <th>Ngày tham gia</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($referrals as $r)
+                            <tr>
+                                <td>{{ $r->id }}</td>
+                                <td>{{ $r->name ?: '—' }}</td>
+                                <td>{{ $r->mobile ?: '—' }}</td>
+                                <td>{{ $r->email ?: '—' }}</td>
+                                <td class="text-end">{{ (int) $r->orders_count }}</td>
+                                <td class="text-end">{{ number_format((float) $r->orders_total) }}</td>
+                                <td class="text-end text-success">{{ number_format((int) $r->commission_total) }}</td>
+                                <td>{{ $r->created_at }}</td>
+                                <td>
+                                    <a href="{{ route('zalo-orders.index', ['customer_id' => $r->id]) }}" class="btn btn-sm btn-outline-primary">Xem đơn</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                {{ $referrals->links() }}
+            @else
+                <p class="text-center text-muted mb-0">Chưa có khách hàng được giới thiệu</p>
+            @endif
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header"><h5 class="mb-0">Lịch sử hoa hồng</h5></div>
         <div class="card-body">
