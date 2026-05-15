@@ -3,7 +3,7 @@
 @section('content')
     <div class="card">
         <div class="card-header">
-            <h4>Edit Zalo Station</h4>
+            <h4>Sửa trạm lấy hàng</h4>
         </div>
         <div class="card-body">
             @if($errors->any())
@@ -19,19 +19,19 @@
                 @csrf
                 @method('PUT')
                 <div class="mb-3">
-                    <label class="form-label">Name</label>
+                    <label class="form-label">Tên trạm</label>
                     <input type="text" name="name" class="form-control" value="{{ old('name', $station->name) }}" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Current Image</label>
+                    <label class="form-label">Hình ảnh hiện tại</label>
                     @if($station->image)
                         <div class="mb-2">
                             <img src="{{ asset($station->image) }}" style="height:100px; width:100px; object-fit:cover;" class="rounded">
                         </div>
                     @endif
-                    <label class="form-label">Image file (or paste image URL)</label>
+                    <label class="form-label">Tệp hình ảnh (hoặc dán URL hình ảnh)</label>
                     <input type="file" name="image_file" id="image_file" class="form-control" accept="image/*">
-                    <small class="form-text text-muted">You may also paste an image URL below instead of uploading.</small>
+                    <small class="form-text text-muted">Bạn cũng có thể dán URL hình ảnh bên dưới thay vì tải lên.</small>
                     <input type="text" name="image" id="image_url" class="form-control mt-2" value="{{ old('image', $station->image) }}" placeholder="https://...">
                     <div id="preview" class="mt-2">
                         <img id="previewImg" src="" style="height:40px; display:none" />
@@ -39,25 +39,25 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Address</label>
+                    <label class="form-label">Địa chỉ</label>
                     <textarea name="address" class="form-control" rows="3">{{ old('address', $station->address) }}</textarea>
                 </div>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label class="form-label">Latitude</label>
+                            <label class="form-label">Vĩ độ</label>
                             <input type="number" step="any" name="lat" class="form-control" value="{{ old('lat', $station->lat) }}">
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label class="form-label">Longitude</label>
+                            <label class="form-label">Kinh độ</label>
                             <input type="number" step="any" name="lng" class="form-control" value="{{ old('lng', $station->lng) }}">
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-primary">Save</button>
-                <a href="{{ route('zalo-stations.index') }}" class="btn btn-secondary">Cancel</a>
+                <button class="btn btn-primary">Lưu</button>
+                <a href="{{ route('zalo-stations.index') }}" class="btn btn-secondary">Huỷ</a>
             </form>
         </div>
     </div>
@@ -76,7 +76,7 @@
             const r = gcd(renderedW, renderedH);
             const i = gcd(intrinsicW, intrinsicH);
             metaDiv.style.display = 'block';
-            metaDiv.innerHTML = `Rendered size:\t${renderedW} × ${renderedH} px<br>Rendered aspect ratio:\t${renderedW / r}:${renderedH / r}<br>Intrinsic size:\t${intrinsicW} × ${intrinsicH} px<br>Intrinsic aspect ratio:\t${intrinsicW / i}:${intrinsicH / i}`;
+            metaDiv.innerHTML = `Kích thước hiển thị:\t${renderedW} × ${renderedH} px<br>Tỷ lệ hiển thị:\t${renderedW / r}:${renderedH / r}<br>Kích thước gốc:\t${intrinsicW} × ${intrinsicH} px<br>Tỷ lệ gốc:\t${intrinsicW / i}:${intrinsicH / i}`;
         }
 
         fileInput && fileInput.addEventListener('change', function (e) {
@@ -108,7 +108,7 @@
             };
             img.onerror = function () {
                 metaDiv.style.display = 'block';
-                metaDiv.innerHTML = 'Could not load image to compute metadata.';
+                metaDiv.innerHTML = 'Không thể tải hình ảnh để đọc thông tin.';
             };
             img.src = v;
             // clear file input when URL provided

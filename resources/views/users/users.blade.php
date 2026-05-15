@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    Users
+    Người dùng
 @endsection
 
 @section('page-title')
@@ -25,8 +25,7 @@
             <div class="card-header">
                 <div class="col-sm-12 d-flex justify-content-end">
 
-                    <a class="btn btn-primary me-1 mb-1" data-bs-toggle="modal" data-bs-target="#addUsereditModal">Add
-                        Users</a>
+                    <a class="btn btn-primary me-1 mb-1" data-bs-toggle="modal" data-bs-target="#addUsereditModal">Thêm người dùng</a>
 
                 </div>
             </div>
@@ -47,11 +46,11 @@
                             <thead>
                                 <tr>
                                     <th scope="col" data-field="id" data-sortable="true" data-align="center">ID</th>
-                                    <th scope="col" data-field="name" data-sortable="true" data-align="center">Name</th>
+                                    <th scope="col" data-field="name" data-sortable="true" data-align="center">Họ tên</th>
                                     <th scope="col" data-field="email" data-sortable="true" data-align="center">Email</th>
-                                    <th scope="col" data-field="status" data-sortable="false" data-align="center">Active Status</th>
+                                    <th scope="col" data-field="status" data-sortable="false" data-align="center">Trạng thái</th>
                                     <th scope="col" data-field="operate" data-sortable="false"
-                                        data-events="actionEvents" data-align="center">Action</th>
+                                        data-events="actionEvents" data-align="center">Thao tác</th>
                                 </tr>
                             </thead>
                         </table>
@@ -71,7 +70,7 @@
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="myModalLabel1">ADD USER</h5>
+                    <h5 class="modal-title" id="myModalLabel1">THÊM NGƯỜI DÙNG</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -85,8 +84,8 @@
 
                                 <div class="col-md-12 col-12">
                                     <div class="form-group mandatory">
-                                        <label for="name" class="form-label col-12 ">Name</label>
-                                        <input type="text" id="name" class="form-control col-12" placeholder="Name"
+                                        <label for="name" class="form-label col-12 ">Họ tên</label>
+                                        <input type="text" id="name" class="form-control col-12" placeholder="Họ tên"
                                             name="name" data-parsley-required="true">
                                     </div>
                                 </div>
@@ -103,9 +102,9 @@
 
                                 <div class="col-md-12 col-12">
                                     <div class="form-group mandatory align-items-center">
-                                        <label for="password" class="form-label col-12 ">Password</label>
+                                        <label for="password" class="form-label col-12 ">Mật khẩu</label>
                                         <input type="password" id="password" class="form-control col-12"
-                                            placeholder="Password" name="Password" data-parsley-minlength="8"
+                                            placeholder="Mật khẩu" name="Password" data-parsley-minlength="8"
                                             data-parsley-errors-container=".error-password"
                                             data-parsley-required-message="Please enter your new password."
                                             data-parsley-uppercase="1" data-parsley-lowercase="1" data-parsley-number="1"
@@ -125,7 +124,7 @@
                                 <div class="table-responsive">
                                     <table id="table" class="table permission-table" aria-describedby="mydesc">
                                         <tr>
-                                            <th scope="col">Module/Permissions</th>
+                                            <th scope="col">Mô-đun / Quyền</th>
                                             @foreach ($actions as $row)
                                                 <th scope="col">
                                                     <div class="form-check">
@@ -179,9 +178,9 @@
 
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Đóng</button>
 
-                    <button type="submit" class="btn btn-primary waves-effect waves-light">Save</button>
+                    <button type="submit" class="btn btn-primary waves-effect waves-light">Lưu</button>
                     </form>
                 </div>
             </div>
@@ -198,7 +197,7 @@
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="myModalLabel1">EDIT USER</h5>
+                    <h5 class="modal-title" id="myModalLabel1">SỬA NGƯỜI DÙNG</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -214,9 +213,9 @@
 
                                 <div class="col-md-12 col-12">
                                     <div class="form-group mandatory">
-                                        <label for="name" class="form-label col-12 text-center">Name</label>
+                                        <label for="name" class="form-label col-12 text-center">Họ tên</label>
                                         <input type="text" id="edit_name" class="form-control col-12"
-                                            placeholder="Name" name="name" data-parsley-required="true">
+                                            placeholder="Họ tên" name="name" data-parsley-required="true">
                                     </div>
                                 </div>
 
@@ -231,8 +230,8 @@
 
                                 <div class="col-md-12 col-12">
                                     <div class="form-group mandatory">
-                                        <label for="email" class="form-label col-12 text-center">Active Status</label>
-                                        {!! Form::select('status', ['0' => 'Inactive', '1' => 'Active'], '', [
+                                        <label for="email" class="form-label col-12 text-center">Trạng thái tài khoản</label>
+                                        {!! Form::select('status', ['0' => 'Không hoạt động', '1' => 'Hoạt động'], '', [
                                             'class' => 'form-select',
                                             'id' => 'status',
                                         ]) !!}
@@ -245,7 +244,7 @@
                                 <div class="table-responsive">
                                     <table id="table" class="table permission-table" aria-describedby="mydesc">
                                         <tr>
-                                            <th scope="col">Module/Permissions</th>
+                                            <th scope="col">Mô-đun / Quyền</th>
                                             @foreach ($actions as $row)
                                                 <th scope="col">
                                                     <div class="form-check">
@@ -301,9 +300,9 @@
 
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Đóng</button>
 
-                    <button type="submit" class="btn btn-primary waves-effect waves-light">Save</button>
+                    <button type="submit" class="btn btn-primary waves-effect waves-light">Lưu</button>
                     </form>
                 </div>
             </div>
@@ -319,7 +318,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="myModalLabel1">RESET PASSWORD</h5>
+                    <h5 class="modal-title" id="myModalLabel1">ĐẶT LẠI MẬT KHẨU</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -330,24 +329,20 @@
 
                         <div class="row">
                             <div class="form-group row align-items-center">
-                                <label for="firstName" class="col-lg-4 col-sm-12 control-label text-center mb-3">New
-                                    Password</label>
+                                <label for="firstName" class="col-lg-4 col-sm-12 control-label text-center mb-3">Mật khẩu mới</label>
                                 <div class="col-lg-8 mb-3">
                                     <input type="password" class="form-control" name="newPassword" id="newPassword"
-                                        placeholder="New password" minlength="4" required>
+                                        placeholder="Mật khẩu mới" minlength="4" required>
                                     <input type="hidden" name='pass_id' id="pass_id" required>
-                                    <span class="form-text text-muted"><small>Min Password Length Must Be of
-                                            4</small></span>
+                                    <span class="form-text text-muted"><small>Mật khẩu tối thiểu 4 ký tự</small></span>
                                 </div>
                             </div>
                             <div class="form-group row align-items-center">
-                                <label for="firstName" class="col-lg-4 col-sm-12 control-label text-center">Confirm
-                                    Password</label>
+                                <label for="firstName" class="col-lg-4 col-sm-12 control-label text-center">Xác nhận mật khẩu</label>
                                 <div class="col-lg-8 mb-3">
                                     <input type="password" class="form-control" name="confPassword" id="confPassword"
-                                        placeholder="Confirm password" minlength="4" required>
-                                    <span class="form-text text-muted"><small>Min Password Length Must Be of
-                                            4</small></span>
+                                        placeholder="Xác nhận mật khẩu" minlength="4" required>
+                                    <span class="form-text text-muted"><small>Mật khẩu tối thiểu 4 ký tự</small></span>
                                     <br><span class="error" style="color:red"></span>
                                 </div>
                             </div>
@@ -357,9 +352,9 @@
                         </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Đóng</button>
                     <button type="submit" name="btnResetPass" value="btnResetPass"
-                        class="btn btn-primary waves-effect waves-light">Save</button>
+                        class="btn btn-primary waves-effect waves-light">Lưu</button>
                     </form>
                 </div>
             </div>

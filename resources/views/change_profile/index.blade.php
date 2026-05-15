@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    {{ __('Change Profile') }}
+    {{ __('Cập nhật hồ sơ') }}
 @endsection
 
 @section('content')
@@ -12,7 +12,7 @@
 
                 <div class="divider">
                     <div class="divider-text">
-                        <h4>{{ __('Change Profile') }}</h4>
+                        <h4>{{ __('Cập nhật hồ sơ') }}</h4>
                     </div>
                 </div>
             </div>
@@ -53,7 +53,7 @@
                                     <label class="col-sm-4 col-form-label text-alert">&nbsp;</label>
                                     <div class="col-sm-4 text-end">
                                         <button type="submit" name="btnadd" value="btnadd"
-                                            class="btn btn-primary float-right">{{ __('Change') }}</button>
+                                            class="btn btn-primary float-right">{{ __('Cập nhật') }}</button>
                                     </div>
 
                                 </div>

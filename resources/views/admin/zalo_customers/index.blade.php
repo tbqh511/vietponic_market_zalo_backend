@@ -28,9 +28,9 @@
                     <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Đã tắt</option>
                 </select>
                 <select name="farm_status" class="form-select" style="max-width:190px;" onchange="this.form.submit()">
-                    <option value="">Tất cả Farm Status</option>
-                    <option value="active"   {{ request('farm_status') === 'active'   ? 'selected' : '' }}>Farm Active</option>
-                    <option value="inactive" {{ request('farm_status') === 'inactive' ? 'selected' : '' }}>Farm Inactive</option>
+                    <option value="">Tất cả trạng thái Farm</option>
+                    <option value="active"   {{ request('farm_status') === 'active'   ? 'selected' : '' }}>Farm đang hoạt động</option>
+                    <option value="inactive" {{ request('farm_status') === 'inactive' ? 'selected' : '' }}>Farm đã tắt</option>
                     <option value="none"     {{ request('farm_status') === 'none'     ? 'selected' : '' }}>Chưa là Farm</option>
                 </select>
                 <input type="date" name="date_from" value="{{ request('date_from') }}"
@@ -104,9 +104,9 @@
                                     @if(!$c->farmPartner)
                                         <i class="bi bi-plus-circle"></i> Thêm Farm
                                     @elseif($c->farmPartner->status === 'active')
-                                        <i class="bi bi-tree-fill"></i> Farm Active
+                                        <i class="bi bi-tree-fill"></i> Farm hoạt động
                                     @else
-                                        <i class="bi bi-tree"></i> Farm Inactive
+                                        <i class="bi bi-tree"></i> Farm đã tắt
                                     @endif
                                 </button>
                             </form>

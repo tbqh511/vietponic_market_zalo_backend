@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    {{ __('Change Password') }}
+    {{ __('Đổi mật khẩu') }}
 @endsection
 
 
@@ -14,7 +14,7 @@
 
                 <div class="divider">
                     <div class="divider-text">
-                        <h4>{{ __('Change Password') }}</h4>
+                        <h4>{{ __('Đổi mật khẩu') }}</h4>
                     </div>
                 </div>
             </div>
@@ -52,31 +52,31 @@
 
                                 <div class="form-group row">
                                     <label
-                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('Current Password') }}</label>
+                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('Mật khẩu hiện tại') }}</label>
                                     <div class="col-sm-4">
                                         <input type="password" name="current_password" id="old_password"
                                             class="form-control form-control-lg form-control-solid mb-2" value=""
-                                            placeholder="Current password" required />
+                                            placeholder="Mật khẩu hiện tại" required />
 
                                     </div>
                                     <label class="col-sm-4" id="old_status"></label>
                                 </div>
                                 <div class="form-group row">
                                     <label
-                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('New Password') }}</label>
+                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('Mật khẩu mới') }}</label>
                                     <div class="col-sm-4">
                                         <input type="password" name="newPassword" id="newPassword"
                                             class="form-control form-control-lg form-control-solid" value=""
-                                            placeholder="New password" required />
+                                            placeholder="Mật khẩu mới" required />
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label
-                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('Verify Password') }}</label>
+                                        class="col-sm-4 col-form-label text-alert text-center">{{ __('Xác nhận mật khẩu') }}</label>
                                     <div class="col-sm-4">
                                         <input type="password" id="confPassword" name="confPassword"
                                             class="form-control form-control-lg form-control-solid" value=""
-                                            placeholder="Verify password" required />
+                                            placeholder="Xác nhận mật khẩu" required />
                                     </div>
                                     <span class="error col-sm-4" style="color:red">
                                         @error('newPassword')
@@ -91,7 +91,7 @@
                                     <label class="col-sm-4 col-form-label text-alert">&nbsp;</label>
                                     <div class="col-sm-4 text-end">
                                         <button type="submit" name="btnadd" value="btnadd"
-                                            class="btn btn-primary float-right">{{ __('Change') }}</button>
+                                            class="btn btn-primary float-right">{{ __('Đổi mật khẩu') }}</button>
                                     </div>
 
                                 </div>
@@ -121,7 +121,7 @@
                     old_password: old_password
                 },
                 beforeSend: function() {
-                    $('#old_status').html('checking..');
+                    $('#old_status').html('Đang kiểm tra...');
                 },
                 success: function(result) {
                     console.log(result);
@@ -162,7 +162,7 @@
                 allowsubmit = true;
             } else {
                 //if not matching show error and not allow to submit
-                $('.error').text('Password not Matching');
+                $('.error').text('Mật khẩu không khớp');
                 allowsubmit = false;
             }
         });

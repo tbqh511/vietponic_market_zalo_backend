@@ -3,8 +3,8 @@
 @section('content')
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h4>Zalo Stations</h4>
-            <a href="{{ route('zalo-stations.create') }}" class="btn btn-primary">New Station</a>
+            <h4>Trạm lấy hàng</h4>
+            <a href="{{ route('zalo-stations.create') }}" class="btn btn-primary">Thêm trạm</a>
         </div>
         <div class="card-body">
             @if(session('success'))
@@ -14,12 +14,12 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Name</th>
-                        <th>Image</th>
-                        <th>Address</th>
-                        <th>Lat</th>
-                        <th>Lng</th>
-                        <th>Actions</th>
+                        <th>Tên</th>
+                        <th>Hình ảnh</th>
+                        <th>Địa chỉ</th>
+                        <th>Vĩ độ</th>
+                        <th>Kinh độ</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -36,12 +36,12 @@
                             <td>{{ $station->lat }}</td>
                             <td>{{ $station->lng }}</td>
                             <td>
-                                <a href="{{ route('zalo-stations.edit', $station->id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                                <a href="{{ route('zalo-stations.edit', $station->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
                                 <form action="{{ route('zalo-stations.destroy', $station->id) }}" method="POST" style="display:inline-block"
-                                      onsubmit="return confirm('Delete this station?')">
+                                      onsubmit="return confirm('Xoá trạm này?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                    <button class="btn btn-sm btn-danger">Xoá</button>
                                 </form>
                             </td>
                         </tr>

@@ -4,18 +4,18 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4>Order #{{ $order->id }}</h4>
-            <a href="{{ route('zalo-orders.edit', $order->id) }}" class="btn btn-secondary">Edit</a>
+            <a href="{{ route('zalo-orders.edit', $order->id) }}" class="btn btn-secondary">Sửa</a>
         </div>
         <div class="card-body">
-            <h5>Delivery</h5>
+            <h5>Giao hàng</h5>
             @if($order->delivery)
                 <p>{{ $order->delivery->name }} - {{ $order->delivery->phone }}</p>
                 <p>{{ $order->delivery->address }}</p>
             @else
-                <p>No delivery info</p>
+                <p>Không có thông tin giao hàng</p>
             @endif
 
-            <h5>Items</h5>
+            <h5>Sản phẩm</h5>
             <table class="table">
                 <thead>
                     <tr>
@@ -48,11 +48,11 @@
                             </td>
                             <td>{{ number_format($it->price * $it->quantity) }}</td>
                             <td>
-                                <a href="{{ route('zalo-order-items.edit', $it->id) }}" class="btn btn-sm btn-secondary">Edit</a>
-                                <form action="{{ route('zalo-order-items.destroy', $it->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Delete item?')">
+                                <a href="{{ route('zalo-order-items.edit', $it->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
+                                <form action="{{ route('zalo-order-items.destroy', $it->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Xoá sản phẩm này?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                    <button class="btn btn-sm btn-danger">Xoá</button>
                                 </form>
                             </td>
                         </tr>
@@ -60,9 +60,9 @@
                 </tbody>
             </table>
 
-            <h5>Order summary</h5>
-            <p>Total: {{ number_format($order->total) }}</p>
-            <p>Status: {{ $order->status }} | Payment: {{ $order->payment_status }}</p>
+            <h5>Tóm tắt đơn hàng</h5>
+            <p>Tổng tiền: {{ number_format($order->total) }}</p>
+            <p>Trạng thái: {{ $order->status }} | Thanh toán: {{ $order->payment_status }}</p>
         </div>
     </div>
 @endsection

@@ -57,7 +57,7 @@ function setpasswordValue(id) {
             allowsubmit = true;
         } else {
             //if not matching show error and not allow to submit
-            $('.error').text('Password not matching');
+            $('.error').text('Mật khẩu không khớp');
             allowsubmit = false;
         }
     });

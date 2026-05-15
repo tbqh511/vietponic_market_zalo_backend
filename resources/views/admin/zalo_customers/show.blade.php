@@ -147,9 +147,9 @@
                             <td class="text-muted" style="width:40%">Trạng thái</td>
                             <td>
                                 @if($customer->farmPartner->status === 'active')
-                                    <span class="badge bg-primary">Farm Active</span>
+                                    <span class="badge bg-primary">Farm hoạt động</span>
                                 @else
-                                    <span class="badge bg-warning text-dark">Farm Inactive</span>
+                                    <span class="badge bg-warning text-dark">Farm đã tắt</span>
                                 @endif
                             </td>
                         </tr>

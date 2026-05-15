@@ -29,20 +29,20 @@
                         <li class="sidebar-item has-sub">
                             <a href="#" class='sidebar-link'>
                                 <i class="bi bi-box-seam"></i>
-                                <span class="menu-item">{{ __('Zalo Management') }}</span>
+                                <span class="menu-item">{{ __('Quản lý Zalo') }}</span>
                             </a>
                             <ul class="submenu" style="padding-left: 0rem">
                                 <li class="submenu-item">
-                                    <a href="{{ url('zalo-orders') }}">{{ __('Zalo Orders') }}</a>
+                                    <a href="{{ url('zalo-orders') }}">{{ __('Đơn hàng') }}</a>
                                 </li>
                                 <li class="submenu-item">
-                                    <a href="{{ url('zalo-products') }}">{{ __('Zalo Products') }}</a>
+                                    <a href="{{ url('zalo-products') }}">{{ __('Sản phẩm') }}</a>
                                 </li>
                                 <li class="submenu-item">
-                                    <a href="{{ url('zalo-categories') }}">{{ __('Zalo Categories') }}</a>
+                                    <a href="{{ url('zalo-categories') }}">{{ __('Danh mục') }}</a>
                                 </li>
                                 <li class="submenu-item">
-                                    <a href="{{ url('zalo-stations') }}">{{ __('Zalo Stations') }}</a>
+                                    <a href="{{ url('zalo-stations') }}">{{ __('Trạm lấy hàng') }}</a>
                                 </li>
                                 <li class="submenu-item">
                                     <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
@@ -217,12 +217,12 @@
                         <li class="sidebar-item has-sub">
                             <a href="#" class='sidebar-link'>
                                 <i class="bi bi-gear"></i>
-                                <span class="menu-item">{{ __('Settings') }}</span>
+                                <span class="menu-item">{{ __('Cài đặt') }}</span>
                             </a>
                             <ul class="submenu" style="padding-left: 0rem">
                                 @if (has_permissions('read', 'users_accounts'))
                                     <li class="submenu-item">
-                                        <a href="{{ url('users') }}">{{ __('Users Accounts') }}</a>
+                                        <a href="{{ url('users') }}">{{ __('Tài khoản người dùng') }}</a>
                                     </li>
                                 @endif
                                 {{-- @if (has_permissions('read', 'about_us'))
@@ -232,17 +232,17 @@
                                 @endif --}}
                                 @if (has_permissions('read', 'privacy_policy'))
                                     <li class="submenu-item">
-                                        <a href="{{ url('privacy-policy') }}">{{ __('Privacy Policy') }}</a>
+                                        <a href="{{ url('privacy-policy') }}">{{ __('Chính sách bảo mật') }}</a>
                                     </li>
                                 @endif
                                 @if (has_permissions('read', 'terms_condition'))
                                     <li class="submenu-item">
-                                        <a href="{{ url('terms-conditions') }}">{{ __('Terms & Condition') }}</a>
+                                        <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
                                     </li>
                                 @endif
                                 @if (has_permissions('read', 'system_settings'))
                                     <li class="submenu-item">
-                                        <a href="{{ url('system-settings') }}">{{ __('System Settings') }}</a>
+                                        <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
                                     </li>
                                 @endif
                                 {{-- <li class="submenu-item">

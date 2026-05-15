@@ -4,7 +4,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4>Banners</h4>
-            <a href="{{ route('banners.create') }}" class="btn btn-primary">New Banner</a>
+            <a href="{{ route('banners.create') }}" class="btn btn-primary">Thêm Banner</a>
         </div>
         <div class="card-body">
             @if(session('success'))
@@ -14,8 +14,8 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Image</th>
-                        <th>Actions</th>
+                        <th>Hình ảnh</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -24,11 +24,11 @@
                             <td>{{ $b->id }}</td>
                             <td>@if($b->image)<img src="{{ $b->image }}" style="height:40px" />@endif</td>
                             <td>
-                                <a href="{{ route('banners.edit', $b->id) }}" class="btn btn-sm btn-secondary">Edit</a>
-                                <form action="{{ route('banners.destroy', $b->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Delete this banner?')">
+                                <a href="{{ route('banners.edit', $b->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
+                                <form action="{{ route('banners.destroy', $b->id) }}" method="POST" style="display:inline-block" onsubmit="return confirm('Xoá banner này?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                    <button class="btn btn-sm btn-danger">Xoá</button>
                                 </form>
                             </td>
                         </tr>

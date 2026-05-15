@@ -3,8 +3,8 @@
 @section('content')
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h4>Zalo Categories</h4>
-            <a href="{{ route('zalo-categories.create') }}" class="btn btn-primary">New Category</a>
+            <h4>Danh mục sản phẩm</h4>
+            <a href="{{ route('zalo-categories.create') }}" class="btn btn-primary">Thêm danh mục</a>
         </div>
         <div class="card-body">
             @if(session('success'))
@@ -14,9 +14,9 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Name</th>
-                        <th>Image</th>
-                        <th>Actions</th>
+                        <th>Tên</th>
+                        <th>Hình ảnh</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -30,12 +30,12 @@
                                 @endif
                             </td>
                             <td>
-                                <a href="{{ route('zalo-categories.edit', $cat->id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                                <a href="{{ route('zalo-categories.edit', $cat->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
                                 <form action="{{ route('zalo-categories.destroy', $cat->id) }}" method="POST" style="display:inline-block"
-                                      onsubmit="return confirm('Delete this category?')">
+                                      onsubmit="return confirm('Xoá danh mục này?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                    <button class="btn btn-sm btn-danger">Xoá</button>
                                 </form>
                             </td>
                         </tr>
