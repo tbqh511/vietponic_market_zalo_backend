@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ZaloProduct;
 use App\Models\ZaloCategory;
+use App\Models\ZaloUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -25,7 +26,8 @@ class ZaloProductController extends Controller
     public function create()
     {
         $categories = ZaloCategory::orderBy('id')->get();
-        return view('admin.zalo_products.create', compact('categories'));
+        $units = ZaloUnit::active()->orderBy('label')->get();
+        return view('admin.zalo_products.create', compact('categories', 'units'));
     }
 
     public function store(Request $request)
@@ -37,7 +39,12 @@ class ZaloProductController extends Controller
             'original_price' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'detail' => 'nullable|string',
+            'unit_id' => 'nullable|exists:zalo_units,id',
+            'system_unit' => 'required|in:g,ml,piece',
+            'conversion_factor' => 'required|numeric|min:0.001',
         ]);
+
+        $this->assertUnitConsistency($data);
 
         // Handle image upload
         if ($request->hasFile('image')) {
@@ -60,7 +67,8 @@ class ZaloProductController extends Controller
     {
         $product = ZaloProduct::findOrFail($id);
         $categories = ZaloCategory::orderBy('id')->get();
-        return view('admin.zalo_products.edit', compact('product', 'categories'));
+        $units = ZaloUnit::active()->orderBy('label')->get();
+        return view('admin.zalo_products.edit', compact('product', 'categories', 'units'));
     }
 
     public function update(Request $request, $id)
@@ -73,7 +81,12 @@ class ZaloProductController extends Controller
             'original_price' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'detail' => 'nullable|string',
+            'unit_id' => 'nullable|exists:zalo_units,id',
+            'system_unit' => 'required|in:g,ml,piece',
+            'conversion_factor' => 'required|numeric|min:0.001',
         ]);
+
+        $this->assertUnitConsistency($data);
 
         // Handle image upload
         if ($request->hasFile('image')) {
@@ -96,6 +109,17 @@ class ZaloProductController extends Controller
         $product = ZaloProduct::findOrFail($id);
         $product->delete();
         return redirect()->route('zalo-products.index')->with('success', 'Product deleted');
+    }
+
+    private function assertUnitConsistency(array $data): void
+    {
+        if (empty($data['unit_id'])) {
+            return;
+        }
+        $unit = ZaloUnit::find($data['unit_id']);
+        if ($unit && $unit->system_unit_type !== $data['system_unit']) {
+            abort(422, "Đơn vị '{$unit->label}' không tương thích với hệ {$data['system_unit']}.");
+        }
     }
 
     private function processImage($imagePath)

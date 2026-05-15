@@ -77,6 +77,7 @@
                         <th style="width:50px">Ảnh</th>
                         <th>Tên sản phẩm</th>
                         <th>Danh mục</th>
+                        <th>Đơn vị</th>
                         <th class="text-center">Tồn kho</th>
                         <th class="text-center">Đặt giữ</th>
                         <th class="text-center">Khả dụng</th>
@@ -105,7 +106,24 @@
                             </a>
                         </td>
                         <td class="text-muted small">{{ $p->category?->name }}</td>
-                        <td class="text-center fw-bold">{{ number_format($p->stock) }}</td>
+                        <td class="text-muted small">
+                            @if($p->unit)
+                                {{ $p->unit->label }}
+                                @if((float)$p->conversion_factor !== 1.0)
+                                    <span class="d-block">×{{ rtrim(rtrim(number_format((float)$p->conversion_factor, 3, '.', ''), '0'), '.') }} {{ $p->system_unit }}</span>
+                                @endif
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td class="text-center fw-bold">
+                            {{ number_format($p->stock) }}
+                            @if($p->unit && (float)$p->conversion_factor !== 1.0)
+                                <div class="small text-muted fw-normal">
+                                    ≈ {{ \App\Models\ZaloUnit::formatSystemTotal($p->stock * (float)$p->conversion_factor, $p->system_unit ?? 'piece') }}
+                                </div>
+                            @endif
+                        </td>
                         <td class="text-center text-warning">{{ number_format($p->stock_reserved) }}</td>
                         <td class="text-center fw-bold">{{ number_format($p->stock_available) }}</td>
                         <td class="text-center text-muted">{{ number_format($p->reorder_point) }}</td>
@@ -150,7 +168,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">Không có sản phẩm nào.</td>
+                        <td colspan="10" class="text-center text-muted py-4">Không có sản phẩm nào.</td>
                     </tr>
                     @endforelse
                 </tbody>

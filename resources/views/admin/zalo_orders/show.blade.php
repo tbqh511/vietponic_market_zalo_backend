@@ -18,14 +18,34 @@
             <h5>Items</h5>
             <table class="table">
                 <thead>
-                    <tr><th>Name</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Actions</th></tr>
+                    <tr>
+                        <th>Tên sản phẩm</th>
+                        <th>Đơn giá</th>
+                        <th>Số lượng</th>
+                        <th>Quy đổi (hệ thống)</th>
+                        <th>Thành tiền</th>
+                        <th>Thao tác</th>
+                    </tr>
                 </thead>
                 <tbody>
                     @foreach($order->items as $it)
                         <tr>
                             <td>{{ $it->name }}</td>
                             <td>{{ number_format($it->price) }}</td>
-                            <td>{{ $it->quantity }}</td>
+                            <td>
+                                @if($it->unit_label)
+                                    {{ $it->quantity }} {{ $it->unit_label }}
+                                @else
+                                    x{{ $it->quantity }}
+                                @endif
+                            </td>
+                            <td class="small text-muted">
+                                @if($it->system_total !== null && $it->system_unit && (float)$it->conversion_factor !== 1.0)
+                                    {{ \App\Models\ZaloUnit::formatSystemTotal((float)$it->system_total, $it->system_unit) }}
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td>{{ number_format($it->price * $it->quantity) }}</td>
                             <td>
                                 <a href="{{ route('zalo-order-items.edit', $it->id) }}" class="btn btn-sm btn-secondary">Edit</a>

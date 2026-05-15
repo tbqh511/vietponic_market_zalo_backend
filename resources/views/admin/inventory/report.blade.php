@@ -59,6 +59,55 @@
             </div>
         </div>
 
+        {{-- System-unit aggregation (g/ml/piece) --}}
+        @if(!empty($report['system_totals']))
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-light">
+                    <strong><i class="fas fa-balance-scale"></i> Tổng theo đơn vị hệ thống</strong>
+                    <small class="text-muted ms-2">Quy đổi qua hệ số của từng sản phẩm (vd: 1 bó = 100g)</small>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Đơn vị hệ thống</th>
+                                <th class="text-center text-success">Nhập</th>
+                                <th class="text-center text-danger">Xuất</th>
+                                <th class="text-center text-warning">Điều chỉnh</th>
+                                <th class="text-center">Biến động ròng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($report['system_totals'] as $row)
+                                <tr>
+                                    <td class="fw-bold">
+                                        @switch($row['system_unit'])
+                                            @case('g') Khối lượng (g/kg) @break
+                                            @case('ml') Thể tích (ml/l) @break
+                                            @case('piece') Đếm cái @break
+                                            @default {{ $row['system_unit'] }}
+                                        @endswitch
+                                    </td>
+                                    <td class="text-center text-success">
+                                        +{{ \App\Models\ZaloUnit::formatSystemTotal($row['imports'], $row['system_unit']) }}
+                                    </td>
+                                    <td class="text-center text-danger">
+                                        -{{ \App\Models\ZaloUnit::formatSystemTotal($row['exports'], $row['system_unit']) }}
+                                    </td>
+                                    <td class="text-center text-warning">
+                                        {{ $row['adjustments'] >= 0 ? '+' : '-' }}{{ \App\Models\ZaloUnit::formatSystemTotal(abs($row['adjustments']), $row['system_unit']) }}
+                                    </td>
+                                    <td class="text-center fw-bold {{ $row['net_change'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ $row['net_change'] >= 0 ? '+' : '-' }}{{ \App\Models\ZaloUnit::formatSystemTotal(abs($row['net_change']), $row['system_unit']) }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
         {{-- Per-product table --}}
         @if($report['products']->isEmpty())
             <p class="text-muted text-center py-4">Không có dữ liệu trong khoảng thời gian này.</p>
@@ -68,21 +117,32 @@
                     <thead class="table-light">
                         <tr>
                             <th>Sản phẩm</th>
+                            <th>Đơn vị</th>
                             <th class="text-center text-success">Nhập</th>
                             <th class="text-center text-danger">Xuất</th>
                             <th class="text-center text-warning">Điều chỉnh</th>
                             <th class="text-center">Biến động ròng</th>
+                            <th class="text-center">Quy đổi (hệ thống)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($report['products'] as $row)
                         <tr>
                             <td class="fw-semibold">{{ $row['product_name'] }}</td>
+                            <td class="small text-muted">
+                                {{ $row['unit_label'] ?? '—' }}
+                                @if($row['conversion_factor'] && $row['conversion_factor'] != 1)
+                                    <span class="d-block text-muted">×{{ rtrim(rtrim(number_format($row['conversion_factor'], 3, '.', ''), '0'), '.') }} {{ $row['system_unit'] }}</span>
+                                @endif
+                            </td>
                             <td class="text-center text-success">+{{ number_format($row['imports']) }}</td>
                             <td class="text-center text-danger">-{{ number_format($row['exports']) }}</td>
                             <td class="text-center text-warning">{{ $row['adjustments'] >= 0 ? '+' : '' }}{{ number_format($row['adjustments']) }}</td>
                             <td class="text-center fw-bold {{ $row['net_change'] >= 0 ? 'text-success' : 'text-danger' }}">
                                 {{ $row['net_change'] >= 0 ? '+' : '' }}{{ number_format($row['net_change']) }}
+                            </td>
+                            <td class="text-center small">
+                                {{ $row['net_change_system'] >= 0 ? '+' : '-' }}{{ \App\Models\ZaloUnit::formatSystemTotal(abs($row['net_change_system']), $row['system_unit']) }}
                             </td>
                         </tr>
                         @endforeach

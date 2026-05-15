@@ -14,6 +14,11 @@ class ZaloProduct extends Model
     protected $fillable = [
         'id', 'category_id', 'name', 'price', 'original_price', 'image', 'detail',
         'stock', 'stock_reserved', 'reorder_point',
+        'unit_id', 'system_unit', 'conversion_factor',
+    ];
+
+    protected $casts = [
+        'conversion_factor' => 'decimal:3',
     ];
 
     // mock products use explicit ids
@@ -23,6 +28,11 @@ class ZaloProduct extends Model
     public function category()
     {
         return $this->belongsTo(ZaloCategory::class, 'category_id');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(ZaloUnit::class, 'unit_id');
     }
 
     public function stockMovements()

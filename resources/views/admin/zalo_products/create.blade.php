@@ -52,6 +52,32 @@
                     <label class="form-label">Detail</label>
                     <textarea name="detail" class="form-control" rows="4">{{ old('detail') }}</textarea>
                 </div>
+                <hr>
+                <h6>Đơn vị sản phẩm</h6>
+                <div class="row">
+                    <div class="mb-3 col-md-4">
+                        <label class="form-label">Đơn vị hiển thị</label>
+                        <select name="unit_id" class="form-select" id="unit-select">
+                            <option value="">-- không gắn đơn vị --</option>
+                            @foreach($units as $u)
+                                <option value="{{ $u->id }}" data-system="{{ $u->system_unit_type }}" {{ old('unit_id') == $u->id ? 'selected' : '' }}>{{ $u->label }} ({{ $u->system_unit_type }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3 col-md-4">
+                        <label class="form-label">Hệ đơn vị hệ thống</label>
+                        <select name="system_unit" class="form-select" id="system-unit-select">
+                            <option value="piece" {{ old('system_unit', 'piece') == 'piece' ? 'selected' : '' }}>piece (cái)</option>
+                            <option value="g" {{ old('system_unit') == 'g' ? 'selected' : '' }}>g (gram)</option>
+                            <option value="ml" {{ old('system_unit') == 'ml' ? 'selected' : '' }}>ml (mililít)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 col-md-4">
+                        <label class="form-label">Hệ số quy đổi</label>
+                        <input type="number" name="conversion_factor" class="form-control" value="{{ old('conversion_factor', 1) }}" step="0.001" min="0.001" required>
+                        <div class="form-text">Ví dụ: 1 bó = 100g → nhập 100. 1 hộp cà chua = 200g → nhập 200.</div>
+                    </div>
+                </div>
                 <button class="btn btn-primary">Create</button>
                 <a href="{{ route('zalo-products.index') }}" class="btn btn-secondary">Cancel</a>
             </form>
@@ -61,6 +87,10 @@
 
 @section('scripts')
 <script>
+document.getElementById('unit-select')?.addEventListener('change', function () {
+    const sys = this.selectedOptions[0]?.dataset.system;
+    if (sys) document.getElementById('system-unit-select').value = sys;
+});
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];

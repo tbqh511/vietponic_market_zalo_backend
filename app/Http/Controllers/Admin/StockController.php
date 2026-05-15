@@ -14,7 +14,7 @@ class StockController extends Controller
 
     public function index(Request $request)
     {
-        $query = ZaloProduct::with('category');
+        $query = ZaloProduct::with(['category', 'unit']);
 
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
@@ -41,6 +41,7 @@ class StockController extends Controller
 
     public function show(Request $request, ZaloProduct $inventory)
     {
+        $inventory->loadMissing('category', 'unit');
         $movements = $this->stockService->getMovementHistory($inventory->id, 20);
         return view('admin.inventory.show', compact('inventory', 'movements'));
     }

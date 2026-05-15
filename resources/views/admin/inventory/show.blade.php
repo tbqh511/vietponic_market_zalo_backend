@@ -13,7 +13,19 @@
                 @endif
                 <h6 class="fw-bold">{{ $inventory->name }}</h6>
                 <p class="text-muted small mb-1">Danh mục: {{ $inventory->category?->name ?? '—' }}</p>
-                <p class="text-muted small mb-3">Giá: {{ number_format($inventory->price) }} ₫</p>
+                <p class="text-muted small mb-1">Giá: {{ number_format($inventory->price) }} ₫</p>
+                <p class="text-muted small mb-3">
+                    Đơn vị bán:
+                    @if($inventory->unit)
+                        <strong>{{ $inventory->unit->label }}</strong>
+                        @if((float)$inventory->conversion_factor !== 1.0)
+                            <span class="d-block">1 {{ $inventory->unit->label }} ≈ {{ \App\Models\ZaloUnit::formatSystemTotal((float)$inventory->conversion_factor, $inventory->system_unit ?? 'piece') }}</span>
+                            <span class="d-block">Tồn quy đổi: <strong>{{ \App\Models\ZaloUnit::formatSystemTotal($inventory->stock * (float)$inventory->conversion_factor, $inventory->system_unit ?? 'piece') }}</strong></span>
+                        @endif
+                    @else
+                        <span class="text-muted">— (chưa cấu hình)</span>
+                    @endif
+                </p>
 
                 <div class="row text-center g-2 mb-3">
                     <div class="col-4">

@@ -29,20 +29,24 @@ class ZaloApiController extends Controller
 
     public function products(Request $request)
     {
-        $query = ZaloProduct::with('category');
+        $query = ZaloProduct::with(['category', 'unit']);
         if ($request->has('categoryId')) {
             $query->where('category_id', $request->categoryId);
         }
         $data = $query->orderBy('id')->get()->map(function ($product) {
             return [
-                'id'             => $product->id,
-                'category_id'    => $product->category_id,
-                'category_name'  => $product->category?->name ?? 'Rau sạch',
-                'name'           => $product->name,
-                'price'          => $product->price,
-                'original_price' => $product->original_price,
-                'image'          => $product->image_url,
-                'detail'         => $product->detail,
+                'id'                => $product->id,
+                'category_id'       => $product->category_id,
+                'category_name'     => $product->category?->name ?? 'Rau sạch',
+                'name'              => $product->name,
+                'price'             => $product->price,
+                'original_price'    => $product->original_price,
+                'image'             => $product->image_url,
+                'detail'            => $product->detail,
+                'unit_id'           => $product->unit_id,
+                'unit_label'        => $product->unit?->label,
+                'system_unit'       => $product->system_unit,
+                'conversion_factor' => (float) $product->conversion_factor,
             ];
         });
         return response()->json(['error' => false, 'data' => $data]);
@@ -180,17 +184,24 @@ class ZaloApiController extends Controller
                 'customer_id' => $customerId,
             ]);
 
-            // Create order items (dùng giá từ DB, không dùng giá client gửi)
+            // Create order items (dùng giá + đơn vị từ DB, không tin payload client)
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
+                $product->loadMissing('unit');
+                $qty = (int) $item['quantity'];
+                $factor = (float) ($product->conversion_factor ?? 1);
                 ZaloOrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item['product_id'],
-                    'name' => $product->name,
-                    'price' => $product->price,
-                    'quantity' => $item['quantity'],
-                    'image' => $item['image'] ?? '',
-                    'detail' => $item['detail'] ?? '',
+                    'order_id'          => $order->id,
+                    'product_id'        => $item['product_id'],
+                    'name'              => $product->name,
+                    'price'             => $product->price,
+                    'quantity'          => $item['quantity'],
+                    'image'             => $item['image'] ?? '',
+                    'detail'            => $item['detail'] ?? '',
+                    'unit_label'        => $product->unit?->label,
+                    'system_unit'       => $product->system_unit ?? 'piece',
+                    'conversion_factor' => $factor,
+                    'system_total'      => $qty * $factor,
                 ]);
             }
 

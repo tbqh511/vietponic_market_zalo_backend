@@ -286,37 +286,70 @@ class StockService
     /**
      * Get stock summary report for a date range.
      *
-     * @return array{products: Collection, totals: array}
+     * Each row exposes both raw counts (in the product's display unit, e.g. "bó", "hộp")
+     * and system-unit totals (g/ml/piece) so admins can compare across products with
+     * different display units. The `system_totals` block aggregates by system_unit.
+     *
+     * @return array{products: Collection, totals: array, system_totals: array}
      */
     public function getReport(?string $from, ?string $to): array
     {
-        $movements = StockMovement::with('product')
+        $movements = StockMovement::with('product.unit')
             ->byDateRange($from, $to)
             ->get();
 
         $byProduct = $movements->groupBy('product_id')->map(function ($group) {
             $product = $group->first()->product;
-            $imports    = $group->where('movement_type', 'import')->sum('quantity_change');
-            $exports    = $group->where('movement_type', 'export')->sum(fn ($m) => abs($m->quantity_change));
+            $imports     = $group->where('movement_type', 'import')->sum('quantity_change');
+            $exports     = $group->where('movement_type', 'export')->sum(fn ($m) => abs($m->quantity_change));
             $adjustments = $group->where('movement_type', 'adjustment')->sum('quantity_change');
 
+            $factor     = (float) ($product->conversion_factor ?? 1);
+            $systemUnit = $product->system_unit ?? 'piece';
+
             return [
-                'product_id'   => $product?->id,
-                'product_name' => $product?->name ?? '(Đã xoá)',
-                'imports'      => $imports,
-                'exports'      => $exports,
-                'adjustments'  => $adjustments,
-                'net_change'   => $imports - $exports + $adjustments,
+                'product_id'           => $product?->id,
+                'product_name'         => $product?->name ?? '(Đã xoá)',
+                'unit_label'           => $product?->unit?->label,
+                'system_unit'          => $systemUnit,
+                'conversion_factor'    => $factor,
+                'imports'              => $imports,
+                'exports'              => $exports,
+                'adjustments'          => $adjustments,
+                'net_change'           => $imports - $exports + $adjustments,
+                'imports_system'       => $imports * $factor,
+                'exports_system'       => $exports * $factor,
+                'adjustments_system'   => $adjustments * $factor,
+                'net_change_system'    => ($imports - $exports + $adjustments) * $factor,
             ];
         })->values();
 
+        $systemTotals = [];
+        foreach ($byProduct as $row) {
+            $unit = $row['system_unit'];
+            if (!isset($systemTotals[$unit])) {
+                $systemTotals[$unit] = [
+                    'system_unit' => $unit,
+                    'imports'     => 0.0,
+                    'exports'     => 0.0,
+                    'adjustments' => 0.0,
+                    'net_change'  => 0.0,
+                ];
+            }
+            $systemTotals[$unit]['imports']     += $row['imports_system'];
+            $systemTotals[$unit]['exports']     += $row['exports_system'];
+            $systemTotals[$unit]['adjustments'] += $row['adjustments_system'];
+            $systemTotals[$unit]['net_change']  += $row['net_change_system'];
+        }
+
         return [
-            'products' => $byProduct,
-            'totals'   => [
-                'total_imports'  => $movements->where('movement_type', 'import')->sum('quantity_change'),
-                'total_exports'  => $movements->where('movement_type', 'export')->sum(fn ($m) => abs($m->quantity_change)),
-                'total_movements'=> $movements->count(),
+            'products'      => $byProduct,
+            'totals'        => [
+                'total_imports'   => $movements->where('movement_type', 'import')->sum('quantity_change'),
+                'total_exports'   => $movements->where('movement_type', 'export')->sum(fn ($m) => abs($m->quantity_change)),
+                'total_movements' => $movements->count(),
             ],
+            'system_totals' => array_values($systemTotals),
         ];
     }
 }
