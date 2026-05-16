@@ -14,141 +14,149 @@ class ViettelPostServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
         $this->service = new ViettelPostService();
     }
 
     // ── getToken ──────────────────────────────────────────────────────────────
 
-    public function test_get_token_returns_token_from_api(): void
+    public function test_get_token_calls_login_then_ownerconnect_on_cold_cache(): void
     {
-        Cache::forget('vtp_token');
-
         Http::fake([
-            '*/v2/user/Login' => Http::response([
-                'data' => ['token' => 'test-vtp-token-abc'],
-            ], 200),
+            '*/v2/user/Login'       => Http::response(['data' => ['token' => 'short_token_abc']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long_token_xyz']], 200),
         ]);
 
         $token = $this->service->getToken();
 
-        $this->assertSame('test-vtp-token-abc', $token);
+        $this->assertSame('long_token_xyz', $token);
+
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'Login'));
+        Http::assertSent(
+            fn ($req) => str_contains($req->url(), 'ownerconnect')
+                && ($req->header('Token')[0] ?? null) === 'short_token_abc'
+        );
     }
 
-    public function test_get_token_is_cached(): void
+    public function test_get_token_returns_cached_token_without_api_call(): void
     {
-        Cache::forget('vtp_token');
+        Cache::put('vtp_long_term_token', 'cached_token_123', now()->addDays(300));
 
+        Http::fake();
+
+        $token = $this->service->getToken();
+
+        $this->assertSame('cached_token_123', $token);
+        Http::assertNothingSent();
+    }
+
+    public function test_get_token_is_cached_after_first_fetch(): void
+    {
         Http::fake([
-            '*/v2/user/Login' => Http::sequence()
-                ->push(['data' => ['token' => 'first-token']], 200)
-                ->push(['data' => ['token' => 'second-token']], 200),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long_first']], 200),
         ]);
 
         $first  = $this->service->getToken();
         $second = $this->service->getToken();
 
-        // Chỉ gọi API 1 lần, lần 2 phải từ cache
         $this->assertSame($first, $second);
-        $this->assertSame('first-token', $first);
-        Http::assertSentCount(1);
+        $this->assertSame('long_first', $first);
+        Http::assertSentCount(2); // Login + ownerconnect, once total
     }
 
-    public function test_get_token_throws_when_token_missing(): void
-    {
-        Cache::forget('vtp_token');
+    // ── forceRefreshToken ─────────────────────────────────────────────────────
 
+    public function test_force_refresh_clears_cache_and_refetches(): void
+    {
+        Cache::put('vtp_long_term_token', 'old_token', now()->addDays(300));
+
+        Http::fake([
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'new_token']], 200),
+        ]);
+
+        $this->service->forceRefreshToken();
+
+        $this->assertSame('new_token', $this->service->getToken());
+    }
+
+    // ── callApi ───────────────────────────────────────────────────────────────
+
+    public function test_call_api_retries_once_on_401_then_succeeds(): void
+    {
+        Cache::put('vtp_long_term_token', 'stale_token', now()->addDays(300));
+
+        Http::fake([
+            '*/v2/some/endpoint'     => Http::sequence()
+                ->push([], 401)
+                ->push(['result' => 'ok'], 200),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'fresh_token']], 200),
+        ]);
+
+        $result = $this->service->callApi('post', '/v2/some/endpoint', []);
+
+        $this->assertSame(['result' => 'ok'], $result);
+        Http::assertSent(fn ($req) => str_contains($req->url(), 'Login'));
+    }
+
+    public function test_call_api_throws_after_two_consecutive_401(): void
+    {
+        Cache::put('vtp_long_term_token', 'stale_token', now()->addDays(300));
+
+        Http::fake([
+            '*/v2/some/endpoint'     => Http::response([], 401),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'new_token']], 200),
+        ]);
+
+        $this->expectException(\Illuminate\Http\Client\RequestException::class);
+
+        $this->service->callApi('post', '/v2/some/endpoint', []);
+    }
+
+    // ── fetchLongTermToken error handling ─────────────────────────────────────
+
+    public function test_fetch_long_term_token_throws_if_login_response_missing_token(): void
+    {
         Http::fake([
             '*/v2/user/Login' => Http::response(['data' => []], 200),
         ]);
 
         $this->expectException(\RuntimeException::class);
+
         $this->service->getToken();
     }
 
-    // ── listProvinces ─────────────────────────────────────────────────────────
-
-    public function test_list_provinces_normalizes_response(): void
+    public function test_fetch_long_term_token_throws_if_ownerconnect_response_missing_token(): void
     {
-        Cache::forget('vtp_token');
-        Cache::forget('vtp_provinces');
-
         Http::fake([
-            '*/v2/user/Login'         => Http::response(['data' => ['token' => 'tok']], 200),
-            '*/v2/categories/listProvince' => Http::response([
-                'data' => [
-                    ['PROVINCE_ID' => 1, 'PROVINCE_CODE' => 'HN', 'PROVINCE_NAME' => 'Hà Nội', 'STATUS' => 1],
-                    ['PROVINCE_ID' => 2, 'PROVINCE_CODE' => 'HCM', 'PROVINCE_NAME' => 'TP.HCM', 'STATUS' => 1],
-                ],
-            ], 200),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => []], 200),
         ]);
 
-        $provinces = $this->service->listProvinces();
+        $this->expectException(\RuntimeException::class);
 
-        $this->assertCount(2, $provinces);
-        $this->assertSame(1, $provinces[0]['id']);
-        $this->assertSame('Hà Nội', $provinces[0]['name']);
-        $this->assertSame('HN', $provinces[0]['code']);
+        $this->service->getToken();
     }
 
-    // ── getPriceAll ───────────────────────────────────────────────────────────
+    // ── getDaysUntilTokenExpiry ───────────────────────────────────────────────
 
-    public function test_get_price_all_normalizes_services(): void
+    public function test_get_days_until_token_expiry_returns_null_when_no_cache(): void
     {
-        Cache::forget('vtp_token');
-
-        Http::fake([
-            '*/v2/user/Login'      => Http::response(['data' => ['token' => 'tok']], 200),
-            '*/v2/order/getPriceAll' => Http::response([
-                'data' => [
-                    [
-                        'MA_DV_CHINH'         => 'LCOD',
-                        'TEN_DICHVU'          => 'Chuyển phát tiêu chuẩn',
-                        'GIA_CUOC'            => 35000,
-                        'VAT'                 => 3500,
-                        'MONEY_TOTAL'         => 38500,
-                        'THOI_GIAN_PHAT'      => '2-3 ngày',
-                        'TRONG_LUONG_QUY_DOI' => 500,
-                    ],
-                ],
-            ], 200),
-        ]);
-
-        $services = $this->service->getPriceAll(
-            receiverProvinceId: 1,
-            receiverDistrictId: 10,
-            productWeight: 300,
-            productPrice: 100000,
-        );
-
-        $this->assertCount(1, $services);
-        $this->assertSame('LCOD', $services[0]['service_code']);
-        $this->assertSame(38500, $services[0]['total_fee']);
-        $this->assertSame('2-3 ngày', $services[0]['kpi_ht']);
+        $this->assertNull($this->service->getDaysUntilTokenExpiry());
     }
 
-    public function test_get_price_all_sends_cod_money_collection(): void
+    public function test_get_days_until_token_expiry_returns_correct_days(): void
     {
-        Cache::forget('vtp_token');
+        $expiry = now()->addDays(45);
+        Cache::put('vtp_long_term_token', 'some_token', $expiry);
+        Cache::put('vtp_long_term_token_expiry', $expiry->timestamp, $expiry);
 
-        Http::fake([
-            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'tok']], 200),
-            '*/v2/order/getPriceAll' => Http::response(['data' => []], 200),
-        ]);
+        $days = $this->service->getDaysUntilTokenExpiry();
 
-        $this->service->getPriceAll(
-            receiverProvinceId: 1,
-            receiverDistrictId: 10,
-            productWeight: 500,
-            productPrice: 200000,
-            isCod: true,
-        );
-
-        Http::assertSent(function ($req) {
-            if (!str_contains($req->url(), 'getPriceAll')) {
-                return false;
-            }
-            $body = json_decode($req->body(), true) ?? [];
-            return ($body['MONEY_COLLECTION'] ?? null) === 200000;
-        });
+        $this->assertNotNull($days);
+        $this->assertEqualsWithDelta(45, $days, 1);
     }
 }

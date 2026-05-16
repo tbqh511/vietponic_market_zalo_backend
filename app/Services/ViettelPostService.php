@@ -5,10 +5,14 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Client\RequestException;
 
 class ViettelPostService
 {
     private string $apiUrl;
+
+    private const TOKEN_CACHE_KEY        = 'vtp_long_term_token';
+    private const TOKEN_EXPIRY_CACHE_KEY = 'vtp_long_term_token_expiry';
 
     public function __construct()
     {
@@ -17,23 +21,130 @@ class ViettelPostService
 
     public function getToken(): string
     {
-        return Cache::remember('vtp_token', now()->addHours(20), function () {
-            $res = Http::timeout(15)
-                ->post("{$this->apiUrl}/v2/user/Login", [
-                    'USERNAME' => config('viettelpost.username'),
-                    'PASSWORD' => config('viettelpost.password'),
-                ])
+        return Cache::remember(
+            self::TOKEN_CACHE_KEY,
+            now()->addDays(config('viettelpost.token_ttl_days', 355)),
+            function () {
+                $token = $this->fetchLongTermToken();
+                $ttlDays = config('viettelpost.token_ttl_days', 355);
+                Cache::put(self::TOKEN_EXPIRY_CACHE_KEY, now()->addDays($ttlDays)->timestamp, now()->addDays($ttlDays));
+
+                return $token;
+            }
+        );
+    }
+
+    private function fetchLongTermToken(): string
+    {
+        Log::channel('shipping')->info('VTP: fetching long-term token');
+
+        $credentials = [
+            'USERNAME' => config('viettelpost.username'),
+            'PASSWORD' => config('viettelpost.password'),
+        ];
+
+        try {
+            $loginRes = Http::timeout(15)
+                ->post("{$this->apiUrl}/v2/user/Login", $credentials)
                 ->throw()
                 ->json();
+        } catch (\Throwable $e) {
+            Log::channel('shipping')->error('VTP Login failed', ['error' => $e->getMessage()]);
+            throw $e;
+        }
 
-            $token = $res['data']['token'] ?? null;
+        $shortToken = $loginRes['data']['token'] ?? null;
+        if (!$shortToken) {
+            throw new \RuntimeException('VTP Login: token không có trong response');
+        }
 
-            if (!$token) {
-                throw new \RuntimeException('VTP Login: token không có trong response');
+        try {
+            $ownerRes = Http::timeout(15)
+                ->withHeaders(['Token' => $shortToken])
+                ->post("{$this->apiUrl}/v2/user/ownerconnect", $credentials)
+                ->throw()
+                ->json();
+        } catch (\Throwable $e) {
+            Log::channel('shipping')->error('VTP ownerconnect failed', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+
+        $longToken = $ownerRes['data']['token'] ?? null;
+        if (!$longToken) {
+            throw new \RuntimeException('VTP ownerconnect: token không có trong response');
+        }
+
+        Log::channel('shipping')->info('VTP: long-term token fetched successfully');
+
+        return $longToken;
+    }
+
+    public function callApi(string $method, string $path, array $payload = []): array
+    {
+        try {
+            return Http::timeout(15)
+                ->baseUrl($this->apiUrl)
+                ->withHeaders(['Token' => $this->getToken()])
+                ->$method($path, $payload)
+                ->throw()
+                ->json();
+        } catch (RequestException $e) {
+            if ($e->response->status() === 401) {
+                Log::channel('shipping')->warning('VTP 401 on first attempt, refreshing token and retrying');
+                $this->forceRefreshToken();
+
+                try {
+                    return Http::timeout(15)
+                        ->baseUrl($this->apiUrl)
+                        ->withHeaders(['Token' => $this->getToken()])
+                        ->$method($path, $payload)
+                        ->throw()
+                        ->json();
+                } catch (\Throwable $retryEx) {
+                    Log::channel('shipping')->error('VTP retry after 401 failed', ['error' => $retryEx->getMessage()]);
+                    throw $retryEx;
+                }
             }
 
-            return $token;
-        });
+            Log::channel('shipping')->error('VTP API error', ['status' => $e->response->status(), 'path' => $path]);
+            throw $e;
+        }
+    }
+
+    public function forceRefreshToken(): void
+    {
+        Log::channel('shipping')->warning('VTP: force-refreshing long-term token');
+        Cache::forget(self::TOKEN_CACHE_KEY);
+        Cache::forget(self::TOKEN_EXPIRY_CACHE_KEY);
+        $this->getToken();
+    }
+
+    public function getDaysUntilTokenExpiry(): ?int
+    {
+        if (!Cache::has(self::TOKEN_CACHE_KEY)) {
+            return null;
+        }
+
+        $expiryTimestamp = Cache::get(self::TOKEN_EXPIRY_CACHE_KEY);
+
+        if ($expiryTimestamp === null) {
+            return null;
+        }
+
+        $secondsLeft = $expiryTimestamp - now()->timestamp;
+
+        if ($secondsLeft <= 0) {
+            return 0;
+        }
+
+        return (int) ($secondsLeft / 86400);
+    }
+
+    public function getPriceAll(array $payload): array
+    {
+        $response = $this->callApi('post', '/v2/order/getPriceAll', $payload);
+
+        return $response['data'] ?? [];
     }
 
     /**
@@ -42,11 +153,7 @@ class ViettelPostService
     public function listProvinces(): array
     {
         return Cache::remember('vtp_provinces', now()->addDays(30), function () {
-            $res = Http::timeout(15)
-                ->withToken($this->getToken())
-                ->get("{$this->apiUrl}/v2/categories/listProvince")
-                ->throw()
-                ->json();
+            $res = $this->callApi('get', '/v2/categories/listProvince');
 
             return $this->normalizeProvinces($res['data'] ?? []);
         });
@@ -58,11 +165,7 @@ class ViettelPostService
     public function listDistricts(int $provinceId): array
     {
         return Cache::remember("vtp_districts_{$provinceId}", now()->addDays(7), function () use ($provinceId) {
-            $res = Http::timeout(15)
-                ->withToken($this->getToken())
-                ->get("{$this->apiUrl}/v2/categories/listDistrict", ['provinceId' => $provinceId])
-                ->throw()
-                ->json();
+            $res = $this->callApi('get', '/v2/categories/listDistrict', ['provinceId' => $provinceId]);
 
             return $this->normalizeDistricts($res['data'] ?? [], $provinceId);
         });
@@ -74,76 +177,10 @@ class ViettelPostService
     public function listWards(int $districtId): array
     {
         return Cache::remember("vtp_wards_{$districtId}", now()->addDays(7), function () use ($districtId) {
-            $res = Http::timeout(15)
-                ->withToken($this->getToken())
-                ->get("{$this->apiUrl}/v2/categories/listWards", ['districtId' => $districtId])
-                ->throw()
-                ->json();
+            $res = $this->callApi('get', '/v2/categories/listWards', ['districtId' => $districtId]);
 
             return $this->normalizeWards($res['data'] ?? [], $districtId);
         });
-    }
-
-    /**
-     * Gọi getPriceAll và trả về mảng dịch vụ đã chuẩn hoá.
-     *
-     * @param  int   $receiverProvinceId
-     * @param  int   $receiverDistrictId
-     * @param  int   $productWeight       (gam)
-     * @param  int   $productPrice        (đồng, để VTP tính VAT bồi thường)
-     * @param  bool  $isCod               bật thì MONEY_COLLECTION = productPrice
-     * @param  int   $length              (cm)
-     * @param  int   $width               (cm)
-     * @param  int   $height              (cm)
-     * @return array[] [{service_code, service_name, fee, vat, total_fee, kpi_ht, exchange_weight}]
-     */
-    public function getPriceAll(
-        int $receiverProvinceId,
-        int $receiverDistrictId,
-        int $productWeight,
-        int $productPrice,
-        bool $isCod = false,
-        int $length = 20,
-        int $width = 15,
-        int $height = 10
-    ): array {
-        // Trọng lượng quy đổi: L×W×H / 6000, lấy max với trọng lượng thực
-        $volumetricWeight = (int) ceil($length * $width * $height / 6000);
-        $chargeableWeight = max($productWeight, $volumetricWeight * 1000); // convert kg→g
-
-        $payload = [
-            'SENDER_PROVINCE'   => config('viettelpost.sender_province_id'),
-            'SENDER_DISTRICT'   => config('viettelpost.sender_district_id'),
-            'RECEIVER_PROVINCE' => $receiverProvinceId,
-            'RECEIVER_DISTRICT' => $receiverDistrictId,
-            'PRODUCT_WEIGHT'    => $chargeableWeight,
-            'PRODUCT_PRICE'     => $productPrice,
-            'MONEY_COLLECTION'  => $isCod ? $productPrice : 0,
-            'PRODUCT_TYPE'      => config('viettelpost.default_product_type', 'HH'),
-            'NATIONAL_TYPE'     => 1,
-        ];
-
-        Log::channel('shipping')->info('VTP getPriceAll request', $payload);
-
-        $res = Http::timeout(15)
-            ->withToken($this->getToken())
-            ->post("{$this->apiUrl}/v2/order/getPriceAll", $payload)
-            ->throw()
-            ->json();
-
-        $services = $res['data'] ?? [];
-
-        Log::channel('shipping')->info('VTP getPriceAll response', ['count' => count($services)]);
-
-        return collect($services)->map(fn ($s) => [
-            'service_code'    => $s['MA_DV_CHINH'] ?? $s['SERVICE_CODE'] ?? '',
-            'service_name'    => $s['TEN_DICHVU'] ?? $s['SERVICE_NAME'] ?? '',
-            'fee'             => (int) ($s['GIA_CUOC'] ?? $s['MONEY_TOTAL'] ?? 0),
-            'vat'             => (int) ($s['VAT'] ?? 0),
-            'total_fee'       => (int) ($s['MONEY_TOTAL'] ?? ($s['GIA_CUOC'] ?? 0)),
-            'kpi_ht'          => $s['THOI_GIAN_PHAT'] ?? $s['KPI_HT'] ?? null,
-            'exchange_weight' => (int) ($s['TRONG_LUONG_QUY_DOI'] ?? $chargeableWeight),
-        ])->values()->all();
     }
 
     // ── internal normalizers ────────────────────────────────────────────────

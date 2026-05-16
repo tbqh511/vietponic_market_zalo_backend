@@ -7,6 +7,7 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\ClearRedisCache;
 use App\Console\Commands\SeedProductDimensions;
 use App\Console\Commands\SyncVtpLocations;
+use App\Console\Commands\VtpRefreshToken;
 
 class Kernel extends ConsoleKernel
 {
@@ -14,6 +15,7 @@ class Kernel extends ConsoleKernel
         ClearRedisCache::class,
         SeedProductDimensions::class,
         SyncVtpLocations::class,
+        VtpRefreshToken::class,
     ];
 
     protected function schedule(Schedule $schedule)
@@ -23,6 +25,8 @@ class Kernel extends ConsoleKernel
             ->weeklyOn(1, '02:00')
             ->withoutOverlapping()
             ->runInBackground();
+
+        $schedule->command('vtp:refresh-token')->weekly();
     }
 
     /**
