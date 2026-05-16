@@ -6,11 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\ZaloOrder;
 use App\Models\ZaloOrderItem;
 use App\Models\ZaloDelivery;
+use App\Services\StockService;
+use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ZaloOrderController extends Controller
 {
+    public function __construct(
+        private StockService $stockService,
+        private RefundService $refundService,
+    ) {}
+
     public function index(Request $request)
     {
         $query = ZaloOrder::query();
@@ -46,6 +54,8 @@ class ZaloOrderController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        $previousStatus = $order->status;
+
         DB::transaction(function () use ($order, $data) {
             $order->update($data);
             // recalc total from items if needed
@@ -53,6 +63,36 @@ class ZaloOrderController extends Controller
             $order->total = $total;
             $order->save();
         });
+
+        // Khi admin web chuyển sang cancelled: release stock + trigger refund flow.
+        // Trước đây admin web không gọi 2 thứ này → stock bị orphan, không có refund.
+        if (
+            isset($data['status'])
+            && $data['status'] === 'cancelled'
+            && $previousStatus !== 'cancelled'
+        ) {
+            $order->update([
+                'cancelled_at'        => now(),
+                'cancelled_by'        => 'admin',
+                'cancellation_reason' => 'Admin huỷ qua admin dashboard',
+            ]);
+            try {
+                $this->stockService->releaseReservation($order->id);
+            } catch (\Throwable $e) {
+                Log::error('Admin web: releaseReservation failed', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
+            try {
+                $this->refundService->processCancellationRefund($order->fresh(), 'admin');
+            } catch (\Throwable $e) {
+                Log::error('Admin web: processCancellationRefund failed', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
+        }
 
         return redirect()->route('zalo-orders.show', $order->id)->with('success', 'Order updated');
     }

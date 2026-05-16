@@ -53,7 +53,6 @@ class ZaloProductController extends Controller
             $data['image'] = $imagePath;
         }
 
-        // generate id similar to categories (mock uses explicit ids)
         $max = ZaloProduct::max('id');
         $id = ($max ? $max : 0) + 1;
         $data['id'] = $id;
@@ -111,14 +110,14 @@ class ZaloProductController extends Controller
         return redirect()->route('zalo-products.index')->with('success', 'Product deleted');
     }
 
-    private function assertUnitConsistency(array $data): void
+    private function assertUnitConsistency(array &$data): void
     {
         if (empty($data['unit_id'])) {
             return;
         }
         $unit = ZaloUnit::find($data['unit_id']);
-        if ($unit && $unit->system_unit_type !== $data['system_unit']) {
-            abort(422, "Đơn vị '{$unit->label}' không tương thích với hệ {$data['system_unit']}.");
+        if ($unit) {
+            $data['system_unit'] = $unit->system_unit_type;
         }
     }
 

@@ -11,6 +11,7 @@ use App\Models\ZaloOrderItem;
 use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use App\Services\StockService;
+use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,10 @@ use Illuminate\Support\Facades\Log;
 
 class ZaloApiController extends Controller
 {
-    public function __construct(private StockService $stockService) {}
+    public function __construct(
+        private StockService $stockService,
+        private RefundService $refundService,
+    ) {}
     public function categories()
     {
         $data = ZaloCategory::orderBy('id')->get();
@@ -305,8 +309,13 @@ class ZaloApiController extends Controller
         $previousStatus = $order->status;
         $order->update(['status' => $request->status]);
 
-        // Giải phóng tồn kho reserved khi đơn bị huỷ
+        // Khi đơn bị huỷ: release stock + tính refund theo payment method
         if ($request->status === 'cancelled' && $previousStatus !== 'cancelled') {
+            $order->update([
+                'cancelled_at'         => now(),
+                'cancelled_by'         => 'admin',
+                'cancellation_reason'  => $request->input('cancellation_reason', 'Admin huỷ qua API'),
+            ]);
             try {
                 $this->stockService->releaseReservation($order->id);
             } catch (\Throwable $e) {
@@ -315,10 +324,136 @@ class ZaloApiController extends Controller
                     'message'  => $e->getMessage(),
                 ]);
             }
+            try {
+                $this->refundService->processCancellationRefund($order, 'admin');
+            } catch (\Throwable $e) {
+                Log::error('processCancellationRefund failed on admin cancellation', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
         }
 
         $order->load(['items', 'delivery']);
 
+        return response()->json(['error' => false, 'data' => $order]);
+    }
+
+    /**
+     * Customer huỷ đơn của chính mình. Chỉ cho phép khi status còn ở
+     * pending / confirmed / preparing. Sau đó release stock + dispatch refund
+     * theo payment method qua RefundService.
+     */
+    public function cancelByCustomer(Request $request, $id)
+    {
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason'      => 'nullable|string|max:500',
+        ]);
+
+        $customerId = $request->attributes->get('zalo_customer_id');
+
+        try {
+            $result = DB::transaction(function () use ($id, $customerId, $request) {
+                $order = ZaloOrder::where('id', $id)->lockForUpdate()->first();
+                if (!$order) {
+                    return ['code' => 404, 'body' => ['error' => true, 'message' => 'Không tìm thấy đơn hàng']];
+                }
+                if ((int) $order->customer_id !== (int) $customerId) {
+                    return ['code' => 403, 'body' => ['error' => true, 'message' => 'Bạn không có quyền huỷ đơn hàng này']];
+                }
+
+                // Idempotent: đã cancelled → trả về luôn, không double-release
+                if ($order->status === 'cancelled') {
+                    $order->load(['items', 'delivery']);
+                    return ['code' => 200, 'body' => ['error' => false, 'data' => $order]];
+                }
+
+                if (!in_array($order->status, ['pending', 'confirmed', 'preparing'], true)) {
+                    return ['code' => 422, 'body' => [
+                        'error'   => true,
+                        'message' => 'Đơn hàng đang ở trạng thái "' . $order->status . '" — không thể huỷ. Vui lòng liên hệ tổng đài để được hỗ trợ.',
+                    ]];
+                }
+
+                $reasonCode = $request->input('reason_code', 'unspecified');
+                $reasonText = trim((string) $request->input('reason', ''));
+                $combinedReason = $reasonText !== ''
+                    ? "[{$reasonCode}] {$reasonText}"
+                    : "[{$reasonCode}]";
+
+                $order->update([
+                    'status'              => 'cancelled',
+                    'cancelled_at'        => now(),
+                    'cancelled_by'        => 'customer',
+                    'cancellation_reason' => mb_substr($combinedReason, 0, 500),
+                ]);
+
+                return ['code' => 0, 'order' => $order];
+            });
+        } catch (\Throwable $e) {
+            Log::error('cancelByCustomer: transaction failed', [
+                'order_id'    => $id,
+                'customer_id' => $customerId,
+                'message'     => $e->getMessage(),
+            ]);
+            return response()->json(['error' => true, 'message' => 'Huỷ đơn thất bại, vui lòng thử lại'], 500);
+        }
+
+        // Sớm trả về cho các early-exit (404/403/422/idempotent 200)
+        if (($result['code'] ?? 0) !== 0) {
+            return response()->json($result['body'], $result['code']);
+        }
+
+        /** @var ZaloOrder $order */
+        $order = $result['order'];
+
+        // Sau khi đã chuyển status sang cancelled trong transaction → release + refund
+        try {
+            $this->stockService->releaseReservation($order->id);
+        } catch (\Throwable $e) {
+            Log::error('releaseReservation failed on customer cancellation', [
+                'order_id' => $order->id,
+                'message'  => $e->getMessage(),
+            ]);
+        }
+        try {
+            $this->refundService->processCancellationRefund($order, 'customer');
+        } catch (\Throwable $e) {
+            Log::error('processCancellationRefund failed on customer cancellation', [
+                'order_id' => $order->id,
+                'message'  => $e->getMessage(),
+            ]);
+        }
+
+        $order->refresh()->load(['items', 'delivery']);
+        return response()->json(['error' => false, 'data' => $order]);
+    }
+
+    /**
+     * Admin xác nhận đã hoàn tiền thủ công (Bank/MoMo). Chuyển refund_status
+     * pending_manual → refunded.
+     */
+    public function confirmManualRefund(Request $request, $id)
+    {
+        $request->validate([
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $order = ZaloOrder::find($id);
+        if (!$order) {
+            return response()->json(['error' => true, 'message' => 'Order not found'], 404);
+        }
+
+        if ($order->refund_status !== 'pending_manual') {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Đơn hàng không ở trạng thái chờ hoàn tiền thủ công (hiện tại: ' . ($order->refund_status ?? 'null') . ')',
+            ], 422);
+        }
+
+        $this->refundService->confirmManualRefund($order, $request->input('note'));
+        $order->load(['items', 'delivery']);
         return response()->json(['error' => false, 'data' => $order]);
     }
     //HuyTBQ End: Order Apis 

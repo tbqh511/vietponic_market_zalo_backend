@@ -101,10 +101,15 @@
 
 @section('scripts')
 <script>
-document.getElementById('unit-select')?.addEventListener('change', function () {
-    const sys = this.selectedOptions[0]?.dataset.system;
+function syncSystemUnit(selectEl) {
+    const sys = selectEl.selectedOptions[0]?.dataset.system;
     if (sys) document.getElementById('system-unit-select').value = sys;
-});
+}
+const unitSelect = document.getElementById('unit-select');
+if (unitSelect) {
+    unitSelect.addEventListener('change', function () { syncSystemUnit(this); });
+    syncSystemUnit(unitSelect);
+}
 function previewImage(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];

@@ -26,6 +26,7 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::post('orders', [ZaloApiController::class, 'store']);
     Route::post('create-order', [ZaloApiController::class, 'store']);
     Route::post('checkout', [ZaloApiController::class, 'store']);
+    Route::post('orders/{id}/cancel', [ZaloApiController::class, 'cancelByCustomer']);
     Route::post('link', [ZaloApiController::class, 'link']);
 
     // ─── Affiliate (customer-facing) ─────────────────────────────────────
@@ -50,6 +51,7 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
 
 Route::group(['middleware' => ['zalo.admin']], function () {
     Route::patch('orders/{id}/status', [ZaloApiController::class, 'updateStatus']);
+    Route::post('orders/{id}/refund/confirm-manual', [ZaloApiController::class, 'confirmManualRefund']);
 
     // ─── Inventory Admin API ──────────────────────────────────────────────────
     Route::get('admin/inventory', [StockApiController::class, 'index']);
