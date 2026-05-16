@@ -11,7 +11,7 @@ class VtpWard extends Model
     public $incrementing = false;
     protected $keyType = 'int';
 
-    protected $fillable = ['id', 'district_id', 'name', 'status', 'synced_at'];
+    protected $fillable = ['id', 'province_id', 'district_id', 'name', 'status', 'synced_at'];
 
     protected $casts = [
         'status'    => 'integer',
@@ -21,5 +21,10 @@ class VtpWard extends Model
     public function district()
     {
         return $this->belongsTo(VtpDistrict::class, 'district_id');
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(VtpProvince::class, 'province_id');
     }
 }

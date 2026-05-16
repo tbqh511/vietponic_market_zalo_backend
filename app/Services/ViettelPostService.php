@@ -149,6 +149,7 @@ class ViettelPostService
 
     /**
      * Trả về mảng province: ['id', 'code', 'name', 'status']
+     * @deprecated Dùng listProvincesV3() để lấy đơn vị hành chính mới sau sáp nhập tỉnh 7/2025
      */
     public function listProvinces(): array
     {
@@ -160,7 +161,21 @@ class ViettelPostService
     }
 
     /**
+     * Trả về mảng province v3: ['id', 'code', 'name', 'status']
+     * Dùng đơn vị hành chính mới sau sáp nhập tỉnh tháng 7/2025.
+     */
+    public function listProvincesV3(): array
+    {
+        return Cache::remember('vtp_provinces_v3', now()->addDays(30), function () {
+            $res = $this->callApi('get', '/v3/categories/listProvinceNew');
+
+            return $this->normalizeProvinces($res['data'] ?? []);
+        });
+    }
+
+    /**
      * Trả về mảng district: ['id', 'province_id', 'code', 'name', 'status']
+     * Giữ lại để getPriceAll vẫn có district_id cho shipping estimate.
      */
     public function listDistricts(int $provinceId): array
     {
@@ -173,6 +188,7 @@ class ViettelPostService
 
     /**
      * Trả về mảng ward: ['id', 'district_id', 'name', 'status']
+     * @deprecated Dùng listWardsV3() — v3 query theo province_id thay vì district_id
      */
     public function listWards(int $districtId): array
     {
@@ -180,6 +196,19 @@ class ViettelPostService
             $res = $this->callApi('get', '/v2/categories/listWards', ['districtId' => $districtId]);
 
             return $this->normalizeWards($res['data'] ?? [], $districtId);
+        });
+    }
+
+    /**
+     * Trả về mảng ward v3: ['id', 'province_id', 'district_id', 'name', 'status']
+     * V3 bỏ cấp quận/huyện — query theo provinceId. Ward vẫn có district_id để dùng với getPriceAll.
+     */
+    public function listWardsV3(int $provinceId): array
+    {
+        return Cache::remember("vtp_wards_v3_{$provinceId}", now()->addDays(7), function () use ($provinceId) {
+            $res = $this->callApi('get', '/v3/categories/listWardsNew', ['provinceId' => $provinceId]);
+
+            return $this->normalizeWardsV3($res['data'] ?? [], $provinceId);
         });
     }
 
@@ -211,6 +240,17 @@ class ViettelPostService
         return collect($raw)->map(fn ($w) => [
             'id'          => (int) ($w['WARDS_ID'] ?? $w['id'] ?? 0),
             'district_id' => $districtId,
+            'name'        => $w['WARDS_NAME'] ?? $w['name'] ?? '',
+            'status'      => (int) ($w['STATUS'] ?? $w['status'] ?? 1),
+        ])->filter(fn ($w) => $w['id'] > 0)->values()->all();
+    }
+
+    private function normalizeWardsV3(array $raw, int $provinceId): array
+    {
+        return collect($raw)->map(fn ($w) => [
+            'id'          => (int) ($w['WARDS_ID'] ?? $w['id'] ?? 0),
+            'province_id' => $provinceId,
+            'district_id' => (int) ($w['DISTRICT_ID'] ?? $w['district_id'] ?? 0),
             'name'        => $w['WARDS_NAME'] ?? $w['name'] ?? '',
             'status'      => (int) ($w['STATUS'] ?? $w['status'] ?? 1),
         ])->filter(fn ($w) => $w['id'] > 0)->values()->all();

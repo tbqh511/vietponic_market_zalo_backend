@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\VtpDistrict;
 use App\Models\VtpProvince;
 use App\Models\VtpWard;
 use App\Services\ViettelPostService;
@@ -14,8 +13,8 @@ use Illuminate\Support\Facades\Log;
 class SyncVtpLocations extends Command
 {
     protected $signature = 'vtp:sync-locations
-                            {--province= : Chỉ sync districts/wards của 1 tỉnh (province_id)}
-                            {--no-wards  : Bỏ qua sync wards (nhanh hơn, dùng khi chỉ cần tỉnh/huyện)}';
+                            {--province= : Chỉ sync wards của 1 tỉnh (province_id)}
+                            {--no-wards  : Bỏ qua sync wards (nhanh hơn, dùng khi chỉ cần tỉnh/thành)}';
 
     protected $description = 'Kéo toàn bộ danh mục tỉnh/huyện/xã của ViettelPost về DB';
 
@@ -26,20 +25,19 @@ class SyncVtpLocations extends Command
 
     public function handle(): int
     {
-        $this->info('Bắt đầu sync danh mục địa lý từ VTP...');
+        $this->info('Bắt đầu sync danh mục địa lý từ VTP v3...');
 
         try {
             $this->syncProvinces();
 
-            $onlyProvince = $this->option('province') ? [(int) $this->option('province')] : null;
-            $this->syncDistricts($onlyProvince);
+            $onlyProvinceIds = $this->option('province') ? [(int) $this->option('province')] : null;
 
             if (!$this->option('no-wards')) {
-                $this->syncWards($onlyProvince);
+                $this->syncWards($onlyProvinceIds);
             }
 
-            // Invalidate cache để next request lấy dữ liệu mới từ DB
             Cache::forget('vtp_provinces');
+            Cache::forget('vtp_provinces_v3');
             $this->info('Xong! Cache đã được xoá.');
         } catch (\Throwable $e) {
             $this->error('Sync thất bại: ' . $e->getMessage());
@@ -52,8 +50,8 @@ class SyncVtpLocations extends Command
 
     private function syncProvinces(): void
     {
-        $this->info('Sync tỉnh/thành...');
-        $provinces = $this->vtp->listProvinces();
+        $this->info('Sync tỉnh/thành (v3)...');
+        $provinces = $this->vtp->listProvincesV3();
         $now = Carbon::now();
 
         foreach ($provinces as $p) {
@@ -66,9 +64,9 @@ class SyncVtpLocations extends Command
         $this->line("  → " . count($provinces) . " tỉnh/thành");
     }
 
-    private function syncDistricts(?array $onlyProvinceIds): void
+    private function syncWards(?array $onlyProvinceIds): void
     {
-        $this->info('Sync quận/huyện...');
+        $this->info('Sync phường/xã theo tỉnh (v3, có thể mất vài phút)...');
         $query = VtpProvince::where('status', 1);
         if ($onlyProvinceIds) {
             $query->whereIn('id', $onlyProvinceIds);
@@ -76,64 +74,28 @@ class SyncVtpLocations extends Command
         $provinces = $query->get();
         $now = Carbon::now();
         $total = 0;
+        $bar = $this->output->createProgressBar($provinces->count());
 
         foreach ($provinces as $province) {
             try {
-                $districts = $this->vtp->listDistricts($province->id);
-                foreach ($districts as $d) {
-                    VtpDistrict::updateOrCreate(
-                        ['id' => $d['id']],
-                        [
-                            'province_id' => $province->id,
-                            'code'        => $d['code'],
-                            'name'        => $d['name'],
-                            'status'      => $d['status'],
-                            'synced_at'   => $now,
-                        ]
-                    );
-                }
-                // Xoá cache district level để route /api/locations/districts trả fresh
-                Cache::forget("vtp_districts_{$province->id}");
-                $total += count($districts);
-            } catch (\Throwable $e) {
-                $this->warn("  ✗ Bỏ qua tỉnh {$province->id} ({$province->name}): {$e->getMessage()}");
-                Log::channel('shipping')->warning("syncDistricts skip province {$province->id}", ['error' => $e->getMessage()]);
-            }
-        }
-
-        $this->line("  → {$total} quận/huyện");
-    }
-
-    private function syncWards(?array $onlyProvinceIds): void
-    {
-        $this->info('Sync phường/xã (có thể mất vài phút)...');
-        $query = VtpDistrict::where('status', 1);
-        if ($onlyProvinceIds) {
-            $query->whereIn('province_id', $onlyProvinceIds);
-        }
-        $districts = $query->get();
-        $now = Carbon::now();
-        $total = 0;
-        $bar = $this->output->createProgressBar($districts->count());
-
-        foreach ($districts as $district) {
-            try {
-                $wards = $this->vtp->listWards($district->id);
+                $wards = $this->vtp->listWardsV3($province->id);
                 foreach ($wards as $w) {
                     VtpWard::updateOrCreate(
                         ['id' => $w['id']],
                         [
-                            'district_id' => $district->id,
+                            'province_id' => $province->id,
+                            'district_id' => $w['district_id'] ?: null,
                             'name'        => $w['name'],
                             'status'      => $w['status'],
                             'synced_at'   => $now,
                         ]
                     );
                 }
-                Cache::forget("vtp_wards_{$district->id}");
+                Cache::forget("vtp_wards_v3_{$province->id}");
                 $total += count($wards);
             } catch (\Throwable $e) {
-                Log::channel('shipping')->warning("syncWards skip district {$district->id}", ['error' => $e->getMessage()]);
+                $this->warn("  ✗ Bỏ qua tỉnh {$province->id} ({$province->name}): {$e->getMessage()}");
+                Log::channel('shipping')->warning("syncWards skip province {$province->id}", ['error' => $e->getMessage()]);
             }
             $bar->advance();
         }

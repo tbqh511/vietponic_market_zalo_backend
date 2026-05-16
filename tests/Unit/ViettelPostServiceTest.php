@@ -141,6 +141,100 @@ class ViettelPostServiceTest extends TestCase
         $this->service->getToken();
     }
 
+    // ── listProvincesV3 ───────────────────────────────────────────────────────
+
+    public function test_list_provinces_v3_calls_v3_endpoint_and_normalizes(): void
+    {
+        Cache::put('vtp_long_term_token', 'token', now()->addDays(300));
+
+        Http::fake([
+            '*/v3/categories/listProvinceNew' => Http::response([
+                'status' => 200,
+                'error'  => false,
+                'data'   => [
+                    ['PROVINCE_ID' => 5,  'PROVINCE_CODE' => 'ADM1-92', 'PROVINCE_NAME' => 'Thành phố Cần Thơ'],
+                    ['PROVINCE_ID' => 37, 'PROVINCE_CODE' => 'ADM1-46', 'PROVINCE_NAME' => 'Thành phố Huế'],
+                ],
+            ], 200),
+        ]);
+
+        $provinces = $this->service->listProvincesV3();
+
+        $this->assertCount(2, $provinces);
+        $this->assertSame(5, $provinces[0]['id']);
+        $this->assertSame('ADM1-92', $provinces[0]['code']);
+        $this->assertSame('Thành phố Cần Thơ', $provinces[0]['name']);
+        $this->assertSame(37, $provinces[1]['id']);
+
+        Http::assertSent(fn ($req) => str_contains($req->url(), '/v3/categories/listProvinceNew'));
+    }
+
+    public function test_list_provinces_v3_is_cached(): void
+    {
+        Cache::put('vtp_long_term_token', 'token', now()->addDays(300));
+
+        Http::fake([
+            '*/v3/categories/listProvinceNew' => Http::response([
+                'status' => 200,
+                'data'   => [['PROVINCE_ID' => 1, 'PROVINCE_CODE' => 'P1', 'PROVINCE_NAME' => 'Tỉnh A']],
+            ], 200),
+        ]);
+
+        $this->service->listProvincesV3();
+        $this->service->listProvincesV3(); // second call should use cache
+
+        Http::assertSentCount(1);
+    }
+
+    // ── listWardsV3 ───────────────────────────────────────────────────────────
+
+    public function test_list_wards_v3_calls_v3_endpoint_with_province_id(): void
+    {
+        Cache::put('vtp_long_term_token', 'token', now()->addDays(300));
+
+        Http::fake([
+            '*/v3/categories/listWardsNew*' => Http::response([
+                'status' => 200,
+                'error'  => false,
+                'data'   => [
+                    ['WARDS_ID' => 9762, 'WARDS_NAME' => 'XÃ AN THẠNH',      'DISTRICT_ID' => 563],
+                    ['WARDS_ID' => 9763, 'WARDS_NAME' => 'XÃ LONG THÀNH BẮC', 'DISTRICT_ID' => 564],
+                ],
+            ], 200),
+        ]);
+
+        $wards = $this->service->listWardsV3(5);
+
+        $this->assertCount(2, $wards);
+        $this->assertSame(9762, $wards[0]['id']);
+        $this->assertSame(5,    $wards[0]['province_id']);
+        $this->assertSame(563,  $wards[0]['district_id']);
+        $this->assertSame('XÃ AN THẠNH', $wards[0]['name']);
+
+        Http::assertSent(fn ($req) =>
+            str_contains($req->url(), '/v3/categories/listWardsNew') &&
+            str_contains($req->url(), 'provinceId=5')
+        );
+    }
+
+    public function test_list_wards_v3_is_cached_per_province(): void
+    {
+        Cache::put('vtp_long_term_token', 'token', now()->addDays(300));
+
+        Http::fake([
+            '*/v3/categories/listWardsNew*' => Http::response([
+                'status' => 200,
+                'data'   => [['WARDS_ID' => 1, 'WARDS_NAME' => 'Xã A', 'DISTRICT_ID' => 10]],
+            ], 200),
+        ]);
+
+        $this->service->listWardsV3(5);
+        $this->service->listWardsV3(5); // second call — same province, should use cache
+        $this->service->listWardsV3(6); // different province — should hit API
+
+        Http::assertSentCount(2);
+    }
+
     // ── getDaysUntilTokenExpiry ───────────────────────────────────────────────
 
     public function test_get_days_until_token_expiry_returns_null_when_no_cache(): void

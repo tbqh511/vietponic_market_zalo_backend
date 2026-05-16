@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\EstimateShippingRequest;
-use App\Models\VtpDistrict;
 use App\Models\VtpProvince;
 use App\Models\VtpWard;
 use App\Models\ZaloProduct;
@@ -53,16 +52,16 @@ class ShippingController extends Controller
 
     public function wards(Request $request): JsonResponse
     {
-        $districtId = (int) $request->query('district_id');
-        if (!$districtId) {
-            return response()->json(['error' => true, 'message' => 'district_id bắt buộc'], 422);
+        $provinceId = (int) $request->query('province_id');
+        if (!$provinceId) {
+            return response()->json(['error' => true, 'message' => 'province_id bắt buộc'], 422);
         }
 
-        $data = Cache::remember("api_vtp_wards_{$districtId}", now()->addDays(7), function () use ($districtId) {
-            return VtpWard::where('district_id', $districtId)
+        $data = Cache::remember("api_vtp_wards_province_{$provinceId}", now()->addDays(7), function () use ($provinceId) {
+            return VtpWard::where('province_id', $provinceId)
                 ->where('status', 1)
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'district_id', 'name'])
                 ->toArray();
         });
 
@@ -100,16 +99,18 @@ class ShippingController extends Controller
         $totalWeight = max($totalWeight, 1);
 
         try {
-            $services = $this->vtp->getPriceAll(
-                receiverProvinceId: $request->integer('receiver_province_id'),
-                receiverDistrictId: $request->integer('receiver_district_id'),
-                productWeight:      $totalWeight,
-                productPrice:       $request->integer('product_price'),
-                isCod:              $isCod,
-                length:             $maxLength ?: 20,
-                width:              $maxWidth  ?: 15,
-                height:             $maxHeight ?: 10,
-            );
+            $services = $this->vtp->getPriceAll([
+                'PRODUCT_WEIGHT'      => $totalWeight,
+                'PRODUCT_PRICE'       => $request->integer('product_price'),
+                'MONEY_COLLECTION'    => $isCod ? $request->integer('product_price') : 0,
+                'RECEIVER_PROVINCE'   => $request->integer('receiver_province_id'),
+                'RECEIVER_DISTRICT'   => $request->integer('receiver_district_id'),
+                'PRODUCT_TYPE'        => 'HH',
+                'NATIONAL_TYPE'       => 1,
+                'LENGTH'              => $maxLength ?: 20,
+                'WIDTH'               => $maxWidth  ?: 15,
+                'HEIGHT'              => $maxHeight ?: 10,
+            ]);
 
             if (empty($services)) {
                 Log::channel('shipping')->warning('VTP getPriceAll trả về rỗng', [
