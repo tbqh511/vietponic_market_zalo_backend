@@ -17,6 +17,7 @@ class ZaloOrder extends Model
         'cancelled_at','cancelled_by','cancellation_reason',
         'refund_status','refund_amount','refund_method',
         'refund_transaction_id','refund_provider_id','refunded_at','refund_note',
+        'subtotal','shipping_fee','shipping_service_code','shipping_service_name','exchange_weight',
     ];
     protected $casts = [
         'created_at'   => 'datetime',

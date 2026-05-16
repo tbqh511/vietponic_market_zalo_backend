@@ -121,7 +121,17 @@ class ZaloApiController extends Controller
             'delivery.name' => 'required|string',
             'delivery.phone' => 'nullable|string',
             'delivery.station_id' => 'nullable|string',
+            'delivery.province_id' => 'nullable|integer',
+            'delivery.district_id' => 'nullable|integer',
+            'delivery.ward_id' => 'nullable|integer',
+            'delivery.province_name' => 'nullable|string',
+            'delivery.district_name' => 'nullable|string',
+            'delivery.ward_name' => 'nullable|string',
             'total' => 'required|string',
+            'subtotal' => 'nullable|string',
+            'shipping_fee' => 'nullable|string',
+            'shipping_service_code' => 'nullable|string|max:32',
+            'shipping_service_name' => 'nullable|string',
             'note' => 'nullable|string',
             'created_at' => 'required|string',
         ]);
@@ -147,14 +157,31 @@ class ZaloApiController extends Controller
             }
         }
 
-        // Log nếu total client khác server (phát hiện bất thường)
-        $clientTotal = (float) $request->total;
-        if (abs($clientTotal - $serverTotal) > 0.01) {
-            Log::warning('Zalo Order total mismatch', [
-                'customer_id' => $customerId,
+        // Shipping fee: server nhận từ client nhưng tự tính lại total để chống tamper
+        $clientShippingFee = (int) ($request->shipping_fee ?? 0);
+        $serverFinalTotal  = $serverTotal + $clientShippingFee;
+        $clientTotal       = (float) $request->total;
+
+        // Chênh lệch > 1000đ → reject (có thể client tự sửa total để giảm tiền ship)
+        if (abs($clientTotal - $serverFinalTotal) > 1000) {
+            Log::warning('Zalo Order total mismatch (shipping)', [
+                'customer_id'       => $customerId,
+                'client_total'      => $clientTotal,
+                'server_subtotal'   => $serverTotal,
+                'client_ship_fee'   => $clientShippingFee,
+                'server_final'      => $serverFinalTotal,
+            ]);
+            return response()->json([
+                'error'   => true,
+                'message' => 'Tổng đơn hàng không hợp lệ. Vui lòng thử lại.',
+            ], 422);
+        }
+
+        if (abs($clientTotal - $serverFinalTotal) > 0.01) {
+            Log::info('Zalo Order total minor diff', [
+                'customer_id'  => $customerId,
                 'client_total' => $clientTotal,
-                'server_total' => $serverTotal,
-                'items' => $items,
+                'server_total' => $serverFinalTotal,
             ]);
         }
 
@@ -174,18 +201,22 @@ class ZaloApiController extends Controller
         }
 
         // Bọc trong DB Transaction để tránh orphan data
-        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $request, $products) {
+        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $serverFinalTotal, $clientShippingFee, $request, $products) {
             $createdAt = Carbon::parse($request->created_at);
 
-            // Create order (dùng serverTotal thay vì total từ client)
+            // total = subtotal (giá SP từ DB) + shipping_fee (từ client, đã verify trên)
             $order = ZaloOrder::create([
-                'status' => 'pending',
-                'payment_status' => 'cod',
-                'created_at' => $createdAt,
-                'received_at' => $createdAt->copy()->addDays(3),
-                'total' => $serverTotal,
-                'note' => $note,
-                'customer_id' => $customerId,
+                'status'                => 'pending',
+                'payment_status'        => 'cod',
+                'created_at'            => $createdAt,
+                'received_at'           => $createdAt->copy()->addDays(3),
+                'subtotal'              => $serverTotal,
+                'shipping_fee'          => $clientShippingFee,
+                'total'                 => $serverFinalTotal,
+                'shipping_service_code' => $request->shipping_service_code ?? null,
+                'shipping_service_name' => $request->shipping_service_name ?? null,
+                'note'                  => $note,
+                'customer_id'           => $customerId,
             ]);
 
             // Create order items (dùng giá + đơn vị từ DB, không tin payload client)
@@ -209,19 +240,25 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            // Create delivery
+            // Create delivery (bao gồm VTP IDs để tính phí và hiển thị lại)
             ZaloDelivery::create([
-                'order_id' => $order->id,
-                'type' => $delivery['type'],
-                'alias' => '',
-                'address' => $delivery['address'],
-                'name' => $delivery['name'],
-                'phone' => $delivery['phone'] ?? null,
-                'station_id' => $delivery['station_id'] ?? null,
-                'station_name' => '',
+                'order_id'      => $order->id,
+                'type'          => $delivery['type'],
+                'alias'         => '',
+                'address'       => $delivery['address'],
+                'name'          => $delivery['name'],
+                'phone'         => $delivery['phone'] ?? null,
+                'station_id'    => $delivery['station_id'] ?? null,
+                'station_name'  => '',
                 'station_image' => '',
-                'lat' => null,
-                'lng' => null,
+                'lat'           => null,
+                'lng'           => null,
+                'province_id'   => $delivery['province_id'] ?? null,
+                'district_id'   => $delivery['district_id'] ?? null,
+                'ward_id'       => $delivery['ward_id'] ?? null,
+                'province_name' => $delivery['province_name'] ?? null,
+                'district_name' => $delivery['district_name'] ?? null,
+                'ward_name'     => $delivery['ward_name'] ?? null,
             ]);
 
             return $order;

@@ -15,6 +15,7 @@ class ZaloProduct extends Model
         'id', 'category_id', 'name', 'price', 'original_price', 'image', 'detail',
         'stock', 'stock_reserved', 'reorder_point',
         'unit_id', 'system_unit', 'conversion_factor',
+        'weight', 'length', 'width', 'height',
     ];
 
     protected $casts = [

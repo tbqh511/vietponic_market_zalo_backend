@@ -1,0 +1,24 @@
+<?php
+
+return [
+    'api_url'  => env('VTP_API_URL', 'https://partner.viettelpost.vn'),
+    'username' => env('VTP_USERNAME', ''),
+    'password' => env('VTP_PASSWORD', ''),
+
+    // ID kho gửi tại Đà Lạt theo hệ ID của VTP (không phải ID hành chính VN).
+    // Chạy `php artisan vtp:sync-locations` rồi tra bảng vtp_provinces/districts/wards
+    // để lấy đúng ID trước khi deploy production.
+    'sender_province_id' => (int) env('VTP_SENDER_PROVINCE_ID', 0),
+    'sender_district_id' => (int) env('VTP_SENDER_DISTRICT_ID', 0),
+    'sender_ward_id'     => (int) env('VTP_SENDER_WARD_ID', 0),
+    'sender_address'     => env('VTP_SENDER_ADDRESS', ''),
+
+    'default_product_type' => env('VTP_DEFAULT_PRODUCT_TYPE', 'HH'),
+
+    // Bảng phí phẳng fallback khi VTP API down (đơn vị: đồng)
+    'fallback_fees' => [
+        'intra_province' => 25000,  // Nội tỉnh Lâm Đồng
+        'short_haul'     => 35000,  // Liên tỉnh ≤ 300km
+        'long_haul'      => 50000,  // Liên tỉnh > 300km
+    ],
+];

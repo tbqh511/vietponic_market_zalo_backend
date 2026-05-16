@@ -89,6 +89,35 @@
                         <div class="form-text">Ví dụ: 1 bó = 100g → nhập 100. 1 hộp cà chua = 200g → nhập 200.</div>
                     </div>
                 </div>
+                <hr>
+                <h6>Vận chuyển <small class="text-muted">(dùng để tính phí ViettelPost)</small></h6>
+                <div class="row">
+                    <div class="mb-3 col-md-3">
+                        <label class="form-label">Trọng lượng (gam)</label>
+                        <input type="number" name="weight" class="form-control"
+                               value="{{ old('weight', $product->weight ?? 500) }}"
+                               min="1" max="50000" required>
+                        <div class="form-text">Ví dụ: 300 (rau lá), 700 (củ quả)</div>
+                    </div>
+                    <div class="mb-3 col-md-3">
+                        <label class="form-label">Dài (cm)</label>
+                        <input type="number" name="length" class="form-control"
+                               value="{{ old('length', $product->length ?? 20) }}"
+                               min="1" max="200" required>
+                    </div>
+                    <div class="mb-3 col-md-3">
+                        <label class="form-label">Rộng (cm)</label>
+                        <input type="number" name="width" class="form-control"
+                               value="{{ old('width', $product->width ?? 15) }}"
+                               min="1" max="200" required>
+                    </div>
+                    <div class="mb-3 col-md-3">
+                        <label class="form-label">Cao (cm)</label>
+                        <input type="number" name="height" class="form-control"
+                               value="{{ old('height', $product->height ?? 10) }}"
+                               min="1" max="200" required>
+                    </div>
+                </div>
                 <button class="btn btn-primary">Lưu</button>
                 <a href="{{ route('zalo-products.index') }}" class="btn btn-secondary">Huỷ</a>
                 <a href="{{ route('inventory.show', $product->id) }}" class="btn btn-outline-info ms-2">

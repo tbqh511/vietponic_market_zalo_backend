@@ -5,27 +5,24 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\ClearRedisCache;
+use App\Console\Commands\SeedProductDimensions;
+use App\Console\Commands\SyncVtpLocations;
 
 class Kernel extends ConsoleKernel
 {
-    /**
-     * The Artisan commands provided by your application.
-     *
-     * @var array
-     */
     protected $commands = [
         ClearRedisCache::class,
+        SeedProductDimensions::class,
+        SyncVtpLocations::class,
     ];
 
-    /**
-     * Define the application's command schedule.
-     *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     * @return void
-     */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Refresh danh mục VTP mỗi tuần vào 2 giờ sáng thứ Hai
+        $schedule->command('vtp:sync-locations --no-wards')
+            ->weeklyOn(1, '02:00')
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**

@@ -33,15 +33,19 @@ class ZaloProductController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'category_id' => 'nullable|exists:zalo_categories,id',
-            'name' => 'required|string|max:255',
-            'price' => 'nullable|numeric|min:0',
-            'original_price' => 'nullable|numeric|min:0',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'detail' => 'nullable|string',
-            'unit_id' => 'nullable|exists:zalo_units,id',
-            'system_unit' => 'required|in:g,ml,piece',
-            'conversion_factor' => 'required|numeric|min:0.001',
+            'category_id'      => 'nullable|exists:zalo_categories,id',
+            'name'             => 'required|string|max:255',
+            'price'            => 'nullable|numeric|min:0',
+            'original_price'   => 'nullable|numeric|min:0',
+            'image'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'detail'           => 'nullable|string',
+            'unit_id'          => 'nullable|exists:zalo_units,id',
+            'system_unit'      => 'required|in:g,ml,piece',
+            'conversion_factor'=> 'required|numeric|min:0.001',
+            'weight'           => 'nullable|integer|min:1|max:50000',
+            'length'           => 'nullable|integer|min:1|max:200',
+            'width'            => 'nullable|integer|min:1|max:200',
+            'height'           => 'nullable|integer|min:1|max:200',
         ]);
 
         $this->assertUnitConsistency($data);
@@ -74,15 +78,19 @@ class ZaloProductController extends Controller
     {
         $product = ZaloProduct::findOrFail($id);
         $data = $request->validate([
-            'category_id' => 'nullable|exists:zalo_categories,id',
-            'name' => 'required|string|max:255',
-            'price' => 'nullable|numeric|min:0',
-            'original_price' => 'nullable|numeric|min:0',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'detail' => 'nullable|string',
-            'unit_id' => 'nullable|exists:zalo_units,id',
-            'system_unit' => 'required|in:g,ml,piece',
-            'conversion_factor' => 'required|numeric|min:0.001',
+            'category_id'      => 'nullable|exists:zalo_categories,id',
+            'name'             => 'required|string|max:255',
+            'price'            => 'nullable|numeric|min:0',
+            'original_price'   => 'nullable|numeric|min:0',
+            'image'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'detail'           => 'nullable|string',
+            'unit_id'          => 'nullable|exists:zalo_units,id',
+            'system_unit'      => 'required|in:g,ml,piece',
+            'conversion_factor'=> 'required|numeric|min:0.001',
+            'weight'           => 'nullable|integer|min:1|max:50000',
+            'length'           => 'nullable|integer|min:1|max:200',
+            'width'            => 'nullable|integer|min:1|max:200',
+            'height'           => 'nullable|integer|min:1|max:200',
         ]);
 
         $this->assertUnitConsistency($data);

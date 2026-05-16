@@ -117,6 +117,14 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        // Ghi toàn bộ request/response VTP để debug đối soát phí
+        'shipping' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/shipping.log'),
+            'level'  => 'debug',
+            'days'   => 30,
+        ],
     ],
 
 ];

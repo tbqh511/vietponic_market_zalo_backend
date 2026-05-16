@@ -11,7 +11,12 @@ class ZaloDelivery extends Model
 
     protected $table = 'zalo_deliveries';
     public $timestamps = false;
-    protected $fillable = ['order_id','type','alias','address','name','phone','station_id','station_name','station_image','lat','lng'];
+    protected $fillable = [
+        'order_id','type','alias','address','name','phone',
+        'station_id','station_name','station_image','lat','lng',
+        'province_id','district_id','ward_id',
+        'province_name','district_name','ward_name',
+    ];
 
     public function order()
     {

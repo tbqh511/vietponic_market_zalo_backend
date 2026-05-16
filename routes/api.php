@@ -1,10 +1,19 @@
 <?php
 
 use App\Http\Controllers\AffiliateController;
+use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmStockController;
 use Illuminate\Support\Facades\Route;
+
+// ─── Locations (public — chỉ danh mục, không cần auth) ───────────────────────
+
+Route::prefix('locations')->group(function () {
+    Route::get('provinces', [ShippingController::class, 'provinces']);
+    Route::get('districts', [ShippingController::class, 'districts']);
+    Route::get('wards', [ShippingController::class, 'wards']);
+});
 
 // ─── Zalo Mini App API – Public ───────────────────────────────────────────────
 
@@ -36,6 +45,10 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::get('affiliate/commissions', [AffiliateController::class, 'commissions']);
     Route::get('affiliate/referrals', [AffiliateController::class, 'referrals']);
     Route::post('affiliate/apply-referral', [AffiliateController::class, 'applyReferral']);
+
+    // ─── Shipping estimate (rate-limited: 60 req/phút) ────────────────────
+    Route::middleware('throttle:60,1')
+        ->post('shipping/estimate', [ShippingController::class, 'estimate']);
 });
 
 // ─── Farm Partner API – Protected (JWT + farm_partner role) ──────────────────
