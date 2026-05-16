@@ -250,7 +250,8 @@ class ViettelPostService
         return collect($raw)->map(fn ($w) => [
             'id'          => (int) ($w['WARDS_ID'] ?? $w['id'] ?? 0),
             'province_id' => $provinceId,
-            'district_id' => (int) ($w['DISTRICT_ID'] ?? $w['district_id'] ?? 0),
+            'district_id' => isset($w['DISTRICT_ID']) && $w['DISTRICT_ID'] ? (int) $w['DISTRICT_ID']
+                           : (isset($w['district_id']) && $w['district_id'] ? (int) $w['district_id'] : null),
             'name'        => $w['WARDS_NAME'] ?? $w['name'] ?? '',
             'status'      => (int) ($w['STATUS'] ?? $w['status'] ?? 1),
         ])->filter(fn ($w) => $w['id'] > 0)->values()->all();
