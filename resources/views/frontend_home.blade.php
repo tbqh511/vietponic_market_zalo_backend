@@ -221,6 +221,16 @@
     cursor: pointer; transition: all .3s;
   }
   .cat-pill:hover,.cat-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+  .cat-filter .cat-pill.is-hidden { display: none; }
+  .cat-filter.is-expanded .cat-pill.is-hidden { display: inline-flex; }
+  .cat-toggle {
+    padding: 7px 18px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600;
+    border: 1px dashed var(--primary); background: transparent; color: var(--primary-dark);
+    cursor: pointer; transition: all .3s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .cat-toggle:hover,.cat-toggle:focus-visible { background: var(--primary); color: #fff; border-style: solid; }
+  .cat-toggle .cat-toggle-icon { transition: transform .25s; font-size: 14px; line-height: 1; }
+  .cat-filter.is-expanded .cat-toggle .cat-toggle-icon { transform: rotate(180deg); }
 
   /* ── CATEGORY TILES ── */
   .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 240px); gap: 14px; }
@@ -572,11 +582,18 @@
         </div>
         <a href="#" class="see-all">Xem tất cả</a>
       </div>
+      @php $catVisibleLimit = 4; @endphp
       <div class="cat-filter" id="explore-filter" role="group" aria-label="Lọc theo danh mục">
         <button class="cat-pill active" type="button" data-id="">Tất cả</button>
-        @foreach($allCategories as $cat)
-          <button class="cat-pill" type="button" data-id="{{ $cat->id }}">{{ $cat->name }}</button>
+        @foreach($allCategories as $i => $cat)
+          <button class="cat-pill {{ $i >= $catVisibleLimit ? 'is-hidden' : '' }}" type="button" data-id="{{ $cat->id }}">{{ $cat->name }}</button>
         @endforeach
+        @if($allCategories->count() > $catVisibleLimit)
+          <button class="cat-toggle" type="button" id="explore-filter-toggle" aria-expanded="false" aria-controls="explore-filter" data-label-more="Xem thêm ({{ $allCategories->count() - $catVisibleLimit }})" data-label-less="Thu gọn">
+            <span class="cat-toggle-text">Xem thêm ({{ $allCategories->count() - $catVisibleLimit }})</span>
+            <span class="cat-toggle-icon" aria-hidden="true">▾</span>
+          </button>
+        @endif
       </div>
       <div class="product-grid" id="explore-grid">
         @forelse($exploreProducts as $product)
@@ -867,6 +884,16 @@
         .then(function (json) { setLoading(false); if (!json.error) renderProducts(json.data); })
         .catch(function (err) { setLoading(false); console.error('Explore filter error:', err); });
     });
+
+    var toggle = document.getElementById('explore-filter-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        var expanded = filter.classList.toggle('is-expanded');
+        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var label = toggle.querySelector('.cat-toggle-text');
+        if (label) label.textContent = expanded ? toggle.dataset.labelLess : toggle.dataset.labelMore;
+      });
+    }
   })();
 
   /* Scroll-in animation via IntersectionObserver */
