@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Station;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -30,6 +31,10 @@ class ZaloStationController extends Controller
             'address' => 'nullable|string|max:500',
             'lat' => 'nullable|numeric|between:-90,90',
             'lng' => 'nullable|numeric|between:-180,180',
+            'vtp_province_id' => 'nullable|integer|exists:vtp_provinces,id',
+            'vtp_district_id' => 'nullable|integer|exists:vtp_districts,id',
+            'vtp_ward_id' => 'nullable|integer|exists:vtp_wards,id',
+            'vtp_address' => 'nullable|string|max:500',
         ]);
 
         // Check if at least one image source is provided
@@ -76,7 +81,13 @@ class ZaloStationController extends Controller
             'address' => $request->address,
             'lat' => $request->lat,
             'lng' => $request->lng,
+            'vtp_province_id' => $request->input('vtp_province_id') ?: null,
+            'vtp_district_id' => $request->input('vtp_district_id') ?: null,
+            'vtp_ward_id' => $request->input('vtp_ward_id') ?: null,
+            'vtp_address' => $request->input('vtp_address') ?: null,
         ]);
+
+        Cache::forget('stations_with_vtp');
 
         return redirect()->route('zalo-stations.index')->with('success', 'Station created');
     }
@@ -97,6 +108,10 @@ class ZaloStationController extends Controller
             'address' => 'nullable|string|max:500',
             'lat' => 'nullable|numeric|between:-90,90',
             'lng' => 'nullable|numeric|between:-180,180',
+            'vtp_province_id' => 'nullable|integer|exists:vtp_provinces,id',
+            'vtp_district_id' => 'nullable|integer|exists:vtp_districts,id',
+            'vtp_ward_id' => 'nullable|integer|exists:vtp_wards,id',
+            'vtp_address' => 'nullable|string|max:500',
         ]);
 
         $imagePath = $station->image;
@@ -141,7 +156,14 @@ class ZaloStationController extends Controller
             'address' => $request->address,
             'lat' => $request->lat,
             'lng' => $request->lng,
+            'vtp_province_id' => $request->input('vtp_province_id') ?: null,
+            'vtp_district_id' => $request->input('vtp_district_id') ?: null,
+            'vtp_ward_id' => $request->input('vtp_ward_id') ?: null,
+            'vtp_address' => $request->input('vtp_address') ?: null,
         ]);
+
+        Cache::forget('stations_with_vtp');
+
         return redirect()->route('zalo-stations.index')->with('success', 'Station updated');
     }
 
@@ -153,6 +175,7 @@ class ZaloStationController extends Controller
             File::delete(public_path($station->image));
         }
         $station->delete();
+        Cache::forget('stations_with_vtp');
         return redirect()->route('zalo-stations.index')->with('success', 'Station deleted');
     }
 

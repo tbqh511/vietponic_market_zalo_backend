@@ -20,6 +20,8 @@ class EstimateShippingRequest extends FormRequest
             'receiver_province_id'        => 'required|integer|exists:vtp_provinces,id',
             'receiver_district_id'        => 'nullable|integer',
             'receiver_ward_id'            => 'required|integer|exists:vtp_wards,id',
+            'receiver_lat'                => 'nullable|numeric|between:-90,90',
+            'receiver_lng'                => 'nullable|numeric|between:-180,180',
             'product_price'               => 'required|integer|min:0',
             'is_cod'                      => 'sometimes|boolean',
         ];

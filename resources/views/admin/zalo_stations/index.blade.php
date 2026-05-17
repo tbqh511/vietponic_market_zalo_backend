@@ -19,6 +19,7 @@
                         <th>Địa chỉ</th>
                         <th>Vĩ độ</th>
                         <th>Kinh độ</th>
+                        <th>VTP</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
@@ -35,6 +36,13 @@
                             <td>{{ $station->address }}</td>
                             <td>{{ $station->lat }}</td>
                             <td>{{ $station->lng }}</td>
+                            <td>
+                                @if($station->vtp_province_id && $station->vtp_district_id)
+                                    <span class="badge bg-success">Đã cấu hình</span>
+                                @else
+                                    <span class="badge bg-danger">Thiếu cấu hình</span>
+                                @endif
+                            </td>
                             <td>
                                 <a href="{{ route('zalo-stations.edit', $station->id) }}" class="btn btn-sm btn-secondary">Sửa</a>
                                 <form action="{{ route('zalo-stations.destroy', $station->id) }}" method="POST" style="display:inline-block"

@@ -74,6 +74,9 @@
         "test:affiliate": [
             "@php artisan test --env=testing --testsuite=Affiliate"
         ],
+        "test:shipping": [
+            "@php artisan test --env=testing --testsuite=Shipping"
+        ],
         "test:coverage": [
             "@php artisan test --env=testing --coverage --min=80"
         ]

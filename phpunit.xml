@@ -24,6 +24,11 @@
         <testsuite name="Farm">
             <file>./tests/Feature/FarmStockTest.php</file>
         </testsuite>
+        <!-- Testsuite cho luồng tính cước vận chuyển + chọn trạm VTP -->
+        <testsuite name="Shipping">
+            <directory suffix="Test.php">./tests/Feature/Shipping</directory>
+            <file>./tests/Feature/ShippingEstimateTest.php</file>
+        </testsuite>
         <!-- Testsuite cho hệ thống Affiliate -->
         <testsuite name="Affiliate">
             <file>./tests/Unit/AffiliateCommissionCalculationTest.php</file>

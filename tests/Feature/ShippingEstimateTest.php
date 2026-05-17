@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Station;
 use App\Models\VtpDistrict;
 use App\Models\VtpProvince;
 use App\Models\VtpWard;
 use App\Models\ZaloCategory;
 use App\Models\ZaloProduct;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -44,6 +46,20 @@ class ShippingEstimateTest extends TestCase
         $this->district = VtpDistrict::create(['id' => 10, 'province_id' => 1, 'name' => 'Quận 1', 'status' => 1]);
         $this->ward     = VtpWard::create(['id' => 100, 'district_id' => 10, 'name' => 'Phường Bến Nghé', 'status' => 1]);
 
+        // Trạm lấy hàng mặc định cho các test cũ — VTP IDs trùng tỉnh người nhận
+        Station::create([
+            'id'              => 1,
+            'name'            => 'Kho TP.HCM',
+            'address'         => 'Số 1, Quận 1, TP.HCM',
+            'lat'             => 10.776530,
+            'lng'             => 106.700981,
+            'vtp_province_id' => 1,
+            'vtp_district_id' => 10,
+            'vtp_ward_id'     => 100,
+            'vtp_address'     => 'Số 1, Quận 1, TP.HCM',
+        ]);
+        Cache::forget('stations_with_vtp');
+
         $this->customer = Customer::create([
             'name'        => 'Test User',
             'email'       => 'test@zalo.user',
@@ -63,7 +79,8 @@ class ShippingEstimateTest extends TestCase
     public function test_estimate_returns_services_from_vtp(): void
     {
         Http::fake([
-            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'tok']], 200),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short-tok']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long-tok']], 200),
             '*/v2/order/getPriceAll' => Http::response([
                 'data' => [[
                     'MA_DV_CHINH'    => 'LCOD',
@@ -85,16 +102,18 @@ class ShippingEstimateTest extends TestCase
                 'product_price'        => 60000,
             ]);
 
+        // Backend forward nguyên response từ VTP (chưa normalize key). Assert theo shape VTP gốc.
         $response->assertOk()
             ->assertJsonPath('error', false)
-            ->assertJsonPath('data.0.service_code', 'LCOD')
-            ->assertJsonPath('data.0.total_fee', 35000);
+            ->assertJsonPath('data.0.MA_DV_CHINH', 'LCOD')
+            ->assertJsonPath('data.0.MONEY_TOTAL', 35000);
     }
 
     public function test_estimate_returns_fallback_when_vtp_times_out(): void
     {
         Http::fake([
-            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'tok']], 200),
+            '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short-tok']], 200),
+            '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long-tok']], 200),
             '*/v2/order/getPriceAll' => Http::response(null, 500),
         ]);
 

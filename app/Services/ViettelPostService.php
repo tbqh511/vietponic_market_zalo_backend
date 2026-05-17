@@ -36,7 +36,6 @@ class ViettelPostService
 
     private function fetchLongTermToken(): string
     {
-        Log::channel('shipping')->info('VTP: fetching long-term token');
 
         $credentials = [
             'USERNAME' => config('viettelpost.username'),
@@ -49,7 +48,7 @@ class ViettelPostService
                 ->throw()
                 ->json();
         } catch (\Throwable $e) {
-            Log::channel('shipping')->error('VTP Login failed', ['error' => $e->getMessage()]);
+            Log::channel('shipping')->error('[VTP] Login thất bại', ['error' => $e->getMessage()]);
             throw $e;
         }
 
@@ -65,7 +64,7 @@ class ViettelPostService
                 ->throw()
                 ->json();
         } catch (\Throwable $e) {
-            Log::channel('shipping')->error('VTP ownerconnect failed', ['error' => $e->getMessage()]);
+            Log::channel('shipping')->error('[VTP] ownerconnect thất bại', ['error' => $e->getMessage()]);
             throw $e;
         }
 
@@ -73,8 +72,6 @@ class ViettelPostService
         if (!$longToken) {
             throw new \RuntimeException('VTP ownerconnect: token không có trong response');
         }
-
-        Log::channel('shipping')->info('VTP: long-term token fetched successfully');
 
         return $longToken;
     }
@@ -90,7 +87,6 @@ class ViettelPostService
                 ->json();
         } catch (RequestException $e) {
             if ($e->response->status() === 401) {
-                Log::channel('shipping')->warning('VTP 401 on first attempt, refreshing token and retrying');
                 $this->forceRefreshToken();
 
                 try {
@@ -101,19 +97,18 @@ class ViettelPostService
                         ->throw()
                         ->json();
                 } catch (\Throwable $retryEx) {
-                    Log::channel('shipping')->error('VTP retry after 401 failed', ['error' => $retryEx->getMessage()]);
+                    Log::channel('shipping')->error('[VTP] Retry sau 401 thất bại', ['error' => $retryEx->getMessage(), 'path' => $path]);
                     throw $retryEx;
                 }
             }
 
-            Log::channel('shipping')->error('VTP API error', ['status' => $e->response->status(), 'path' => $path]);
+            Log::channel('shipping')->error('[VTP] API lỗi', ['status' => $e->response->status(), 'path' => $path, 'body' => $e->response->body()]);
             throw $e;
         }
     }
 
     public function forceRefreshToken(): void
     {
-        Log::channel('shipping')->warning('VTP: force-refreshing long-term token');
         Cache::forget(self::TOKEN_CACHE_KEY);
         Cache::forget(self::TOKEN_EXPIRY_CACHE_KEY);
         $this->getToken();

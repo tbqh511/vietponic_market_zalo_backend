@@ -56,6 +56,7 @@
                         </div>
                     </div>
                 </div>
+                @include('admin.zalo_stations._vtp_picker')
                 <button class="btn btn-primary">Lưu</button>
                 <a href="{{ route('zalo-stations.index') }}" class="btn btn-secondary">Huỷ</a>
             </form>
@@ -64,6 +65,7 @@
 @endsection
 
 @section('script')
+    @include('admin.zalo_stations._vtp_picker_js')
     <script>
         const fileInput = document.getElementById('image_file');
         const urlInput = document.getElementById('image_url');
