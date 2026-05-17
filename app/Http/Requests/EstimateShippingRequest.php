@@ -18,7 +18,7 @@ class EstimateShippingRequest extends FormRequest
             'items.*.product_id'          => 'required|integer|exists:zalo_products,id',
             'items.*.quantity'            => 'required|integer|min:1',
             'receiver_province_id'        => 'required|integer|exists:vtp_provinces,id',
-            'receiver_district_id'        => 'required|integer|exists:vtp_districts,id',
+            'receiver_district_id'        => 'nullable|integer',
             'receiver_ward_id'            => 'required|integer|exists:vtp_wards,id',
             'product_price'               => 'required|integer|min:0',
             'is_cod'                      => 'sometimes|boolean',
@@ -33,8 +33,7 @@ class EstimateShippingRequest extends FormRequest
             'items.*.quantity.min'              => 'Số lượng phải ít nhất là 1.',
             'receiver_province_id.required'     => 'Vui lòng chọn tỉnh/thành.',
             'receiver_province_id.exists'       => 'Tỉnh/thành không hợp lệ.',
-            'receiver_district_id.required'     => 'Vui lòng chọn quận/huyện.',
-            'receiver_district_id.exists'       => 'Quận/huyện không hợp lệ.',
+            'receiver_district_id.integer'      => 'Quận/huyện không hợp lệ.',
             'receiver_ward_id.required'         => 'Vui lòng chọn phường/xã.',
             'receiver_ward_id.exists'           => 'Phường/xã không hợp lệ.',
         ];
