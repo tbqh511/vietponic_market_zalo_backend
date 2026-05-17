@@ -185,6 +185,58 @@ class ViettelPostService
     }
 
     /**
+     * Gọi /v2/order/createOrder để tạo đơn vận chuyển thực tế trên VTP.
+     *
+     * Payload bắt buộc (theo doc):
+     *   ORDER_NUMBER (reference của partner — gửi qua trường này; VTP trả lại trong response field 'ORDER_NUMBER' là mã VTP),
+     *   GROUPADDRESS_ID, CUS_ID, DELIVERY_DATE,
+     *   SENDER_FULLNAME, SENDER_ADDRESS, SENDER_PHONE, SENDER_PROVINCE, SENDER_DISTRICT, SENDER_WARD,
+     *   RECEIVER_FULLNAME, RECEIVER_ADDRESS, RECEIVER_PHONE, RECEIVER_PROVINCE, RECEIVER_DISTRICT, RECEIVER_WARD,
+     *   PRODUCT_NAME, PRODUCT_DESCRIPTION, PRODUCT_QUANTITY, PRODUCT_PRICE, PRODUCT_WEIGHT,
+     *   PRODUCT_LENGTH, PRODUCT_WIDTH, PRODUCT_HEIGHT, PRODUCT_TYPE ('HH'|'TH'),
+     *   ORDER_PAYMENT (1=người gửi trả, 2=người nhận trả COD, 3=người nhận trả cước, 4=người gửi trả cước+COD),
+     *   ORDER_SERVICE (mã dịch vụ, vd 'VHT', 'LCOD'),
+     *   ORDER_SERVICE_ADD (cộng thêm, chuỗi cách nhau bởi ';' hoặc rỗng),
+     *   ORDER_VOUCHER, ORDER_NOTE, MONEY_COLLECTION (COD), LIST_ITEM (array).
+     *
+     * Response shape (verified): ['status' => 200, 'message' => 'Success', 'data' => [
+     *   'ORDER_NUMBER' => 'VTPxxxxxxxxxx',
+     *   'MONEY_COLLECTION', 'EXCHANGE_WEIGHT', 'MONEY_TOTAL', 'MONEY_TOTAL_FEE', 'MONEY_FEE', 'MONEY_COLLECTION_FEE', 'MONEY_OTHER_FEE', 'MONEY_VAS', 'MONEY_VAT', 'KPI_HT'
+     * ]].
+     */
+    public function createOrder(array $payload): array
+    {
+        $response = $this->callApi('post', '/v2/order/createOrder', $payload);
+
+        // VTP trả lỗi với status != 200 hoặc field error=true
+        $status = (int) ($response['status'] ?? 0);
+        if (($response['error'] ?? false) === true || ($status !== 0 && $status !== 200)) {
+            $msg = $response['message'] ?? 'Unknown';
+            throw new \RuntimeException("VTP createOrder lỗi: {$msg} (status={$status})");
+        }
+
+        $data = $response['data'] ?? null;
+        if (!is_array($data) || empty($data['ORDER_NUMBER'])) {
+            throw new \RuntimeException('VTP createOrder: thiếu ORDER_NUMBER trong response: ' . json_encode($response));
+        }
+
+        return $data;
+    }
+
+    /**
+     * Gọi /v2/order/UpdateOrder để huỷ đơn VTP.
+     * TYPE: 1=duyệt huỷ, 2=duyệt chuyển hoàn. Dùng cho admin huỷ đơn (release/refund).
+     */
+    public function cancelOrder(string $vtpOrderNumber, int $type = 1, string $note = ''): array
+    {
+        return $this->callApi('post', '/v2/order/UpdateOrder', [
+            'TYPE'         => $type,
+            'ORDER_NUMBER' => $vtpOrderNumber,
+            'NOTE'         => $note,
+        ]);
+    }
+
+    /**
      * Gọi /v2/order/getPrice (singular) cho MỘT service code → trả về breakdown chi tiết.
      * Dùng khi cần `MONEY_TOTAL_FEE / MONEY_FEE / MONEY_VAT / KPI_HT` riêng cho 1 dịch vụ.
      * Trong flow estimate hiện tại đã dùng getPriceAll() — method này giữ lại cho createOrder.

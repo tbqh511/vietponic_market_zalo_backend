@@ -34,8 +34,26 @@ class ZaloOrderController extends Controller
 
     public function show($id)
     {
-        $order = ZaloOrder::with(['items', 'delivery'])->findOrFail($id);
+        $order = ZaloOrder::with(['items', 'delivery', 'trackingEvents'])->findOrFail($id);
         return view('admin.zalo_orders.show', compact('order'));
+    }
+
+    /**
+     * Retry tạo đơn VTP cho 1 order shipping chưa có vtp_order_number.
+     */
+    public function retryVtp($id, \App\Services\VtpOrderService $svc)
+    {
+        $order = ZaloOrder::with(['items', 'delivery'])->findOrFail($id);
+        try {
+            $data = $svc->dispatchOrderToVtp($order);
+            return redirect()
+                ->route('zalo-orders.show', $order->id)
+                ->with('success', 'Đã tạo đơn VTP: ' . ($data['ORDER_NUMBER'] ?? '?'));
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('zalo-orders.show', $order->id)
+                ->with('error', 'Tạo đơn VTP thất bại: ' . $e->getMessage());
+        }
     }
 
     public function edit($id)

@@ -125,6 +125,14 @@ return [
             'level'  => 'debug',
             'days'   => 30,
         ],
+
+        // Webhook VTP + createOrder VTP (Phase Webhook): payload, status update, lỗi
+        'viettelpost' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/viettelpost.log'),
+            'level'  => 'debug',
+            'days'   => 30,
+        ],
     ],
 
 ];

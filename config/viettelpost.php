@@ -11,6 +11,14 @@ return [
     'default_product_type' => env('VTP_DEFAULT_PRODUCT_TYPE', 'HH'),
     'product_type'         => env('VTP_DEFAULT_PRODUCT_TYPE', 'HH'),
 
+    // Người gửi mặc định (dùng khi createOrder nếu station không có thông tin)
+    'sender_phone' => env('VTP_SENDER_PHONE', ''),
+    'sender_email' => env('VTP_SENDER_EMAIL', ''),
+
+    // Webhook config (Phase 3)
+    'webhook_token'        => env('VTP_WEBHOOK_TOKEN', ''),
+    'webhook_ip_whitelist' => array_values(array_filter(array_map('trim', explode(',', (string) env('VTP_WEBHOOK_IP_WHITELIST', ''))))),
+
     // Token dài hạn (1 năm): refresh sớm 10 ngày trước khi hết hạn
     'token_ttl_days'  => 355,
     // Cảnh báo và tự refresh khi token còn ít hơn số ngày này

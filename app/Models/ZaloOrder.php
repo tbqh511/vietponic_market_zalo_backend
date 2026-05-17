@@ -39,4 +39,9 @@ class ZaloOrder extends Model
     {
         return $this->hasOne(ZaloDelivery::class, 'order_id');
     }
+
+    public function trackingEvents()
+    {
+        return $this->hasMany(VtpTrackingEvent::class, 'order_id')->orderBy('status_at', 'desc');
+    }
 }

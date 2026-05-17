@@ -29,6 +29,11 @@
             <directory suffix="Test.php">./tests/Feature/Shipping</directory>
             <file>./tests/Feature/ShippingEstimateTest.php</file>
         </testsuite>
+        <!-- Testsuite cho VTP webhook + create-order flow -->
+        <testsuite name="VtpOrder">
+            <file>./tests/Feature/ViettelPostWebhookTest.php</file>
+            <file>./tests/Feature/VtpCreateOrderTest.php</file>
+        </testsuite>
         <!-- Testsuite cho hệ thống Affiliate -->
         <testsuite name="Affiliate">
             <file>./tests/Unit/AffiliateCommissionCalculationTest.php</file>

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\ShippingController;
+use App\Http\Controllers\ViettelPostWebhookController;
 use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmStockController;
@@ -25,6 +26,9 @@ Route::post('authenticate', [ZaloApiController::class, 'authenticate']);
 Route::get('infouser', [ZaloApiController::class, 'zaloapiuser']);
 Route::post('get-location', [ZaloApiController::class, 'getLocation']);
 Route::post('notify', [ZaloApiController::class, 'notifySDK']);
+
+// ─── ViettelPost webhook (public — verify token + IP whitelist trong controller) ─
+Route::post('viettelpost/webhook', [ViettelPostWebhookController::class, 'handle']);
 
 // ─── Zalo Mini App API – Protected (Customer JWT) ────────────────────────────
 

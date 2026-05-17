@@ -104,6 +104,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('zalo-categories', ZaloCategoryController::class);
         Route::resource('zalo-products', ZaloProductController::class);
         Route::resource('zalo-orders', ZaloOrderController::class);
+        Route::post('zalo-orders/{order}/vtp-retry', [ZaloOrderController::class, 'retryVtp'])->name('zalo-orders.vtp-retry');
         Route::resource('zalo-stations', ZaloStationController::class);
         Route::resource('banners', BannerController::class);
         Route::get('zalo-orders/{order}/items/create', [ZaloOrderItemController::class, 'create'])->name('zalo-order-items.create');

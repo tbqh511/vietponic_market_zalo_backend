@@ -12,6 +12,7 @@ use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use App\Services\StockService;
 use App\Services\RefundService;
+use App\Services\VtpOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +83,7 @@ class ZaloApiController extends Controller
         // customer_id được gắn bởi ZaloJwtMiddleware
         $customerId = $request->attributes->get('zalo_customer_id');
 
-        $query = ZaloOrder::with(['items', 'delivery'])
+        $query = ZaloOrder::with(['items', 'delivery', 'trackingEvents'])
             ->where('customer_id', $customerId);
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -96,7 +97,10 @@ class ZaloApiController extends Controller
         // customer_id được gắn bởi ZaloJwtMiddleware
         $customerId = $request->attributes->get('zalo_customer_id');
 
-        $order = ZaloOrder::with(['items', 'delivery'])->where('id', $id)->where('customer_id', $customerId)->first();
+        $order = ZaloOrder::with(['items', 'delivery', 'trackingEvents'])
+            ->where('id', $id)
+            ->where('customer_id', $customerId)
+            ->first();
         if (!$order) {
             return response()->json(['error' => true, 'message' => 'Order not found'], 404);
         }
@@ -275,6 +279,23 @@ class ZaloApiController extends Controller
                 'order_id' => $order->id,
                 'message'  => $e->getMessage(),
             ]);
+        }
+
+        // Tạo đơn VTP nếu delivery type = shipping. Lỗi KHÔNG fail order
+        // (frontend đã kích hoạt SDK thanh toán) — log để admin retry qua artisan vtp:retry-create.
+        if ($order->delivery && $order->delivery->type === 'shipping') {
+            try {
+                $vtpResult = app(VtpOrderService::class)->dispatchOrderToVtp($order);
+                Log::channel('viettelpost')->info('[VTP createOrder] OK', [
+                    'order_id'     => $order->id,
+                    'order_number' => $vtpResult['ORDER_NUMBER'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::channel('viettelpost')->error('[VTP createOrder] FAIL', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([
