@@ -56,16 +56,17 @@ class AdminStationVtpFieldsTest extends TestCase
 
     public function test_with_vtp_scope_filters_unconfigured_stations(): void
     {
-        Station::create(['id' => 1, 'name' => 'Configured', 'address' => 'a',
+        // VTP v3 không có district → scope chỉ yêu cầu province_id.
+        Station::create(['id' => 1, 'name' => 'Full', 'address' => 'a',
             'vtp_province_id' => 1, 'vtp_district_id' => 10, 'vtp_ward_id' => 100]);
-        Station::create(['id' => 2, 'name' => 'Not configured', 'address' => 'b']);
-        Station::create(['id' => 3, 'name' => 'Half configured', 'address' => 'c',
-            'vtp_province_id' => 1]); // thiếu district → bị loại
+        Station::create(['id' => 2, 'name' => 'No VTP', 'address' => 'b']);
+        Station::create(['id' => 3, 'name' => 'V3 (no district)', 'address' => 'c',
+            'vtp_province_id' => 46, 'vtp_ward_id' => 52468]); // hợp lệ theo v3
 
-        $configured = Station::withVtp()->get();
+        $configured = Station::withVtp()->orderBy('id')->get();
 
-        $this->assertCount(1, $configured);
-        $this->assertSame(1, $configured->first()->id);
+        $this->assertCount(2, $configured);
+        $this->assertSame([1, 3], $configured->pluck('id')->all());
     }
 
     public function test_cache_is_busted_when_picker_called_after_new_station_added(): void

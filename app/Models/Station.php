@@ -27,8 +27,8 @@ class Station extends Model
 
     public function scopeWithVtp($query)
     {
-        return $query
-            ->whereNotNull('vtp_province_id')
-            ->whereNotNull('vtp_district_id');
+        // VTP v3 đã bỏ cấp quận/huyện — chỉ còn tỉnh + phường/xã.
+        // Trạm hợp lệ khi có ít nhất tỉnh; ward optional nhưng nên có để VTP getPriceAll khớp.
+        return $query->whereNotNull('vtp_province_id');
     }
 }

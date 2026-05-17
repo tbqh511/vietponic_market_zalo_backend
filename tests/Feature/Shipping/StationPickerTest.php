@@ -118,4 +118,18 @@ class StationPickerTest extends TestCase
 
         $this->assertNull($picked);
     }
+
+    public function test_picks_station_when_district_is_null_v3_schema(): void
+    {
+        // VTP v3 đã bỏ cấp quận/huyện — station chỉ có province + ward.
+        $station = $this->makeStation([
+            'id' => 1, 'vtp_province_id' => 46,
+            'vtp_district_id' => null, 'vtp_ward_id' => 52468,
+        ]);
+
+        $picked = $this->picker->pickForReceiver(46);
+
+        $this->assertNotNull($picked);
+        $this->assertSame($station->id, $picked->id);
+    }
 }
