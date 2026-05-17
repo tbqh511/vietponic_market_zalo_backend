@@ -53,17 +53,45 @@ class ShippingController extends Controller
     public function wards(Request $request): JsonResponse
     {
         $provinceId = (int) $request->query('province_id');
+        Log::channel('shipping')->info('wards endpoint hit', [
+            'province_id_raw' => $request->query('province_id'),
+            'province_id_int' => $provinceId,
+            'all_query'       => $request->query(),
+        ]);
+
         if (!$provinceId) {
+            Log::channel('shipping')->warning('wards: province_id missing or zero');
             return response()->json(['error' => true, 'message' => 'province_id bắt buộc'], 422);
         }
 
-        $data = Cache::remember("api_vtp_wards_province_{$provinceId}", now()->addDays(7), function () use ($provinceId) {
+        $cacheKey = "api_vtp_wards_province_{$provinceId}";
+        $cached   = Cache::get($cacheKey);
+        Log::channel('shipping')->info('wards cache check', [
+            'cache_key' => $cacheKey,
+            'hit'       => $cached !== null,
+            'cached_count' => is_array($cached) ? count($cached) : null,
+        ]);
+
+        $data = Cache::remember($cacheKey, now()->addDays(7), function () use ($provinceId) {
+            $count = VtpWard::where('province_id', $provinceId)->count();
+            $count1 = VtpWard::where('province_id', $provinceId)->where('status', 1)->count();
+            Log::channel('shipping')->info('wards DB query', [
+                'province_id'    => $provinceId,
+                'total_rows'     => $count,
+                'status1_rows'   => $count1,
+            ]);
             return VtpWard::where('province_id', $provinceId)
                 ->where('status', 1)
                 ->orderBy('name')
                 ->get(['id', 'district_id', 'name'])
                 ->toArray();
         });
+
+        Log::channel('shipping')->info('wards response', [
+            'province_id' => $provinceId,
+            'count'       => count($data),
+            'sample'      => array_slice($data, 0, 2),
+        ]);
 
         return response()->json(['error' => false, 'data' => $data]);
     }
