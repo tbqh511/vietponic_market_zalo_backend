@@ -51,6 +51,7 @@ class ZaloApiController extends Controller
                 'unit_label'        => $product->unit?->label,
                 'system_unit'       => $product->system_unit,
                 'conversion_factor' => (float) $product->conversion_factor,
+                'stock_available'   => $product->stock_available,
             ];
         });
         return response()->json(['error' => false, 'data' => $data]);
