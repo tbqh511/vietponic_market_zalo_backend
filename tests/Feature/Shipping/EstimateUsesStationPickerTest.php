@@ -17,7 +17,7 @@ use Tests\TestCase;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 /**
- * Integration tests: gọi POST /shipping/estimate thực tế, mock VTP getPriceAll
+ * Integration tests: gọi POST /shipping/estimate thực tế, mock VTP /v2/order/getPrice
  * và assert backend chọn đúng trạm + trả 422 khi không có trạm cấu hình.
  */
 class EstimateUsesStationPickerTest extends TestCase
@@ -51,16 +51,19 @@ class EstimateUsesStationPickerTest extends TestCase
             'firebase_id' => 'fid', 'logintype' => 'zalo', 'isActive' => 1,
         ]);
 
-        // Mock VTP login (2-step) + getPriceAll
+        // Mock VTP login (2-step) + getPriceAll (1 call trả về list service khả dụng).
         Http::fake([
             '*/v2/user/Login' => Http::response(['data' => ['token' => 'short-tok']], 200),
             '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long-tok']], 200),
             '*/v2/order/getPriceAll' => Http::response([
-                'data' => [[
-                    'MA_DV_CHINH' => 'LCOD', 'TEN_DICHVU' => 'Tiêu chuẩn',
-                    'GIA_CUOC' => 30000, 'VAT' => 0, 'MONEY_TOTAL' => 30000,
-                    'THOI_GIAN_PHAT' => '2 ngày',
-                ]],
+                [
+                    'MA_DV_CHINH'     => 'VHT',
+                    'TEN_DICHVU'      => 'Chuyển phát thường',
+                    'GIA_CUOC'        => 30000,
+                    'THOI_GIAN'       => '48 giờ',
+                    'EXCHANGE_WEIGHT' => 0,
+                    'EXTRA_SERVICE'   => [],
+                ],
             ], 200),
         ]);
     }
@@ -96,12 +99,12 @@ class EstimateUsesStationPickerTest extends TestCase
 
         $res->assertOk()->assertJsonPath('error', false);
 
-        // Assert VTP getPriceAll được gọi với SENDER_PROVINCE = 2
+        // Assert VTP getPriceAll được gọi với SENDER_PROVINCE = 2 (trạm Đà Lạt)
         Http::assertSent(function ($request) {
-            if (!str_contains($request->url(), 'getPriceAll')) return false;
+            if (!str_contains($request->url(), '/v2/order/getPriceAll')) return false;
             $data = $request->data();
             return ($data['SENDER_PROVINCE'] ?? null) === 2
-                && ($data['SENDER_DISTRICT'] ?? null) === 20;
+                && ($data['SENDER_WARD'] ?? null) === 200;
         });
     }
 
@@ -175,7 +178,7 @@ class EstimateUsesStationPickerTest extends TestCase
         $res->assertOk();
 
         Http::assertSent(function ($request) {
-            if (!str_contains($request->url(), 'getPriceAll')) return false;
+            if (!str_contains($request->url(), '/v2/order/getPriceAll')) return false;
             return ($request->data()['SENDER_PROVINCE'] ?? null) === 1;
         });
     }

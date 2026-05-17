@@ -135,11 +135,73 @@ class ViettelPostService
         return (int) ($secondsLeft / 86400);
     }
 
+    /**
+     * Gọi /v2/order/getPriceAll — lấy danh sách dịch vụ KHẢ DỤNG cho tuyến gửi/nhận.
+     * Đây là API discovery: trả về mảng các dịch vụ chính + dịch vụ cộng thêm
+     * tương ứng cặp sender/receiver, KHÔNG cần truyền ORDER_SERVICE.
+     *
+     * Mandatory payload (theo doc VTP):
+     *   SENDER_PROVINCE, SENDER_DISTRICT, SENDER_WARD,
+     *   RECEIVER_PROVINCE, RECEIVER_DISTRICT, RECEIVER_WARD,
+     *   PRODUCT_TYPE ('HH'|'TH'), PRODUCT_WEIGHT (gr), TYPE (1=trong nước, 0=quốc tế)
+     * Optional: PRODUCT_PRICE, MONEY_COLLECTION, PRODUCT_LENGTH/WIDTH/HEIGHT
+     *
+     * **Lưu ý**: dùng `TYPE` (không phải `NATIONAL_TYPE` như getPrice).
+     *
+     * Response shape: [
+     *   ['MA_DV_CHINH', 'TEN_DICHVU', 'GIA_CUOC', 'THOI_GIAN', 'EXCHANGE_WEIGHT', 'EXTRA_SERVICE'[]],
+     *   ...
+     * ]
+     *
+     * @return array[] Mảng các dịch vụ; rỗng nếu VTP báo error.
+     */
     public function getPriceAll(array $payload): array
     {
         $response = $this->callApi('post', '/v2/order/getPriceAll', $payload);
 
-        return $response['data'] ?? [];
+        if (!is_array($response)) {
+            Log::channel('shipping')->warning('[VTP] getPriceAll: response không phải array', ['type' => gettype($response)]);
+            return [];
+        }
+
+        // Verified prod: VTP trả mảng các service trực tiếp ở root, KHÔNG wrap 'data'.
+        // Nhưng có một số endpoint khác wrap — handle cả 2 trường hợp.
+        $candidate = (isset($response['data']) && is_array($response['data'])) ? $response['data'] : $response;
+
+        // Lọc các item hợp lệ (có MA_DV_CHINH). An toàn cho cả error response (assoc) lẫn list service.
+        $services = array_values(array_filter(
+            $candidate,
+            fn ($item) => is_array($item) && isset($item['MA_DV_CHINH'])
+        ));
+
+        if (empty($services)) {
+            Log::channel('shipping')->warning('[VTP] getPriceAll: không có service hợp lệ trong response', [
+                'response_keys' => is_array($response) ? array_keys($response) : null,
+                'response_sample' => is_array($response) ? array_slice($response, 0, 2, true) : null,
+            ]);
+        }
+
+        return $services;
+    }
+
+    /**
+     * Gọi /v2/order/getPrice (singular) cho MỘT service code → trả về breakdown chi tiết.
+     * Dùng khi cần `MONEY_TOTAL_FEE / MONEY_FEE / MONEY_VAT / KPI_HT` riêng cho 1 dịch vụ.
+     * Trong flow estimate hiện tại đã dùng getPriceAll() — method này giữ lại cho createOrder.
+     *
+     * Mandatory payload: như getPriceAll + `ORDER_SERVICE` + dùng `NATIONAL_TYPE` (KHÔNG phải `TYPE`).
+     * Response shape: ['MONEY_TOTAL', 'MONEY_TOTAL_FEE', 'MONEY_FEE', 'MONEY_VAT', 'KPI_HT', ...]
+     */
+    public function getPrice(array $payload): array
+    {
+        $response = $this->callApi('post', '/v2/order/getPrice', $payload);
+
+        if (($response['error'] ?? false) === true || ($response['error'] ?? 0) === 1) {
+            return [];
+        }
+
+        $data = $response['data'] ?? [];
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -170,7 +232,7 @@ class ViettelPostService
 
     /**
      * Trả về mảng district: ['id', 'province_id', 'code', 'name', 'status']
-     * Giữ lại để getPriceAll vẫn có district_id cho shipping estimate.
+     * Giữ lại để getPrice vẫn có district_id cho shipping estimate (legacy v2 schema).
      */
     public function listDistricts(int $provinceId): array
     {
@@ -196,7 +258,7 @@ class ViettelPostService
 
     /**
      * Trả về mảng ward v3: ['id', 'province_id', 'district_id', 'name', 'status']
-     * V3 bỏ cấp quận/huyện — query theo provinceId. Ward vẫn có district_id để dùng với getPriceAll.
+     * V3 bỏ cấp quận/huyện — query theo provinceId. Ward vẫn có district_id để dùng với getPrice (legacy v2 schema).
      */
     public function listWardsV3(int $provinceId): array
     {

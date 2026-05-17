@@ -82,14 +82,22 @@ class ShippingEstimateTest extends TestCase
             '*/v2/user/Login'        => Http::response(['data' => ['token' => 'short-tok']], 200),
             '*/v2/user/ownerconnect' => Http::response(['data' => ['token' => 'long-tok']], 200),
             '*/v2/order/getPriceAll' => Http::response([
-                'data' => [[
-                    'MA_DV_CHINH'    => 'LCOD',
-                    'TEN_DICHVU'     => 'Chuyển phát tiêu chuẩn',
-                    'GIA_CUOC'       => 35000,
-                    'VAT'            => 0,
-                    'MONEY_TOTAL'    => 35000,
-                    'THOI_GIAN_PHAT' => '2-3 ngày',
-                ]],
+                [
+                    'MA_DV_CHINH'     => 'VHT',
+                    'TEN_DICHVU'      => 'Chuyển phát thường',
+                    'GIA_CUOC'        => 35000,
+                    'THOI_GIAN'       => '48 giờ',
+                    'EXCHANGE_WEIGHT' => 0,
+                    'EXTRA_SERVICE'   => [],
+                ],
+                [
+                    'MA_DV_CHINH'     => 'LCOD',
+                    'TEN_DICHVU'      => 'Chuyển phát nhanh',
+                    'GIA_CUOC'        => 50000,
+                    'THOI_GIAN'       => '24 giờ',
+                    'EXCHANGE_WEIGHT' => 0,
+                    'EXTRA_SERVICE'   => [],
+                ],
             ], 200),
         ]);
 
@@ -102,11 +110,14 @@ class ShippingEstimateTest extends TestCase
                 'product_price'        => 60000,
             ]);
 
-        // Backend forward nguyên response từ VTP (chưa normalize key). Assert theo shape VTP gốc.
+        // Backend map từ getPriceAll → shape lowercase frontend `ShippingService` dùng được.
         $response->assertOk()
             ->assertJsonPath('error', false)
-            ->assertJsonPath('data.0.MA_DV_CHINH', 'LCOD')
-            ->assertJsonPath('data.0.MONEY_TOTAL', 35000);
+            ->assertJsonPath('data.0.service_code', 'VHT')
+            ->assertJsonPath('data.0.total_fee', 35000)
+            ->assertJsonPath('data.0.kpi_ht', '48 giờ')
+            ->assertJsonPath('data.1.service_code', 'LCOD')
+            ->assertJsonPath('data.1.total_fee', 50000);
     }
 
     public function test_estimate_returns_fallback_when_vtp_times_out(): void

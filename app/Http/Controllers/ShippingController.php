@@ -129,38 +129,50 @@ class ShippingController extends Controller
         }
 
         $senderProvinceId = (int) $station->vtp_province_id;
-        $senderDistrictId = (int) $station->vtp_district_id;
+        $senderDistrictId = (int) ($station->vtp_district_id ?? 0);
+        $senderWardId     = (int) ($station->vtp_ward_id ?? 0);
 
-        $vtpPayload = [
-            'PRODUCT_WEIGHT'      => $totalWeight,
-            'PRODUCT_PRICE'       => $request->integer('product_price'),
-            'MONEY_COLLECTION'    => $isCod ? $request->integer('product_price') : 0,
-            'SENDER_PROVINCE'     => $senderProvinceId,
-            'SENDER_DISTRICT'     => $senderDistrictId,
-            'RECEIVER_PROVINCE'   => $request->integer('receiver_province_id'),
-            'RECEIVER_DISTRICT'   => $districtId,
-            'PRODUCT_TYPE'        => config('viettelpost.default_product_type', 'HH'),
-            'NATIONAL_TYPE'       => 1,
-            'LENGTH'              => $maxLength ?: 20,
-            'WIDTH'               => $maxWidth  ?: 15,
-            'HEIGHT'              => $maxHeight ?: 10,
+        // VTP /v2/order/getPriceAll: lấy danh sách dịch vụ khả dụng cho tuyến gửi/nhận.
+        // Dùng `TYPE` (không phải `NATIONAL_TYPE` — đó là field của getPrice singular).
+        // V3 đã bỏ district → set = 0 (đã verify trên prod: được chấp nhận).
+        $payload = [
+            'PRODUCT_WEIGHT'    => $totalWeight,
+            'PRODUCT_PRICE'     => $request->integer('product_price'),
+            'MONEY_COLLECTION'  => $isCod ? $request->integer('product_price') : 0,
+            'SENDER_PROVINCE'   => $senderProvinceId,
+            'SENDER_DISTRICT'   => $senderDistrictId,
+            'SENDER_WARD'       => $senderWardId,
+            'RECEIVER_PROVINCE' => $request->integer('receiver_province_id'),
+            'RECEIVER_DISTRICT' => $districtId,
+            'RECEIVER_WARD'     => $request->integer('receiver_ward_id'),
+            'PRODUCT_TYPE'      => config('viettelpost.default_product_type', 'HH'),
+            'TYPE'              => 1,
+            'PRODUCT_LENGTH'    => $maxLength ?: 20,
+            'PRODUCT_WIDTH'     => $maxWidth  ?: 15,
+            'PRODUCT_HEIGHT'    => $maxHeight ?: 10,
         ];
 
         $logContext = [
             'picked_station_id' => $station->id,
             'sender_province'   => $senderProvinceId,
             'sender_district'   => $senderDistrictId,
+            'sender_ward'       => $senderWardId,
             'receiver_province' => $request->integer('receiver_province_id'),
             'receiver_district' => $districtId,
+            'receiver_ward'     => $request->integer('receiver_ward_id'),
             'weight'            => $totalWeight,
         ];
 
         try {
-            $services = $this->vtp->getPriceAll($vtpPayload);
+            $vtpServices = $this->vtp->getPriceAll($payload);
+            $services    = array_values(array_filter(array_map(
+                fn ($s) => $this->mapVtpService($s),
+                $vtpServices,
+            )));
 
             if (empty($services)) {
                 Log::channel('shipping')->warning('[FALLBACK] VTP getPriceAll trả về rỗng', $logContext);
-                $response = response()->json(['error' => false, 'data' => $this->fallbackServices($isCod)]);
+                $response = response()->json(['error' => false, 'data' => $this->fallbackServices($isCod), 'fallback' => true]);
             } else {
                 $response = response()->json(['error' => false, 'data' => $services]);
             }
@@ -179,6 +191,30 @@ class ShippingController extends Controller
             Log::channel('shipping')->error('[FALLBACK] estimate: lỗi không xác định', $logContext + ['error' => $e->getMessage()]);
             return response()->json(['error' => true, 'message' => 'Không thể tính phí vận chuyển, vui lòng thử lại'], 500);
         }
+    }
+
+    /**
+     * Map item từ VTP getPriceAll → shape mà frontend `ShippingService` đợi (lowercase).
+     * VTP trả: {MA_DV_CHINH, TEN_DICHVU, GIA_CUOC, THOI_GIAN, EXCHANGE_WEIGHT, EXTRA_SERVICE}
+     * Lưu ý: getPriceAll KHÔNG có breakdown VAT → `vat = 0`, `fee = total_fee`.
+     */
+    private function mapVtpService(array $svc): ?array
+    {
+        $code  = $svc['MA_DV_CHINH'] ?? null;
+        $total = (int) ($svc['GIA_CUOC'] ?? 0);
+        if (!$code || $total <= 0) {
+            return null;
+        }
+
+        return [
+            'service_code'    => $code,
+            'service_name'    => $svc['TEN_DICHVU'] ?? $code,
+            'fee'             => $total,
+            'vat'             => 0,
+            'total_fee'       => $total,
+            'kpi_ht'          => $svc['THOI_GIAN'] ?? null,
+            'exchange_weight' => isset($svc['EXCHANGE_WEIGHT']) ? (int) $svc['EXCHANGE_WEIGHT'] : null,
+        ];
     }
 
     // ── Flat-fee fallback (Phase 6) ──────────────────────────────────────────
