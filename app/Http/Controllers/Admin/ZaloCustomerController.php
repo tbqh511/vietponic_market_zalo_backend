@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\FarmPartner;
-use App\Models\FarmPartnerLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Admin web controller cho danh sách khách hàng Zalo. Trước đây có chức năng
+ * toggle Farm Partner qua bảng farm_partners — đã chuyển sang cột
+ * Customer.role / Customer.farm_partner_status + model Farm. Toggle UI tạm gỡ,
+ * sẽ làm lại trong admin Farm Hub task riêng.
+ */
 class ZaloCustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::query()->with('farmPartner');
+        $query = Customer::query();
 
         if ($request->filled('q')) {
             $q = trim($request->q);
@@ -28,12 +32,19 @@ class ZaloCustomerController extends Controller
             $query->where('isActive', $request->is_active);
         }
 
+        // Filter theo trạng thái Farm Partner đọc trực tiếp từ cột customers.
+        // 'approved'  — đã duyệt làm farm partner (truy cập được Hub).
+        // 'requested' — đang xin duyệt.
+        // 'none'      — chưa bao giờ xin / đã bị huỷ.
         if ($request->filled('farm_status')) {
             match ($request->farm_status) {
-                'active'   => $query->whereHas('farmPartner', fn ($q) => $q->where('status', 'active')),
-                'inactive' => $query->whereHas('farmPartner', fn ($q) => $q->where('status', 'inactive')),
-                'none'     => $query->doesntHave('farmPartner'),
-                default    => null,
+                'approved'  => $query->where('role', 'farm_partner')->where('farm_partner_status', 'approved'),
+                'requested' => $query->where('farm_partner_status', 'requested'),
+                'none'      => $query->where(function ($w) {
+                    $w->whereNull('farm_partner_status')
+                      ->orWhere('farm_partner_status', 'none');
+                }),
+                default     => null,
             };
         }
 
@@ -52,8 +63,7 @@ class ZaloCustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with(['farmPartner', 'referrer', 'farmPartnerLogs.admin'])
-            ->findOrFail($id);
+        $customer = Customer::with(['referrer', 'farm'])->findOrFail($id);
 
         $ordersCount    = $customer->orders()->count();
         $ordersTotal    = $customer->orders()->sum(DB::raw('CAST(total AS DECIMAL(20,2))'));
@@ -110,55 +120,7 @@ class ZaloCustomerController extends Controller
             ->with('success', 'Đã xoá khách hàng.');
     }
 
-    public function toggleFarmPartner(Request $request, int $id)
-    {
-        $customer = Customer::with('farmPartner')->findOrFail($id);
-
-        $data = $request->validate([
-            'change_reason' => 'nullable|string|max:255',
-        ]);
-
-        DB::transaction(function () use ($customer, $data) {
-            $farmPartner = $customer->farmPartner;
-            $oldStatus   = $farmPartner?->status;
-
-            if (is_null($farmPartner)) {
-                $farmPartner = FarmPartner::create([
-                    'customer_id' => $customer->id,
-                    'status'      => 'active',
-                    'farm_name'   => $customer->name . "'s Farm",
-                    'note'        => null,
-                ]);
-                $action    = 'created';
-                $newStatus = 'active';
-            } else {
-                $newStatus = $farmPartner->status === 'active' ? 'inactive' : 'active';
-                $farmPartner->update(['status' => $newStatus]);
-                $action = $newStatus === 'active' ? 'activated' : 'deactivated';
-            }
-
-            FarmPartnerLog::create([
-                'customer_id'     => $customer->id,
-                'farm_partner_id' => $farmPartner->id,
-                'action'          => $action,
-                'old_status'      => $oldStatus,
-                'new_status'      => $newStatus,
-                'changed_by'      => auth()->id(),
-                'change_reason'   => $data['change_reason'] ?? null,
-            ]);
-        });
-
-        $customer->refresh();
-        $newStatus = $customer->farmPartner?->status;
-        $msg = $newStatus === 'active'
-            ? 'Đã kích hoạt trạng thái Farm Partner.'
-            : 'Đã tắt trạng thái Farm Partner.';
-
-        return redirect()->route('zalo-customers.show', $customer->id)
-            ->with('success', $msg);
-    }
-
-    public function toggleActive(Request $request, int $id)
+    public function toggleActive(int $id)
     {
         $customer           = Customer::findOrFail($id);
         $customer->isActive = $customer->isActive ? 0 : 1;

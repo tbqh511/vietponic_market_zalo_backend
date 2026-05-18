@@ -5,6 +5,7 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\ClearRedisCache;
+use App\Console\Commands\FarmsSnapshotDaily;
 use App\Console\Commands\SeedProductDimensions;
 use App\Console\Commands\SyncVtpLocations;
 use App\Console\Commands\VtpRefreshToken;
@@ -13,6 +14,7 @@ class Kernel extends ConsoleKernel
 {
     protected $commands = [
         ClearRedisCache::class,
+        FarmsSnapshotDaily::class,
         SeedProductDimensions::class,
         SyncVtpLocations::class,
         VtpRefreshToken::class,
@@ -27,6 +29,12 @@ class Kernel extends ConsoleKernel
             ->runInBackground();
 
         $schedule->command('vtp:refresh-token')->weekly();
+
+        // Farm Partner Hub: chốt số liệu hằng ngày 23:30 — expire batch quá
+        // hạn + cập nhật accrued payout cho từng farm.
+        $schedule->command('farms:snapshot-daily')
+            ->dailyAt('23:30')
+            ->withoutOverlapping();
     }
 
     /**

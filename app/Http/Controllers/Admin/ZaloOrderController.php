@@ -74,7 +74,17 @@ class ZaloOrderController extends Controller
 
         $previousStatus = $order->status;
 
-        DB::transaction(function () use ($order, $data) {
+        DB::transaction(function () use ($order, $data, $previousStatus) {
+            // Farm Partner Hub: admin web chuyển sang 'delivered' → chốt delivered_at.
+            // Set trước update để dính vào cùng query, idempotent với delivered_at có sẵn.
+            if (
+                isset($data['status'])
+                && $data['status'] === 'delivered'
+                && $previousStatus !== 'delivered'
+                && empty($order->delivered_at)
+            ) {
+                $data['delivered_at'] = now();
+            }
             $order->update($data);
             // recalc total from items if needed
             $total = $order->items()->sum(DB::raw('price * quantity'));

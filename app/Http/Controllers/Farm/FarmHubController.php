@@ -1,0 +1,510 @@
+<?php
+
+namespace App\Http\Controllers\Farm;
+
+use App\Http\Controllers\Controller;
+use App\Models\Farm;
+use App\Services\FarmDashboardService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+/**
+ * FarmHubController — endpoints cho Farm Partner Hub dashboard.
+ *
+ * Tất cả route dưới middleware `zalo.farm` (EnsureFarmPartner) — middleware
+ * này đã verify customer là farm partner đã duyệt + có farm active, và đính
+ * model Farm vào request attributes (`$request->attributes->get('farm')`).
+ * Controller KHÔNG cần re-check role hay tự tra farm — middleware đã làm.
+ *
+ * Convention response: { error: bool, data?: ..., message?: string }.
+ * Khớp với các endpoint customer hiện có để frontend dùng chung extractArray.
+ */
+class FarmHubController extends Controller
+{
+    public function __construct(private FarmDashboardService $dashboard) {}
+
+    /**
+     * GET /farm/hub/profile — thông tin farm đang đăng nhập.
+     * Dùng để hiển thị header (tên/logo) trên dashboard, tránh frontend phải
+     * tự tra. Không trả các field nội bộ như approved_by / commission_rate.
+     */
+    public function profile(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'id'             => (int) $farm->id,
+                'code'           => $farm->code,
+                'name'           => $farm->name,
+                'logo'           => $farm->logo,
+                'cover_image'    => $farm->cover_image,
+                'description'    => $farm->description,
+                'address'        => $farm->address,
+                'payment_cycle'  => $farm->payment_cycle,
+                'approved_at'    => optional($farm->approved_at)->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /farm/hub/overview?range=today|7d|30d|custom[&from=&to=]
+     */
+    public function overview(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'range' => 'nullable|string|in:today,7d,30d,custom',
+            'from'  => 'nullable|date_format:Y-m-d',
+            'to'    => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $range = (string) $request->query('range', '7d');
+
+        try {
+            $data = $this->dashboard->getOverview(
+                $farm,
+                $range,
+                $request->query('from'),
+                $request->query('to'),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    /**
+     * GET /farm/hub/revenue?range=...&bucket=day|week
+     */
+    public function revenue(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'range'  => 'nullable|string|in:today,7d,30d,custom',
+            'bucket' => 'nullable|string|in:day,week',
+            'from'   => 'nullable|date_format:Y-m-d',
+            'to'     => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $range  = (string) $request->query('range', '7d');
+        $bucket = (string) $request->query('bucket', 'day');
+
+        try {
+            $series = $this->dashboard->getRevenueTimeseries(
+                $farm,
+                $range,
+                $bucket,
+                $request->query('from'),
+                $request->query('to'),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'bucket' => $bucket,
+                'range'  => $range,
+                'series' => $series,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /farm/hub/top-products?range=...&limit=10
+     */
+    public function topProducts(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'range' => 'nullable|string|in:today,7d,30d,custom',
+            'limit' => 'nullable|integer|min:1|max:100',
+            'from'  => 'nullable|date_format:Y-m-d',
+            'to'    => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $range = (string) $request->query('range', '30d');
+        $limit = (int) $request->query('limit', 10);
+
+        try {
+            $rows = $this->dashboard->getTopProducts(
+                $farm,
+                $range,
+                $limit,
+                $request->query('from'),
+                $request->query('to'),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['error' => false, 'data' => $rows]);
+    }
+
+    /**
+     * GET /farm/hub/inventory — snapshot tồn kho hiện tại (không nhận range).
+     */
+    public function inventory(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $data = $this->dashboard->getInventorySummary($farm);
+
+        return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    // ─── Alias methods cho route phẳng (/farm/*) ─────────────────────────────
+    // FE có thể dùng URL phẳng (theo spec mới) hoặc nested /farm/hub/*. Các
+    // method dưới chỉ wrap/compose method gốc, KHÔNG duplicate business logic.
+
+    /**
+     * GET /farm/analytics?range=...&bucket=day|week&limit=10
+     * Gộp overview + top-products + revenue series vào 1 payload để FE đỡ
+     * phải call 3 endpoint riêng cho trang phân tích.
+     */
+    public function analytics(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'range'  => 'nullable|string|in:today,7d,30d,custom',
+            'bucket' => 'nullable|string|in:day,week',
+            'limit'  => 'nullable|integer|min:1|max:100',
+            'from'   => 'nullable|date_format:Y-m-d',
+            'to'     => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $range  = (string) $request->query('range', '30d');
+        $bucket = (string) $request->query('bucket', 'day');
+        $limit  = (int) $request->query('limit', 10);
+        $from   = $request->query('from');
+        $to     = $request->query('to');
+
+        try {
+            $overview = $this->dashboard->getOverview($farm, $range, $from, $to);
+            $series   = $this->dashboard->getRevenueTimeseries($farm, $range, $bucket, $from, $to);
+            $top      = $this->dashboard->getTopProducts($farm, $range, $limit, $from, $to);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'overview'      => $overview,
+                'revenue'       => ['bucket' => $bucket, 'range' => $range, 'series' => $series],
+                'top_products'  => $top,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /farm/request-partnership
+     * Customer (chưa là partner) xin trở thành farm partner.
+     * Stub: chưa có flow approval — return 501 để FE biết.
+     */
+    public function requestPartnership(Request $request): JsonResponse
+    {
+        return response()->json([
+            'error'   => true,
+            'message' => 'Tính năng đăng ký Farm Partner đang được phát triển. Vui lòng liên hệ admin Vietponics để được duyệt thủ công.',
+        ], 501);
+    }
+
+    /**
+     * GET /farm/products/today — per-product breakdown cho dashboard wireframe.
+     *
+     * Mỗi row gồm:
+     *   - sản phẩm farm có nhập trong ngày (batch.batch_date = today VN tz) HOẶC
+     *     có bán trong ngày (order_items.farm_id + delivered_at hoặc created_at today)
+     *   - stocked: tổng quantity_in của batch hôm nay
+     *   - sold: tổng quantity bán hôm nay (đơn delivering+delivered)
+     *   - remaining: tồn còn lại của tất cả active batch (không chỉ batch hôm nay)
+     *   - revenue: SUM(price * quantity)
+     *   - sellthrough_pct: sold / stocked * 100 (cap 999 để tránh số xấu khi
+     *     stocked=0 mà có bán cũ)
+     *   - status: 'good' | 'warning' | 'danger' — màu cho UI:
+     *       danger  >= 95% sellthrough hoặc remaining=0
+     *       warning >= 70% hoặc remaining < 5kg
+     *       good    còn lại
+     */
+    public function productsToday(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $tz    = 'Asia/Ho_Chi_Minh';
+        $today = \Carbon\Carbon::now($tz)->toDateString();
+
+        // 1. Stocked hôm nay (batches có batch_date = today). Group by product.
+        $stockedToday = \Illuminate\Support\Facades\DB::table('farm_stock_batches')
+            ->where('farm_id', $farm->id)
+            ->whereDate('batch_date', $today)
+            ->selectRaw('product_id, SUM(quantity_in) AS stocked')
+            ->groupBy('product_id')
+            ->pluck('stocked', 'product_id');
+
+        // 2. Sold hôm nay: dùng created_at thay vì delivered_at vì dashboard
+        // hiện tại muốn "đang bán hôm nay" (gồm cả đơn chưa delivered).
+        // Lấy đơn ở trạng thái đã/đang giao (delivering+delivered) — KHÔNG
+        // tính pending/confirmed/preparing vì có thể huỷ.
+        $soldRows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('oi.farm_id', $farm->id)
+            ->whereIn('o.status', ['delivering', 'delivered'])
+            ->whereRaw("DATE(CONVERT_TZ(o.created_at, '+00:00', '+07:00')) = ?", [$today])
+            ->selectRaw('
+                oi.product_id AS product_id,
+                COALESCE(SUM(oi.quantity), 0) AS sold,
+                COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
+            ')
+            ->groupBy('oi.product_id')
+            ->get();
+
+        $soldByProduct = [];
+        foreach ($soldRows as $r) {
+            $soldByProduct[(int) $r->product_id] = [
+                'sold'    => (float) $r->sold,
+                'revenue' => (float) $r->revenue,
+            ];
+        }
+
+        // 3. Remaining: tổng quantity_remaining của tất cả active batch (không
+        // giới hạn ngày). Đây là "còn bao nhiêu để bán tiếp" — không phải tồn
+        // riêng của batch hôm nay.
+        $remainingRows = \Illuminate\Support\Facades\DB::table('farm_stock_batches')
+            ->where('farm_id', $farm->id)
+            ->where('status', 'active')
+            ->where('quantity_remaining', '>', 0)
+            ->selectRaw('product_id, SUM(quantity_remaining) AS remaining')
+            ->groupBy('product_id')
+            ->pluck('remaining', 'product_id');
+
+        // 4. Gộp danh sách product cần hiển thị = union(stockedToday, soldToday).
+        $productIds = array_unique(array_merge(
+            array_keys($stockedToday->toArray()),
+            array_keys($soldByProduct),
+        ));
+
+        if (empty($productIds)) {
+            return response()->json(['error' => false, 'data' => []]);
+        }
+
+        // 5. Lấy tên sản phẩm 1 query.
+        $names = \Illuminate\Support\Facades\DB::table('zalo_products')
+            ->whereIn('id', $productIds)
+            ->pluck('name', 'id');
+
+        $rows = [];
+        foreach ($productIds as $pid) {
+            $stocked   = (float) ($stockedToday[$pid] ?? 0);
+            $sold      = (float) ($soldByProduct[$pid]['sold'] ?? 0);
+            $revenue   = (float) ($soldByProduct[$pid]['revenue'] ?? 0);
+            $remaining = (float) ($remainingRows[$pid] ?? 0);
+
+            // sellthrough = sold/stocked. Khi stocked=0 mà có bán → 999 (sentinel
+            // "cháy hàng / bán âm" để FE highlight đỏ); UI cap về 100% trong text.
+            if ($stocked > 0) {
+                $sellthrough = round($sold / $stocked * 100, 1);
+            } elseif ($sold > 0) {
+                $sellthrough = 999.0;
+            } else {
+                $sellthrough = 0.0;
+            }
+
+            // Status màu — theo wireframe:
+            //   danger = đã hết hoặc gần hết (95%+ hoặc remaining=0 mà còn nhu cầu)
+            //   warning = đang bán nhanh (70%+ hoặc còn rất ít)
+            //   good = còn nhiều, bình thường
+            if ($remaining <= 0.01 && $sold > 0) {
+                $status = 'danger';
+            } elseif ($sellthrough >= 95) {
+                $status = 'danger';
+            } elseif ($sellthrough >= 70 || $remaining < 5) {
+                $status = 'warning';
+            } else {
+                $status = 'good';
+            }
+
+            $rows[] = [
+                'product_id'       => (int) $pid,
+                'name'             => (string) ($names[$pid] ?? "Sản phẩm #{$pid}"),
+                'stocked'          => round($stocked, 2),
+                'sold'             => round($sold, 2),
+                'remaining'        => round($remaining, 2),
+                'revenue'          => round($revenue, 2),
+                'sellthrough_pct'  => $sellthrough,
+                'status'           => $status,
+            ];
+        }
+
+        // Sort theo revenue desc — sản phẩm bán chạy lên đầu.
+        usort($rows, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
+
+        // 6. AI hint đơn giản — theo spec design doc:
+        //   - sellthrough >= 95% → nhập thêm (qty_in * 1.3)
+        //   - sau 14h VN + sellthrough < 30% với stocked > 5 → flash sale
+        $vnNow = \Carbon\Carbon::now($tz);
+        $hint  = $this->buildAiHint($rows, $vnNow->hour);
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'products' => $rows,
+                'hint'     => $hint,
+            ],
+        ]);
+    }
+
+    /**
+     * Sinh 1 AI hint duy nhất (priority: cháy hàng > bán chậm > null).
+     * Trả về null nếu không có hint nào áp dụng — FE ẩn card.
+     *
+     * @param array $rows  rows từ productsToday
+     * @param int   $hour  giờ hiện tại VN (0-23)
+     */
+    private function buildAiHint(array $rows, int $hour): ?array
+    {
+        // Ưu tiên 1: có sản phẩm cháy hàng (sellthrough ≥ 95%) → suggest restock.
+        foreach ($rows as $r) {
+            if ($r['sellthrough_pct'] >= 95 && $r['stocked'] > 0) {
+                $suggestQty = (int) ceil($r['stocked'] * 1.3);
+                return [
+                    'type'    => 'restock',
+                    'product' => $r['name'],
+                    'message' => "{$r['name']} đang cháy hàng. Nhập thêm {$suggestQty}kg cho ngày mai?",
+                ];
+            }
+        }
+
+        // Ưu tiên 2: sau 14h mà có sản phẩm bán chậm (<30%, stocked > 5kg)
+        // → suggest flash sale.
+        if ($hour >= 14) {
+            foreach ($rows as $r) {
+                if ($r['sellthrough_pct'] < 30 && $r['stocked'] > 5) {
+                    return [
+                        'type'    => 'flash_sale',
+                        'product' => $r['name'],
+                        'message' => "{$r['name']} bán chậm hôm nay ({$r['sellthrough_pct']}%). Cân nhắc giảm giá nhanh chiều nay?",
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * GET /farm/orders/incoming — order_items thuộc farm đang chờ giao.
+     *
+     * Lấy đơn ở trạng thái pending/confirmed/preparing/delivering (chưa
+     * delivered hoặc cancelled). Mỗi row 1 order_item — đơn có nhiều item
+     * cùng farm sẽ xuất hiện nhiều lần (FE group theo order_id nếu cần).
+     *
+     * Limit 50 row mới nhất, sort theo zalo_orders.created_at desc.
+     */
+    public function incomingOrders(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $rows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
+            ->leftJoin('zalo_deliveries as d', 'd.order_id', '=', 'o.id')
+            ->where('oi.farm_id', $farm->id)
+            ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
+            ->orderByDesc('o.created_at')
+            ->limit(50)
+            ->selectRaw('
+                oi.id AS item_id,
+                oi.order_id AS order_id,
+                oi.product_id AS product_id,
+                oi.name AS product_name,
+                oi.quantity AS quantity,
+                oi.price AS price,
+                o.status AS order_status,
+                o.created_at AS order_created_at,
+                o.total AS order_total,
+                d.name AS customer_name,
+                d.address AS delivery_address
+            ')
+            ->get();
+
+        $data = $rows->map(fn ($r) => [
+            'item_id'          => (int) $r->item_id,
+            'order_id'         => (int) $r->order_id,
+            'product_id'       => (int) $r->product_id,
+            'product_name'     => (string) $r->product_name,
+            'quantity'         => (float) $r->quantity,
+            'price'            => (float) $r->price,
+            'order_status'     => (string) $r->order_status,
+            'order_created_at' => $r->order_created_at,
+            'order_total'      => (float) $r->order_total,
+            'customer_name'    => $r->customer_name,
+            'delivery_address' => $r->delivery_address,
+        ])->all();
+
+        return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    /**
+     * GET /farm/payouts — danh sách đợt thanh toán của farm.
+     *
+     * Sort theo period_end desc (đợt mới nhất trên cùng). Trả mọi status
+     * (draft/pending/paid/cancelled) để farm thấy đầy đủ lịch sử + đợt hiện
+     * tại (draft, do cron snapshot daily tích lũy).
+     *
+     * Limit mặc định 20, optional ?status=draft|pending|paid|cancelled để filter.
+     */
+    public function payouts(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'status' => 'nullable|string|in:draft,pending,paid,cancelled',
+            'limit'  => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = \App\Models\FarmPayout::where('farm_id', $farm->id)
+            ->orderByDesc('period_end')
+            ->orderByDesc('id');
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        $limit = (int) $request->query('limit', 20);
+        $rows  = $query->limit($limit)->get();
+
+        $data = $rows->map(fn ($p) => [
+            'id'              => (int) $p->id,
+            'period_start'    => optional($p->period_start)->toDateString(),
+            'period_end'      => optional($p->period_end)->toDateString(),
+            'total_sold'      => (float) $p->total_sold,
+            'gross_revenue'   => (float) $p->gross_revenue,
+            'adjustment'      => (float) $p->adjustment,
+            'net_payout'      => (float) $p->net_payout,
+            'status'          => $p->status,
+            'paid_at'         => optional($p->paid_at)->toIso8601String(),
+            'payment_method'  => $p->payment_method,
+            'transaction_ref' => $p->transaction_ref,
+            'note'            => $p->note,
+        ])->all();
+
+        return response()->json(['error' => false, 'data' => $data]);
+    }
+}

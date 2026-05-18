@@ -121,69 +121,51 @@
             </div>
         </div>
 
-        {{-- Movement history --}}
+        {{-- Movement history — sau khi chuyển sang batch model, "movement" = order_items
+             đã trừ vào batch FEFO. Cột "trước/sau" không còn ý nghĩa per-row (vì
+             allocation song song giữa nhiều batch), nên view chỉ hiển thị qty xuất
+             + batch nguồn + đơn hàng. --}}
         <div class="card">
-            <div class="card-header"><h6 class="mb-0">Lịch sử giao dịch tồn kho</h6></div>
+            <div class="card-header"><h6 class="mb-0">Lịch sử xuất kho (theo đơn hàng / batch)</h6></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Thời gian</th>
-                                <th>Loại</th>
-                                <th class="text-center">Thay đổi</th>
-                                <th class="text-center">Trước</th>
-                                <th class="text-center">Sau</th>
+                                <th>Batch</th>
+                                <th class="text-center">Số lượng</th>
                                 <th>Đơn hàng</th>
-                                <th>Ghi chú</th>
-                                <th>Người thực hiện</th>
+                                <th>Trạng thái đơn</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($movements as $m)
                             <tr>
                                 <td class="small text-muted text-nowrap">
-                                    {{ $m->created_at?->format('d/m/Y H:i') }}
+                                    {{ $m->order?->created_at?->format('d/m/Y H:i') }}
                                 </td>
-                                <td>
-                                    @php
-                                        $badgeClass = match($m->movement_type) {
-                                            'import'     => 'bg-success',
-                                            'export'     => 'bg-danger',
-                                            'adjustment' => 'bg-warning text-dark',
-                                            'return'     => 'bg-info',
-                                            'damage'     => 'bg-dark',
-                                            'reserved'   => 'bg-secondary',
-                                            'unreserved' => 'bg-light text-dark border',
-                                            default      => 'bg-secondary',
-                                        };
-                                    @endphp
-                                    <span class="badge {{ $badgeClass }} small">
-                                        {{ \App\Models\StockMovement::movementTypeLabel($m->movement_type) }}
-                                    </span>
-                                </td>
-                                <td class="text-center fw-bold {{ $m->quantity_change > 0 ? 'text-success' : 'text-danger' }}">
-                                    {{ $m->quantity_change > 0 ? '+' : '' }}{{ $m->quantity_change }}
-                                </td>
-                                <td class="text-center text-muted">{{ $m->quantity_before }}</td>
-                                <td class="text-center">{{ $m->quantity_after }}</td>
                                 <td class="small">
-                                    @if($m->order_id)
-                                        <a href="{{ route('zalo-orders.show', $m->order_id) }}">#{{ $m->order_id }}</a>
+                                    @if($m->batch)
+                                        <span class="badge bg-light text-dark border">#{{ $m->batch->id }}</span>
+                                        <span class="text-muted">— {{ $m->batch->batch_date?->format('d/m/Y') }}</span>
                                     @else
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">backorder</span>
                                     @endif
                                 </td>
-                                <td class="small text-muted" style="max-width:180px;word-break:break-word;">
-                                    {{ $m->note }}
+                                <td class="text-center fw-bold text-danger">
+                                    -{{ rtrim(rtrim(number_format((float) $m->quantity, 2, '.', ''), '0'), '.') }}
                                 </td>
-                                <td class="small text-muted">
-                                    {{ $m->creator?->name ?? '—' }}
+                                <td class="small">
+                                    <a href="{{ route('zalo-orders.show', $m->order_id) }}">#{{ $m->order_id }}</a>
+                                </td>
+                                <td class="small">
+                                    <span class="badge bg-info text-dark">{{ $m->order?->status ?? '—' }}</span>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-3">Chưa có lịch sử giao dịch.</td>
+                                <td colspan="5" class="text-center text-muted py-3">Chưa có lịch sử xuất kho.</td>
                             </tr>
                             @endforelse
                         </tbody>

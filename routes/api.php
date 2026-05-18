@@ -5,6 +5,7 @@ use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\ViettelPostWebhookController;
 use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\Admin\StockApiController;
+use App\Http\Controllers\Farm\FarmHubController;
 use App\Http\Controllers\Farm\FarmStockController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,13 +56,45 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
         ->post('shipping/estimate', [ShippingController::class, 'estimate']);
 });
 
+// ─── Farm Partnership Request — customer JWT (chưa cần là farm partner) ──────
+// Endpoint cho customer thường xin trở thành farm partner. Nằm ngoài group
+// zalo.farm vì người gọi chưa được duyệt — middleware farm sẽ chặn họ.
+Route::group(['middleware' => ['zalo.jwt']], function () {
+    Route::post('farm/request-partnership', [FarmHubController::class, 'requestPartnership']);
+});
+
 // ─── Farm Partner API – Protected (JWT + farm_partner role) ──────────────────
 
 Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
+    // Farm Partner Hub — quản lý batch tồn kho (đổi sang batch model).
     Route::get('inventory', [FarmStockController::class, 'index']);
     Route::get('inventory/{id}/movements', [FarmStockController::class, 'movements']);
-    Route::post('inventory/{id}/import', [FarmStockController::class, 'import']);
-    Route::post('inventory/{id}/export', [FarmStockController::class, 'export']);
+    // POST /inventory/import (body chứa product_id) — không còn nhận {id} trên URL.
+    Route::post('inventory/import', [FarmStockController::class, 'import']);
+    // Đóng/recall/expire batch.
+    Route::post('inventory/{id}/close', [FarmStockController::class, 'close']);
+
+    // ─── Farm Hub dashboard aliases (flat URL theo spec FE) ─────────────────
+    // Map sang methods sẵn có trong FarmHubController. Đặt trước group /hub
+    // để FE có thể chọn URL phẳng (/farm/dashboard) hoặc nested (/farm/hub/overview).
+    Route::get('me', [FarmHubController::class, 'profile']);
+    Route::get('dashboard', [FarmHubController::class, 'overview']);
+    Route::get('analytics', [FarmHubController::class, 'analytics']);
+    Route::get('products/today', [FarmHubController::class, 'productsToday']);
+    Route::get('orders/incoming', [FarmHubController::class, 'incomingOrders']);
+    Route::get('payouts', [FarmHubController::class, 'payouts']);
+    // Alias write: /farm/stock-in trỏ thẳng FarmStockController@import.
+    Route::post('stock-in', [FarmStockController::class, 'import']);
+
+    // ─── Farm Hub dashboard (nested, read-only) ──────────────────────────
+    // Tách prefix /hub để FE phân biệt dashboard (read) với inventory (write).
+    Route::prefix('hub')->group(function () {
+        Route::get('profile', [FarmHubController::class, 'profile']);
+        Route::get('overview', [FarmHubController::class, 'overview']);
+        Route::get('revenue', [FarmHubController::class, 'revenue']);
+        Route::get('top-products', [FarmHubController::class, 'topProducts']);
+        Route::get('inventory', [FarmHubController::class, 'inventory']);
+    });
 });
 
 // ─── Zalo Admin API – Protected (X-Admin-Secret header) ──────────────────────

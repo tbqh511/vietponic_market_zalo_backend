@@ -51,6 +51,8 @@ class Kernel extends HttpKernel
         'coming.soon' => \App\Http\Middleware\ComingSoonMiddleware::class,
         'zalo.jwt' => \App\Http\Middleware\ZaloJwtMiddleware::class,
         'zalo.admin' => \App\Http\Middleware\ZaloAdminApiMiddleware::class,
-        'zalo.farm' => \App\Http\Middleware\ZaloFarmMiddleware::class,
+        // zalo.farm: verify customer.role='farm_partner' + farm_partner_status='approved'
+        // + tồn tại farm active thuộc customer này. Đính model Farm vào request.
+        'zalo.farm' => \App\Http\Middleware\EnsureFarmPartner::class,
     ];
 }

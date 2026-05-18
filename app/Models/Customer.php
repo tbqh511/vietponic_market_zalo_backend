@@ -29,6 +29,9 @@ class Customer extends Authenticatable implements JWTSubject
         'affiliate_bank_name',
         'affiliate_bank_account',
         'affiliate_bank_holder',
+        // Farm Partner Hub — role mặc định 'customer'. Chỉ admin được set.
+        'role',
+        'farm_partner_status',
     ];
 
     protected $casts = [
@@ -46,10 +49,24 @@ class Customer extends Authenticatable implements JWTSubject
 
     public function getJWTCustomClaims()
     {
+        // is_farm_partner = customer đang là farm partner đã được duyệt.
+        // Middleware zalo.farm cũng phải verify lại bằng DB (không tin claim suông)
+        // vì JWT có TTL ~30 phút, admin có thể suspend trong khoảng đó.
         return [
             'customer_id'     => $this->id,
-            'is_farm_partner' => $this->farmPartner()->where('status', 'active')->exists(),
+            'is_farm_partner' => $this->isFarmPartner(),
         ];
+    }
+
+    /**
+     * True nếu customer này có quyền truy cập Farm Hub.
+     * Điều kiện: role='farm_partner' AND farm_partner_status='approved'.
+     * 'requested' / 'suspended' / 'none' đều KHÔNG được vào hub.
+     */
+    public function isFarmPartner(): bool
+    {
+        return $this->role === 'farm_partner'
+            && $this->farm_partner_status === 'approved';
     }
 
     public function orders()
@@ -82,14 +99,13 @@ class Customer extends Authenticatable implements JWTSubject
         return $this->hasMany(AffiliatePayout::class, 'referrer_customer_id');
     }
 
-    public function farmPartner()
+    /**
+     * Farm mà customer này là owner. Một customer chỉ owner tối đa 1 farm.
+     * Chỉ có data khi role='farm_partner' và đã được admin gán owner_customer_id.
+     */
+    public function farm()
     {
-        return $this->hasOne(FarmPartner::class);
-    }
-
-    public function farmPartnerLogs()
-    {
-        return $this->hasMany(FarmPartnerLog::class);
+        return $this->hasOne(Farm::class, 'owner_customer_id');
     }
 
     public function getProfileAttribute($image)

@@ -271,14 +271,30 @@ class ZaloApiController extends Controller
 
         $order->load(['items', 'delivery']);
 
-        // Đặt giữ tồn kho cho đơn hàng vừa tạo
+        // Phân bổ FEFO: trừ batch + ghi farm_id/batch_id/cost_price_snapshot lên
+        // order_items. Trong batch model, đây cũng là "reserve" — không có giai
+        // đoạn 2-phase, đơn cancel sẽ release qua releaseReservation().
+        //
+        // Nếu fail (race condition: stock đã check ở checkAvailability nhưng
+        // bị đơn khác lấy hết giữa lúc đó) → mark order 'cancelled' luôn để
+        // không có inconsistent state, trả 422 cho FE.
         try {
             $this->stockService->reserveItems($order->id, $stockItems);
         } catch (\Throwable $e) {
-            Log::error('reserveItems failed after order creation', [
+            Log::error('FEFO allocation failed after order creation', [
                 'order_id' => $order->id,
                 'message'  => $e->getMessage(),
             ]);
+            $order->update([
+                'status'              => 'cancelled',
+                'cancelled_at'        => now(),
+                'cancelled_by'        => 'system',
+                'cancellation_reason' => 'FEFO allocation failed: ' . mb_substr($e->getMessage(), 0, 400),
+            ]);
+            return response()->json([
+                'error'   => true,
+                'message' => 'Sản phẩm đã hết hàng trong lúc đặt. Vui lòng thử lại.',
+            ], 422);
         }
 
         // Tạo đơn VTP nếu delivery type = shipping. Lỗi KHÔNG fail order
@@ -366,7 +382,13 @@ class ZaloApiController extends Controller
         }
 
         $previousStatus = $order->status;
-        $order->update(['status' => $request->status]);
+        $updates = ['status' => $request->status];
+        // Farm Partner Hub: admin chuyển sang 'delivered' → chốt delivered_at = now().
+        // Idempotent: nếu đã có delivered_at (vd webhook VTP set trước) thì giữ nguyên.
+        if ($request->status === 'delivered' && empty($order->delivered_at)) {
+            $updates['delivered_at'] = now();
+        }
+        $order->update($updates);
 
         // Khi đơn bị huỷ: release stock + tính refund theo payment method
         if ($request->status === 'cancelled' && $previousStatus !== 'cancelled') {
@@ -612,7 +634,7 @@ class ZaloApiController extends Controller
                         'email'           => $customer->email,
                         'profile'         => $customer->profile,
                         'mobile'          => $customer->mobile,
-                        'is_farm_partner' => $customer->farmPartner()->where('status', 'active')->exists(),
+                        'is_farm_partner' => $customer->isFarmPartner(),
                     ]
                 ]
             ]);

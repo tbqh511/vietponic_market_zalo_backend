@@ -133,120 +133,55 @@
     </div>
 </div>
 
-{{-- Card 2: Farm Partner --}}
+{{-- Card 2: Farm Partner (read-only) — duyệt/suspend chuyển sang admin Farm Hub --}}
 <div class="card mb-3">
     <div class="card-header">
         <h5 class="mb-0"><i class="bi bi-tree"></i> Farm Partner</h5>
     </div>
     <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-6">
-                @if($customer->farmPartner)
-                    <table class="table table-sm">
-                        <tr>
-                            <td class="text-muted" style="width:40%">Trạng thái</td>
-                            <td>
-                                @if($customer->farmPartner->status === 'active')
-                                    <span class="badge bg-primary">Farm hoạt động</span>
-                                @else
-                                    <span class="badge bg-warning text-dark">Farm đã tắt</span>
-                                @endif
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Tên farm</td>
-                            <td>{{ $customer->farmPartner->farm_name ?: '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Ghi chú</td>
-                            <td>{{ $customer->farmPartner->note ?: '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Ngày đăng ký</td>
-                            <td>{{ $customer->farmPartner->created_at?->format('d/m/Y H:i') }}</td>
-                        </tr>
-                    </table>
-                @else
-                    <p class="text-muted">Khách hàng chưa là Farm Partner.</p>
-                @endif
-            </div>
-
-            <div class="col-md-6">
-                <form action="{{ route('zalo-customers.toggle-farm-partner', $customer->id) }}"
-                      method="POST"
-                      onsubmit="return confirm('Xác nhận thay đổi trạng thái Farm Partner cho khách hàng này?')">
-                    @csrf
-                    @method('PATCH')
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Lý do thay đổi <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
-                        <input type="text" name="change_reason" class="form-control" style="max-width:350px;"
-                               placeholder="VD: Đã xác minh thông tin">
-                    </div>
-                    <button class="btn btn-sm
-                        @if(!$customer->farmPartner) btn-primary
-                        @elseif($customer->farmPartner->status === 'active') btn-warning
-                        @else btn-success
-                        @endif">
-                        @if(!$customer->farmPartner)
-                            <i class="bi bi-plus-circle"></i> Đăng ký Farm Partner
-                        @elseif($customer->farmPartner->status === 'active')
-                            <i class="bi bi-pause-circle"></i> Tắt Farm Partner
-                        @else
-                            <i class="bi bi-play-circle"></i> Bật lại Farm Partner
-                        @endif
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Card 3: Lịch sử Farm Partner --}}
-<div class="card mb-3">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Lịch sử thay đổi Farm Partner</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Thời gian</th>
-                        <th>Hành động</th>
-                        <th>Trạng thái cũ</th>
-                        <th>Trạng thái mới</th>
-                        <th>Người thực hiện</th>
-                        <th>Lý do</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($customer->farmPartnerLogs->sortByDesc('created_at')->take(10) as $log)
-                    <tr>
-                        <td class="small text-muted">{{ $log->created_at?->format('d/m/Y H:i') }}</td>
-                        <td>
-                            @php
-                                $actionMap = [
-                                    'created'     => ['Đăng ký', 'success'],
-                                    'activated'   => ['Kích hoạt', 'primary'],
-                                    'deactivated' => ['Tắt', 'warning'],
-                                ];
-                                [$label, $color] = $actionMap[$log->action] ?? [$log->action, 'secondary'];
-                            @endphp
-                            <span class="badge bg-{{ $color }}">{{ $label }}</span>
-                        </td>
-                        <td class="small">{{ $log->old_status ?: '—' }}</td>
-                        <td class="small">{{ $log->new_status }}</td>
-                        <td class="small">{{ $log->admin?->name ?: '—' }}</td>
-                        <td class="small text-muted">{{ $log->change_reason ?: '—' }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-3">Chưa có lịch sử thay đổi</td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
+        @php($fps = $customer->farm_partner_status ?: 'none')
+        <table class="table table-sm mb-0" style="max-width:520px;">
+            <tr>
+                <td class="text-muted" style="width:40%">Trạng thái</td>
+                <td>
+                    @if($fps === 'approved')
+                        <span class="badge bg-primary">Đã duyệt</span>
+                    @elseif($fps === 'requested')
+                        <span class="badge bg-warning text-dark">Đang xin duyệt</span>
+                    @elseif($fps === 'suspended')
+                        <span class="badge bg-secondary">Tạm dừng</span>
+                    @else
+                        <span class="text-muted">Chưa là Farm Partner</span>
+                    @endif
+                </td>
+            </tr>
+            <tr>
+                <td class="text-muted">Vai trò (role)</td>
+                <td><code>{{ $customer->role ?: 'customer' }}</code></td>
+            </tr>
+            @if($customer->farm)
+                <tr>
+                    <td class="text-muted">Farm sở hữu</td>
+                    <td>
+                        <strong>{{ $customer->farm->name }}</strong>
+                        <span class="text-muted small">— mã: {{ $customer->farm->code }}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">Chu kỳ thanh toán</td>
+                    <td>{{ $customer->farm->payment_cycle }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">Ngày duyệt</td>
+                    <td>{{ $customer->farm->approved_at?->format('d/m/Y H:i') ?: '—' }}</td>
+                </tr>
+            @endif
+        </table>
+        <p class="text-muted small mt-3 mb-0">
+            <i class="bi bi-info-circle"></i>
+            Thao tác duyệt / tạm dừng Farm Partner đã chuyển sang trang quản trị Farm Hub
+            (sẽ cập nhật ở task tiếp theo).
+        </p>
     </div>
 </div>
 

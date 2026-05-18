@@ -29,9 +29,9 @@
                 </select>
                 <select name="farm_status" class="form-select" style="max-width:190px;" onchange="this.form.submit()">
                     <option value="">Tất cả trạng thái Farm</option>
-                    <option value="active"   {{ request('farm_status') === 'active'   ? 'selected' : '' }}>Farm đang hoạt động</option>
-                    <option value="inactive" {{ request('farm_status') === 'inactive' ? 'selected' : '' }}>Farm đã tắt</option>
-                    <option value="none"     {{ request('farm_status') === 'none'     ? 'selected' : '' }}>Chưa là Farm</option>
+                    <option value="approved"  {{ request('farm_status') === 'approved'  ? 'selected' : '' }}>Farm đã duyệt</option>
+                    <option value="requested" {{ request('farm_status') === 'requested' ? 'selected' : '' }}>Đang xin duyệt</option>
+                    <option value="none"      {{ request('farm_status') === 'none'      ? 'selected' : '' }}>Chưa là Farm</option>
                 </select>
                 <input type="date" name="date_from" value="{{ request('date_from') }}"
                        class="form-control" style="max-width:150px;" title="Từ ngày">
@@ -93,23 +93,18 @@
                             </form>
                         </td>
 
-                        {{-- Toggle Farm Partner --}}
+                        {{-- Trạng thái Farm Partner (read-only; thao tác duyệt chuyển sang admin Farm Hub) --}}
                         <td class="text-center">
-                            <form action="{{ route('zalo-customers.toggle-farm-partner', $c->id) }}" method="POST" class="d-inline"
-                                  onsubmit="return confirm('{{ !$c->farmPartner ? 'Đăng ký Farm Partner cho' : ($c->farmPartner->status === 'active' ? 'Tắt Farm Partner của' : 'Bật lại Farm Partner cho') }} {{ addslashes($c->name ?: '#'.$c->id) }}?')">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" style="min-width:110px;"
-                                        class="btn btn-sm {{ !$c->farmPartner ? 'btn-outline-primary' : ($c->farmPartner->status === 'active' ? 'btn-primary' : 'btn-outline-warning') }}">
-                                    @if(!$c->farmPartner)
-                                        <i class="bi bi-plus-circle"></i> Thêm Farm
-                                    @elseif($c->farmPartner->status === 'active')
-                                        <i class="bi bi-tree-fill"></i> Farm hoạt động
-                                    @else
-                                        <i class="bi bi-tree"></i> Farm đã tắt
-                                    @endif
-                                </button>
-                            </form>
+                            @php($fps = $c->farm_partner_status ?: 'none')
+                            @if($fps === 'approved')
+                                <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Đã duyệt</span>
+                            @elseif($fps === 'requested')
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Đang xin</span>
+                            @elseif($fps === 'suspended')
+                                <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Tạm dừng</span>
+                            @else
+                                <span class="text-muted small">—</span>
+                            @endif
                         </td>
 
                         <td class="small text-muted">{{ $c->created_at?->format('d/m/Y') }}</td>

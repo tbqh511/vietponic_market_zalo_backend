@@ -16,7 +16,6 @@ use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
-use App\Http\Controllers\Admin\FarmPartnerAdminController;
 use App\Http\Controllers\Admin\ZaloCustomerController;
 use Illuminate\Support\Facades\Artisan;
 
@@ -122,12 +121,12 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('inventory/{inventory}/reorder-point', [StockController::class, 'reorderPoint'])->name('inventory.reorder-point');
 
         // ─── Farm Partner Management ──────────────────────────────────────────
-        Route::resource('farm-partners', FarmPartnerAdminController::class);
-        Route::patch('farm-partners/{id}/status', [FarmPartnerAdminController::class, 'updateStatus'])->name('farm-partners.status');
+        // Schema cũ (bảng farm_partners + farm_partner_logs) đã chuyển sang Farm
+        // model. Admin UI cho Farm Partner Hub sẽ làm lại trong task riêng — tạm
+        // thời gỡ route để tránh 500 khi click vào link cũ.
 
         // ─── Customer Management ──────────────────────────────────────────────
         Route::resource('zalo-customers', ZaloCustomerController::class)->except(['create', 'store']);
-        Route::patch('zalo-customers/{id}/toggle-farm-partner', [ZaloCustomerController::class, 'toggleFarmPartner'])->name('zalo-customers.toggle-farm-partner');
         Route::patch('zalo-customers/{id}/toggle-active', [ZaloCustomerController::class, 'toggleActive'])->name('zalo-customers.toggle-active');
 
         // ─── Affiliate Management ─────────────────────────────────────────────

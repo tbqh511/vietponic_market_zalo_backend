@@ -97,7 +97,14 @@ class VtpWebhookService
             $newStatus = $this->mapStatus($statusCode);
             if ($newStatus && $newStatus !== $order->status) {
                 $previousStatus = $order->status;
-                $order->update(['status' => $newStatus]);
+                $updates = ['status' => $newStatus];
+                // Farm Partner Hub: chốt delivered_at khi chuyển sang 'delivered'.
+                // Dùng $statusAt từ VTP (chính xác hơn now() vì webhook có thể bị
+                // queue/retry). Chỉ set một lần — nếu đã có giá trị thì giữ nguyên.
+                if ($newStatus === 'delivered' && empty($order->delivered_at)) {
+                    $updates['delivered_at'] = $statusAt;
+                }
+                $order->update($updates);
                 $this->handleStatusSideEffects($order, $previousStatus, $newStatus, $statusCode);
 
                 Log::channel('viettelpost')->info('[Webhook] Status updated', [

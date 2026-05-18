@@ -18,10 +18,14 @@ class ZaloOrder extends Model
         'refund_status','refund_amount','refund_method',
         'refund_transaction_id','refund_provider_id','refunded_at','refund_note',
         'subtotal','shipping_fee','shipping_service_code','shipping_service_name','exchange_weight',
+        // Farm Partner Hub — mốc giao xong, set khi status chuyển sang 'delivered'.
+        // FarmDashboardService query cutoff theo cột này (KHÔNG dùng created_at).
+        'delivered_at',
     ];
     protected $casts = [
         'created_at'   => 'datetime',
         'received_at'  => 'datetime',
+        'delivered_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'refunded_at'  => 'datetime',
         'refund_amount' => 'decimal:2',

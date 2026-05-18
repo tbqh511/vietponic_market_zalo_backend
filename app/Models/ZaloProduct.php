@@ -5,6 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * ZaloProduct — danh mục SKU. Tồn kho KHÔNG còn ở đây (Farm Partner Hub):
+ * tồn = SUM(farm_stock_batches.quantity_remaining) WHERE status='active'.
+ *
+ * Cột stock/stock_reserved/reorder_point đã bị drop ở migration 2026_05_18_000001.
+ * StockService cũ phải refactor đọc qua farm_stock_batches.
+ *
+ * id là unsignedBigInteger (không auto-increment) — mock product dùng id cố định.
+ */
 class ZaloProduct extends Model
 {
     use HasFactory;
@@ -13,7 +22,6 @@ class ZaloProduct extends Model
     public $timestamps = false;
     protected $fillable = [
         'id', 'category_id', 'name', 'price', 'original_price', 'image', 'detail',
-        'stock', 'stock_reserved', 'reorder_point',
         'unit_id', 'system_unit', 'conversion_factor',
         'weight', 'length', 'width', 'height',
     ];
@@ -36,9 +44,37 @@ class ZaloProduct extends Model
         return $this->belongsTo(ZaloUnit::class, 'unit_id');
     }
 
-    public function stockMovements()
+    /**
+     * Các farm cung cấp SKU này (many-to-many qua pivot farm_product).
+     */
+    public function farms()
     {
-        return $this->hasMany(StockMovement::class, 'product_id');
+        return $this->belongsToMany(Farm::class, 'farm_product', 'product_id', 'farm_id')
+            ->withPivot('cost_price', 'is_primary')
+            ->withTimestamps();
+    }
+
+    /**
+     * Tất cả batch nhập (mọi farm, mọi status) — dùng cho lịch sử/admin.
+     */
+    public function stockBatches()
+    {
+        return $this->hasMany(FarmStockBatch::class, 'product_id');
+    }
+
+    /**
+     * Batch còn bán được (active + còn remaining). Sắp xếp FEFO để dùng
+     * trực tiếp trong allocation đơn hàng.
+     */
+    public function activeBatches()
+    {
+        return $this->hasMany(FarmStockBatch::class, 'product_id')
+            ->where('status', 'active')
+            ->where('quantity_remaining', '>', 0)
+            ->orderByRaw('expire_date IS NULL ASC')
+            ->orderBy('expire_date', 'asc')
+            ->orderBy('batch_date', 'asc')
+            ->orderBy('id', 'asc');
     }
 
     public function getImageUrlAttribute()
@@ -53,34 +89,23 @@ class ZaloProduct extends Model
         return rtrim(config('app.url'), '/') . '/' . ltrim($image, '/');
     }
 
-    public function getStockAvailableAttribute(): int
+    /**
+     * Tồn kho khả dụng = SUM quantity_remaining trên các batch active.
+     * Trả về decimal (string) để giữ chính xác. Caller cần parse khi so sánh.
+     *
+     * Lưu ý hiệu năng: nếu query nhiều product cùng lúc, dùng eager-load
+     * activeBatches() rồi sum trong PHP để tránh N+1.
+     */
+    public function getStockAvailableAttribute()
     {
-        return max(0, ($this->stock ?? 0) - ($this->stock_reserved ?? 0));
+        return (float) $this->stockBatches()
+            ->where('status', 'active')
+            ->where('quantity_remaining', '>', 0)
+            ->sum('quantity_remaining');
     }
 
-    public function scopeLowStock($query)
-    {
-        return $query->whereRaw('stock <= reorder_point');
-    }
-
-    public function isAvailable(int $qty): bool
+    public function isAvailable(float $qty): bool
     {
         return $this->stock_available >= $qty;
-    }
-
-    public function reserveStock(int $qty): void
-    {
-        $this->increment('stock_reserved', $qty);
-    }
-
-    public function releaseStock(int $qty): void
-    {
-        $this->decrement('stock_reserved', max(0, $qty));
-    }
-
-    public function deductStock(int $qty): void
-    {
-        $this->decrement('stock', $qty);
-        $this->decrement('stock_reserved', $qty);
     }
 }
