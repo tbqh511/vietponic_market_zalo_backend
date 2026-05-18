@@ -93,20 +93,25 @@ class FarmsSnapshotDaily extends Command
             ->whereIn('o.status', ['delivering', 'delivered'])
             ->sum('oi.quantity');
 
-        FarmPayout::updateOrCreate(
-            [
-                'farm_id'      => $farm->id,
-                'period_start' => $periodStart->toDateString(),
-                'period_end'   => $periodEnd->toDateString(),
-                'status'       => 'draft',
-            ],
-            [
-                'gross_revenue' => $revenue,
-                'total_sold'    => $totalSold,
-                'adjustment'    => 0,
-                'net_payout'    => $revenue,
-            ]
-        );
+        // Tìm theo farm+period không có status — nếu admin đã chuyển sang pending/paid,
+        // không tạo duplicate. Chỉ cập nhật khi status vẫn là draft (chưa lock).
+        $payout = FarmPayout::firstOrNew([
+            'farm_id'      => $farm->id,
+            'period_start' => $periodStart->toDateString(),
+            'period_end'   => $periodEnd->toDateString(),
+        ]);
+
+        // Không ghi đè payout đã được admin chốt (pending/paid/cancelled).
+        if ($payout->exists && $payout->status !== 'draft') {
+            return;
+        }
+
+        $payout->gross_revenue = $revenue;
+        $payout->total_sold    = $totalSold;
+        $payout->adjustment    = $payout->adjustment ?? 0;
+        $payout->net_payout    = $revenue + ($payout->adjustment ?? 0);
+        $payout->status        = 'draft';
+        $payout->save();
     }
 
     /**

@@ -36,7 +36,10 @@ class FarmStockBatch extends Model
         'expire_date',
         'status',
         'note',
-        // KHÔNG thêm 'quantity_remaining' — đây là generated stored column.
+        // quantity_remaining là generated stored column trên MySQL — DB tự tính.
+        // Đưa vào fillable chỉ để SQLite (test env) có thể ghi thủ công.
+        // Không bao giờ set field này trong code production logic.
+        'quantity_remaining',
     ];
 
     protected $casts = [

@@ -194,7 +194,7 @@ class FarmDashboardService
                 COALESCE(SUM(COALESCE(zalo_order_items.cost_price_snapshot, 0) * zalo_order_items.quantity), 0) AS cost,
                 COUNT(DISTINCT zalo_order_items.order_id) AS orders_count
             ")
-            ->groupBy('zalo_order_items.product_id', 'name')
+            ->groupBy('zalo_order_items.product_id', 'zalo_products.name', 'zalo_order_items.name')
             ->orderByDesc('revenue')
             ->limit($limit)
             ->get();
@@ -249,7 +249,7 @@ class FarmDashboardService
                 COUNT(*) AS batches_count,
                 MIN(farm_stock_batches.expire_date) AS earliest_expire
             ")
-            ->groupBy('farm_stock_batches.product_id', 'name')
+            ->groupBy('farm_stock_batches.product_id', 'zalo_products.name')
             ->orderByDesc('total_remaining')
             ->get();
 

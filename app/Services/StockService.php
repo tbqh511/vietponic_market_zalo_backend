@@ -163,13 +163,22 @@ class StockService
                 continue;
             }
 
-            // Tăng quantity_sold; quantity_remaining tự update (generated col).
-            $batch->quantity_sold = (float) $batch->quantity_sold + $take;
+            // Tăng quantity_sold; quantity_remaining tự update (generated col trên MySQL).
+            // Trên SQLite (test env), generated col không hỗ trợ — cập nhật thủ công.
+            $newQtySold = (float) $batch->quantity_sold + $take;
+            $batch->quantity_sold = $newQtySold;
             $batch->save();
 
-            // Mark batch depleted nếu chạm hết (post-save). Tránh batch còn
-            // status='active' với quantity_remaining=0 đẩy index FEFO query nặng.
             $batch->refresh();
+
+            // SQLite fallback: quantity_remaining không được DB tính tự động.
+            if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+                $batch->quantity_remaining = (float) $batch->quantity_in - $newQtySold;
+                $batch->saveQuietly();
+            }
+
+            // Mark batch depleted nếu chạm hết. Tránh batch còn
+            // status='active' với quantity_remaining=0 đẩy index FEFO query nặng.
             if ((float) $batch->quantity_remaining <= 1e-6) {
                 $batch->status = 'depleted';
                 $batch->save();
@@ -242,13 +251,20 @@ class StockService
                     continue;
                 }
 
-                $batch->quantity_sold = max(0, (float) $batch->quantity_sold - (float) $item->quantity);
+                $newQtySold = max(0, (float) $batch->quantity_sold - (float) $item->quantity);
+                $batch->quantity_sold = $newQtySold;
                 // Nếu trước đó batch bị mark depleted vì hết hàng, giờ có lại
                 // → revert sang active để bán tiếp.
                 if ($batch->status === 'depleted') {
                     $batch->status = 'active';
                 }
                 $batch->save();
+
+                // SQLite fallback cho generated column.
+                if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+                    $batch->quantity_remaining = (float) $batch->quantity_in - $newQtySold;
+                    $batch->saveQuietly();
+                }
             }
         });
     }

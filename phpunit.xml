@@ -22,7 +22,7 @@
         </testsuite>
         <!-- Testsuite cho Farm Partner -->
         <testsuite name="Farm">
-            <file>./tests/Feature/FarmStockTest.php</file>
+            <file>./tests/Feature/FarmHubTest.php</file>
         </testsuite>
         <!-- Testsuite cho luồng tính cước vận chuyển + chọn trạm VTP -->
         <testsuite name="Shipping">

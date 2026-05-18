@@ -29,10 +29,15 @@ return new class extends Migration
             $table->decimal('quantity_in', 10, 2);
             $table->decimal('quantity_sold', 10, 2)->default(0);
 
-            // Generated stored column: DB tự cập nhật mỗi khi quantity_in/sold thay đổi.
-            // KHÔNG thêm cột này vào $fillable của model, chỉ đọc.
-            $table->decimal('quantity_remaining', 10, 2)
-                ->storedAs('quantity_in - quantity_sold');
+            // Generated stored column trên MySQL/MariaDB — DB tự cập nhật.
+            // SQLite (test env) không support storedAs → dùng cột thường với default.
+            // KHÔNG thêm cột này vào $fillable của model, chỉ đọc (trừ test helper).
+            if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+                $table->decimal('quantity_remaining', 10, 2)->default(0);
+            } else {
+                $table->decimal('quantity_remaining', 10, 2)
+                    ->storedAs('quantity_in - quantity_sold');
+            }
 
             $table->decimal('cost_price', 12, 2);
 

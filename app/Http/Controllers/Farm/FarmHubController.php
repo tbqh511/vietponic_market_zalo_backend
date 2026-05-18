@@ -247,7 +247,13 @@ class FarmHubController extends Controller
         $farm = $request->attributes->get('farm');
 
         $tz    = 'Asia/Ho_Chi_Minh';
-        $today = \Carbon\Carbon::now($tz)->toDateString();
+        $vnNow = \Carbon\Carbon::now($tz);
+        $today = $vnNow->toDateString();
+
+        // Ngày hôm nay VN tz dưới dạng UTC range — tránh CONVERT_TZ (MySQL-only).
+        // 00:00 VN = 17:00 UTC hôm trước; 24:00 VN = 17:00 UTC hôm nay.
+        $todayStartUtc = $vnNow->copy()->startOfDay()->setTimezone('UTC');
+        $todayEndUtc   = $vnNow->copy()->endOfDay()->setTimezone('UTC');
 
         // 1. Stocked hôm nay (batches có batch_date = today). Group by product.
         $stockedToday = \Illuminate\Support\Facades\DB::table('farm_stock_batches')
@@ -261,11 +267,12 @@ class FarmHubController extends Controller
         // hiện tại muốn "đang bán hôm nay" (gồm cả đơn chưa delivered).
         // Lấy đơn ở trạng thái đã/đang giao (delivering+delivered) — KHÔNG
         // tính pending/confirmed/preparing vì có thể huỷ.
+        // So sánh UTC range thay vì CONVERT_TZ để tương thích SQLite (test env).
         $soldRows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
             ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
             ->where('oi.farm_id', $farm->id)
             ->whereIn('o.status', ['delivering', 'delivered'])
-            ->whereRaw("DATE(CONVERT_TZ(o.created_at, '+00:00', '+07:00')) = ?", [$today])
+            ->whereBetween('o.created_at', [$todayStartUtc, $todayEndUtc])
             ->selectRaw('
                 oi.product_id AS product_id,
                 COALESCE(SUM(oi.quantity), 0) AS sold,
