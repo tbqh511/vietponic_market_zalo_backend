@@ -93,18 +93,46 @@
                             </form>
                         </td>
 
-                        {{-- Trạng thái Farm Partner (read-only; thao tác duyệt chuyển sang admin Farm Hub) --}}
+                        {{-- Trạng thái Farm Partner + thao tác inline --}}
                         <td class="text-center">
                             @php($fps = $c->farm_partner_status ?: 'none')
-                            @if($fps === 'approved')
-                                <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Đã duyệt</span>
-                            @elseif($fps === 'requested')
-                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Đang xin</span>
-                            @elseif($fps === 'suspended')
-                                <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Tạm dừng</span>
-                            @else
-                                <span class="text-muted small">—</span>
-                            @endif
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                @if($fps === 'approved')
+                                    <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Đã duyệt</span>
+                                    @if($c->farm)
+                                        <div class="small text-muted" title="Mã: {{ $c->farm->code }}">
+                                            {{ $c->farm->name }}
+                                        </div>
+                                    @endif
+                                    <form action="{{ route('zalo-customers.suspend-farm', $c->id) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Tạm dừng vai trò Farm Partner của {{ addslashes($c->name ?: '#'.$c->id) }}?\nFarm sẽ bị ẩn khỏi Hub.')">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Tạm dừng vai trò Farm Partner">
+                                            <i class="bi bi-pause-circle"></i> Tạm dừng
+                                        </button>
+                                    </form>
+                                @elseif($fps === 'requested')
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Đang xin</span>
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
+                                            data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
+                                            title="Duyệt và gán Farm">
+                                        <i class="bi bi-check2-circle"></i> Duyệt
+                                    </button>
+                                @elseif($fps === 'suspended')
+                                    <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Tạm dừng</span>
+                                    <div class="small text-muted">Kích hoạt lại trong /farms</div>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
+                                            data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
+                                            title="Chỉ định làm Farm Partner">
+                                        <i class="bi bi-tree"></i> Chỉ định
+                                    </button>
+                                @endif
+                            </div>
                         </td>
 
                         <td class="small text-muted">{{ $c->created_at?->format('d/m/Y') }}</td>
@@ -139,5 +167,135 @@
         </div>
     </div>
 </div>
+
+{{-- Modal: Chỉ định Farm Partner --}}
+<div class="modal fade" id="promoteFarmModal" tabindex="-1" aria-labelledby="promoteFarmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="promoteFarmForm" method="POST" action="">
+            @csrf
+            @method('PATCH')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="promoteFarmModalLabel">
+                        <i class="bi bi-tree-fill"></i> Chỉ định Farm Partner
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Khách hàng</label>
+                        <div class="form-control bg-light" id="promoteFarmCustomerName">—</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Phương án</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mode" id="modeNew" value="new" checked>
+                            <label class="form-check-label" for="modeNew">
+                                <i class="bi bi-plus-circle"></i> Tạo Farm mới
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mode" id="modeExisting" value="existing"
+                                {{ $availableFarms->isEmpty() ? 'disabled' : '' }}>
+                            <label class="form-check-label" for="modeExisting">
+                                <i class="bi bi-link-45deg"></i> Gán vào Farm có sẵn (chưa có chủ)
+                                @if($availableFarms->isEmpty())
+                                    <span class="small text-muted">— không có farm nào trống</span>
+                                @endif
+                            </label>
+                        </div>
+                    </div>
+
+                    {{-- Block: Tạo farm mới --}}
+                    <div id="newFarmBlock">
+                        <div class="mb-3">
+                            <label for="farm_name" class="form-label">Tên Farm <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="farm_name" name="farm_name" maxlength="150"
+                                   placeholder="VD: Farm Đà Lạt — Cầu Đất">
+                            <div class="form-text">Mã farm sẽ được tự động sinh từ tên (vd: FARM-FARMDALAT-001).</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="farm_address" class="form-label">Địa chỉ</label>
+                            <input type="text" class="form-control" id="farm_address" name="farm_address" maxlength="255"
+                                   placeholder="Tuỳ chọn">
+                        </div>
+                        <div class="mb-3">
+                            <label for="farm_description" class="form-label">Mô tả ngắn</label>
+                            <textarea class="form-control" id="farm_description" name="farm_description" rows="2"
+                                      maxlength="1000" placeholder="Tuỳ chọn"></textarea>
+                        </div>
+                    </div>
+
+                    {{-- Block: Chọn farm có sẵn --}}
+                    <div id="existingFarmBlock" class="d-none">
+                        <div class="mb-3">
+                            <label for="farm_id" class="form-label">Chọn Farm <span class="text-danger">*</span></label>
+                            <select class="form-select" id="farm_id" name="farm_id" disabled>
+                                <option value="">— Chọn farm —</option>
+                                @foreach($availableFarms as $f)
+                                    <option value="{{ $f->id }}">{{ $f->name }} ({{ $f->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check2-circle"></i> Xác nhận
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const modal       = document.getElementById('promoteFarmModal');
+    const form        = document.getElementById('promoteFarmForm');
+    const nameDisplay = document.getElementById('promoteFarmCustomerName');
+    const modeNew     = document.getElementById('modeNew');
+    const modeExist   = document.getElementById('modeExisting');
+    const blockNew    = document.getElementById('newFarmBlock');
+    const blockExist  = document.getElementById('existingFarmBlock');
+    const inputName   = document.getElementById('farm_name');
+    const inputAddr   = document.getElementById('farm_address');
+    const inputDesc   = document.getElementById('farm_description');
+    const selectFarm  = document.getElementById('farm_id');
+    const baseUrl     = @json(url('zalo-customers'));
+
+    function applyMode() {
+        const isNew = modeNew.checked;
+        blockNew.classList.toggle('d-none',  !isNew);
+        blockExist.classList.toggle('d-none', isNew);
+        // Toggle disabled để required-by-attribute không kích hoạt block ẩn.
+        inputName.required = isNew;
+        selectFarm.disabled = isNew;
+        selectFarm.required = !isNew;
+    }
+
+    modeNew.addEventListener('change',   applyMode);
+    modeExist.addEventListener('change', applyMode);
+
+    modal.addEventListener('show.bs.modal', function (event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        const id   = trigger.getAttribute('data-customer-id');
+        const name = trigger.getAttribute('data-customer-name') || ('#' + id);
+        form.action = baseUrl + '/' + id + '/promote-farm';
+        nameDisplay.textContent = name;
+    });
+
+    modal.addEventListener('hidden.bs.modal', function () {
+        form.reset();
+        modeNew.checked = true;
+        applyMode();
+    });
+
+    applyMode();
+})();
+</script>
 
 @endsection

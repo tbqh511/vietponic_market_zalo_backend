@@ -5,7 +5,6 @@
                     <div class="logo">
                         <a href="{{ url('home') }}">
                             <img src="{{ url('assets/images/logo/logo.png') }}" alt="Logo" srcset="">
-
                         </a>
                     </div>
                     &nbsp;
@@ -45,9 +44,6 @@
                                     <a href="{{ url('zalo-stations') }}">{{ __('Trạm lấy hàng') }}</a>
                                 </li>
                                 <li class="submenu-item">
-                                    <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
-                                </li>
-                                <li class="submenu-item">
                                     <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
                                 </li>
                                 <li class="submenu-item">
@@ -78,6 +74,60 @@
                             </li>
                         </ul>
                     </li>
+                    @if (has_permissions('read', 'users_accounts') ||
+                            has_permissions('read', 'about_us') ||
+                            has_permissions('read', 'privacy_policy') ||
+                            has_permissions('read', 'terms_condition'))
+                        <li class="sidebar-item has-sub">
+                            <a href="#" class='sidebar-link'>
+                                <i class="bi bi-gear"></i>
+                                <span class="menu-item">{{ __('Cài đặt') }}</span>
+                            </a>
+                            <ul class="submenu" style="padding-left: 0rem">
+                                <li class="submenu-item">
+                                    <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
+                                </li>
+                                @if (has_permissions('read', 'users_accounts'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('users') }}">{{ __('Tài khoản người dùng') }}</a>
+                                    </li>
+                                @endif
+                                {{-- @if (has_permissions('read', 'about_us'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('about-us') }}">{{ __('About Us') }}</a>ck
+                                    </li>
+                                @endif --}}
+                                @if (has_permissions('read', 'privacy_policy'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('privacy-policy') }}">{{ __('Chính sách bảo mật') }}</a>
+                                    </li>
+                                @endif
+                                @if (has_permissions('read', 'terms_condition'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
+                                    </li>
+                                @endif
+                                @if (has_permissions('read', 'system_settings'))
+                                    <li class="submenu-item">
+                                        <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
+                                    </li>
+                                @endif
+                                {{-- <li class="submenu-item">
+                                    <a href="{{ url('firebase_settings') }}">{{ __('Firebase Settings') }}</a>
+                                </li>
+
+                                <li class="submenu-item">
+                                    <a href="{{ url('language') }}">{{ __('Languages') }}</a>
+                                </li> --}}
+                            </ul>
+                        </li>
+                        {{-- <li class="sidebar-item">
+                            <a href="{{ url('system_version') }}" class='sidebar-link'>
+                                <i class="fas fa-cloud-download-alt"></i>
+                                <span class="menu-item">{{ __('System Update') }}</span>
+                            </a>
+                        </li> --}}
+                        @endif
 
                     {{-- HuyTBQ: Old code --}}
                     {{-- @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
@@ -229,57 +279,7 @@
                         </li>
                     @endif --}}
 
-                    @if (has_permissions('read', 'users_accounts') ||
-                            has_permissions('read', 'about_us') ||
-                            has_permissions('read', 'privacy_policy') ||
-                            has_permissions('read', 'terms_condition'))
-                        <li class="sidebar-item has-sub">
-                            <a href="#" class='sidebar-link'>
-                                <i class="bi bi-gear"></i>
-                                <span class="menu-item">{{ __('Cài đặt') }}</span>
-                            </a>
-                            <ul class="submenu" style="padding-left: 0rem">
-                                @if (has_permissions('read', 'users_accounts'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('users') }}">{{ __('Tài khoản người dùng') }}</a>
-                                    </li>
-                                @endif
-                                {{-- @if (has_permissions('read', 'about_us'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('about-us') }}">{{ __('About Us') }}</a>ck
-                                    </li>
-                                @endif --}}
-                                @if (has_permissions('read', 'privacy_policy'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('privacy-policy') }}">{{ __('Chính sách bảo mật') }}</a>
-                                    </li>
-                                @endif
-                                @if (has_permissions('read', 'terms_condition'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
-                                    </li>
-                                @endif
-                                @if (has_permissions('read', 'system_settings'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
-                                    </li>
-                                @endif
-                                {{-- <li class="submenu-item">
-                                    <a href="{{ url('firebase_settings') }}">{{ __('Firebase Settings') }}</a>
-                                </li>
-
-                                <li class="submenu-item">
-                                    <a href="{{ url('language') }}">{{ __('Languages') }}</a>
-                                </li> --}}
-                            </ul>
-                        </li>
-                        {{-- <li class="sidebar-item">
-                            <a href="{{ url('system_version') }}" class='sidebar-link'>
-                                <i class="fas fa-cloud-download-alt"></i>
-                                <span class="menu-item">{{ __('System Update') }}</span>
-                            </a>
-                        </li> --}}
-                        @endif
+                    
 
                     
                 </ul>

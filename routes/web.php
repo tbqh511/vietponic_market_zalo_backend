@@ -147,6 +147,8 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         // ─── Customer Management ──────────────────────────────────────────────
         Route::resource('zalo-customers', ZaloCustomerController::class)->except(['create', 'store']);
         Route::patch('zalo-customers/{id}/toggle-active', [ZaloCustomerController::class, 'toggleActive'])->name('zalo-customers.toggle-active');
+        Route::patch('zalo-customers/{id}/promote-farm', [ZaloCustomerController::class, 'promoteFarmPartner'])->name('zalo-customers.promote-farm');
+        Route::patch('zalo-customers/{id}/suspend-farm', [ZaloCustomerController::class, 'suspendFarmPartner'])->name('zalo-customers.suspend-farm');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);
