@@ -65,6 +65,12 @@
                 </button>
             </li>
             <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-staff" type="button">
+                    Nhân viên
+                    <span class="badge bg-secondary">{{ $farm->staff->count() }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventory" type="button">
                     Kho
                     <span class="badge bg-secondary">{{ count($batches) }}</span>
@@ -80,6 +86,12 @@
                 @include('admin.farms._partials.tab_products', [
                     'farm' => $farm,
                     'availableProducts' => $availableProducts,
+                ])
+            </div>
+            <div class="tab-pane fade" id="tab-staff" role="tabpanel">
+                @include('admin.farms._partials.tab_staff', [
+                    'farm' => $farm,
+                    'availableStaffCandidates' => $availableStaffCandidates,
                 ])
             </div>
             <div class="tab-pane fade" id="tab-inventory" role="tabpanel">

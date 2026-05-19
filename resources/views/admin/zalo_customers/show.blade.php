@@ -161,20 +161,27 @@
             </tr>
             @if($customer->farm)
                 <tr>
-                    <td class="text-muted">Farm sở hữu</td>
+                    <td class="text-muted">
+                        {{ $customer->isFarmOwner() ? 'Farm sở hữu' : 'Farm đang vận hành (nhân viên)' }}
+                    </td>
                     <td>
                         <strong>{{ $customer->farm->name }}</strong>
                         <span class="text-muted small">— mã: {{ $customer->farm->code }}</span>
+                        @if($customer->isFarmStaff())
+                            <span class="badge bg-info text-dark ms-2">Nhân viên</span>
+                        @endif
                     </td>
                 </tr>
-                <tr>
-                    <td class="text-muted">Chu kỳ thanh toán</td>
-                    <td>{{ $customer->farm->payment_cycle }}</td>
-                </tr>
-                <tr>
-                    <td class="text-muted">Ngày duyệt</td>
-                    <td>{{ $customer->farm->approved_at?->format('d/m/Y H:i') ?: '—' }}</td>
-                </tr>
+                @if($customer->isFarmOwner())
+                    <tr>
+                        <td class="text-muted">Chu kỳ thanh toán</td>
+                        <td>{{ $customer->farm->payment_cycle }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Ngày duyệt</td>
+                        <td>{{ $customer->farm->approved_at?->format('d/m/Y H:i') ?: '—' }}</td>
+                    </tr>
+                @endif
             @endif
         </table>
         <p class="text-muted small mt-3 mb-0">

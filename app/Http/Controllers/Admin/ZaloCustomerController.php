@@ -69,7 +69,19 @@ class ZaloCustomerController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        return view('admin.zalo_customers.index', compact('customers', 'availableFarms'));
+        // Farms ĐÃ có chủ + đang active — hiển thị trong modal "Gán làm Staff"
+        // để admin chọn farm sẵn có. Staff chỉ vào được Hub khi farm active.
+        $farmsWithOwner = Farm::query()
+            ->whereNotNull('owner_customer_id')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return view('admin.zalo_customers.index', compact(
+            'customers',
+            'availableFarms',
+            'farmsWithOwner'
+        ));
     }
 
     public function show(int $id)
@@ -172,11 +184,13 @@ class ZaloCustomerController extends Controller
             return back()->with('error', 'Tài khoản đang bị vô hiệu hoá — kích hoạt trước khi chỉ định Farm Partner.');
         }
 
-        // Đã là farm partner approved + có farm rồi → từ chối duplicate.
-        if ($customer->role === 'farm_partner'
-            && $customer->farm_partner_status === 'approved'
-            && $customer->farm) {
-            return back()->with('error', "Khách hàng đã là Farm Partner của farm \"{$customer->farm->name}\".");
+        // Đã là chủ farm rồi → từ chối duplicate. Nếu là staff farm khác,
+        // phải remove khỏi farm cũ trước (admin tự làm 2 bước cho rõ).
+        if ($customer->isFarmOwner() && $customer->farm) {
+            return back()->with('error', "Khách hàng đã là chủ farm \"{$customer->farm->name}\".");
+        }
+        if ($customer->isFarmStaff() && $customer->farm) {
+            return back()->with('error', "Khách hàng đang là nhân viên của farm \"{$customer->farm->name}\" — gỡ khỏi farm đó trước khi chỉ định làm chủ farm mới.");
         }
 
         try {
@@ -211,8 +225,13 @@ class ZaloCustomerController extends Controller
                     ]);
                 }
 
+                // Sync farm_id/farm_role — middleware EnsureFarmPartner sau
+                // task Farm Staff lookup theo farm_id, không còn dùng
+                // owner_customer_id để xác định farm.
                 $customer->role                = 'farm_partner';
                 $customer->farm_partner_status = 'approved';
+                $customer->farm_id             = $farm->id;
+                $customer->farm_role           = 'owner';
                 $customer->save();
 
                 return $farm;
@@ -244,6 +263,11 @@ class ZaloCustomerController extends Controller
         if ($customer->role !== 'farm_partner' || $customer->farm_partner_status !== 'approved') {
             return back()->with('error', 'Khách hàng này chưa phải Farm Partner đang hoạt động.');
         }
+        // Suspend qua route này tắt cả farm → chỉ áp dụng cho owner. Staff
+        // gỡ qua trang Farm chi tiết để không ảnh hưởng owner và staff khác.
+        if (!$customer->isFarmOwner()) {
+            return back()->with('error', 'Khách hàng này là nhân viên — vào /farms để gỡ khỏi tab Nhân viên thay vì tạm dừng ở đây.');
+        }
 
         DB::transaction(function () use ($customer) {
             $customer->farm_partner_status = 'suspended';
@@ -256,6 +280,54 @@ class ZaloCustomerController extends Controller
         });
 
         return back()->with('success', "Đã tạm dừng vai trò Farm Partner của {$customer->name}.");
+    }
+
+    /**
+     * Gán customer làm staff của 1 farm có sẵn (đã có chủ + active).
+     * Tương tự FarmController::attachStaff nhưng entry-point là trang
+     * /zalo-customers thay vì /farms/{id}.
+     */
+    public function assignStaff(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'farm_id' => 'required|integer|exists:farms,id',
+        ]);
+
+        $customer = Customer::with('farm')->findOrFail($id);
+
+        if (!$customer->isActive) {
+            return back()->with('error', 'Tài khoản đang bị vô hiệu hoá — kích hoạt trước khi gán nhân viên.');
+        }
+        if (!is_null($customer->farm_id)) {
+            $existingFarmName = $customer->farm?->name ?? '#' . $customer->farm_id;
+            return back()->with('error', "Khách hàng đã thuộc farm \"{$existingFarmName}\" — gỡ khỏi farm cũ trước.");
+        }
+
+        try {
+            DB::transaction(function () use ($customer, $data) {
+                $farm = Farm::lockForUpdate()->findOrFail($data['farm_id']);
+
+                if (!$farm->is_active) {
+                    throw new \DomainException("Farm \"{$farm->name}\" đang bị tạm khoá — không thể gán nhân viên.");
+                }
+                if (is_null($farm->owner_customer_id)) {
+                    throw new \DomainException("Farm \"{$farm->name}\" chưa có chủ — gán chủ trước.");
+                }
+                if ($customer->id === $farm->owner_customer_id) {
+                    throw new \DomainException('Customer này đã là chủ farm — không thể đồng thời là nhân viên.');
+                }
+
+                $customer->farm_id             = $farm->id;
+                $customer->farm_role           = 'staff';
+                $customer->role                = 'farm_partner';
+                $customer->farm_partner_status = 'approved';
+                $customer->save();
+            });
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Đã gán {$customer->name} làm nhân viên farm.");
     }
 
     /**

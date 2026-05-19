@@ -82,12 +82,8 @@ class FarmController extends Controller
             'code.unique' => 'Mã Farm đã tồn tại — chọn mã khác.',
         ]);
 
-        DB::transaction(function () use ($customer, $data) {
-            $customer->role                = 'farm_partner';
-            $customer->farm_partner_status = 'approved';
-            $customer->save();
-
-            Farm::create([
+        $farm = DB::transaction(function () use ($customer, $data) {
+            $farm = Farm::create([
                 'code'              => $data['code'],
                 'name'              => $data['name'],
                 'owner_customer_id' => $customer->id,
@@ -101,9 +97,17 @@ class FarmController extends Controller
                 // sẽ tách bảng farm_logs ở task khác.
                 'description'       => $data['note'] ?? null,
             ]);
-        });
 
-        $farm = Farm::where('owner_customer_id', $customer->id)->latest('id')->first();
+            // Sync farm_id/farm_role để middleware EnsureFarmPartner (đã đổi
+            // sang lookup theo farm_id) cấp quyền đúng. Owner ↔ farm 1:1.
+            $customer->role                = 'farm_partner';
+            $customer->farm_partner_status = 'approved';
+            $customer->farm_id             = $farm->id;
+            $customer->farm_role           = 'owner';
+            $customer->save();
+
+            return $farm;
+        });
 
         return redirect()->route('farms.show', $farm->id)
             ->with('success', "Đã duyệt và tạo Farm \"{$farm->name}\" (mã {$farm->code}).");
@@ -162,7 +166,7 @@ class FarmController extends Controller
 
     public function show(int $id)
     {
-        $farm = Farm::with(['owner', 'approver', 'products'])->findOrFail($id);
+        $farm = Farm::with(['owner', 'approver', 'products', 'staff'])->findOrFail($id);
 
         // Tab "Kho": chỉ lấy 50 batch gần nhất, không paginate cho gọn.
         $batches = FarmStockBatch::with('product')
@@ -178,7 +182,22 @@ class FarmController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.farms.show', compact('farm', 'batches', 'availableProducts'));
+        // Dropdown "Thêm nhân viên" trong Tab Nhân viên: chỉ hiện customer
+        // active chưa thuộc farm nào. Giới hạn 50 cho gọn — admin cần thêm
+        // người ngoài danh sách thì dùng /zalo-customers gán trực tiếp.
+        $availableStaffCandidates = Customer::query()
+            ->whereNull('farm_id')
+            ->where('isActive', 1)
+            ->orderBy('name')
+            ->limit(50)
+            ->get(['id', 'name', 'mobile']);
+
+        return view('admin.farms.show', compact(
+            'farm',
+            'batches',
+            'availableProducts',
+            'availableStaffCandidates'
+        ));
     }
 
     public function edit(int $id)
@@ -272,12 +291,26 @@ class FarmController extends Controller
         }
 
         DB::transaction(function () use ($farm) {
-            // Reset customer về trạng thái thường để có thể đăng ký lại.
+            // Reset owner về customer thường để có thể đăng ký lại.
             if ($farm->owner) {
                 $farm->owner->farm_partner_status = 'none';
                 $farm->owner->role                = 'customer';
+                $farm->owner->farm_id             = null;
+                $farm->owner->farm_role           = null;
                 $farm->owner->save();
             }
+            // Reset toàn bộ staff thuộc farm — sau khi farm bị xoá thì họ không
+            // còn lý do giữ role farm_partner. FK nullOnDelete cũng tự dọn
+            // farm_id nhưng farm_role và role/status thì cần code xử lý.
+            Customer::where('farm_id', $farm->id)
+                ->where('farm_role', 'staff')
+                ->update([
+                    'farm_id'             => null,
+                    'farm_role'           => null,
+                    'role'                => 'customer',
+                    'farm_partner_status' => 'none',
+                ]);
+
             $farm->products()->detach();
             $farm->delete();
         });
@@ -336,6 +369,88 @@ class FarmController extends Controller
 
         return redirect()->route('farms.show', $farm->id)
             ->with('success', 'Đã gỡ sản phẩm khỏi farm.');
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  TAB "NHÂN VIÊN" — Staff/Operator của farm
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Gán 1 customer làm staff của farm — full quyền Hub nhưng không nhận
+     * payout. Yêu cầu farm đã có owner (farm chưa có chủ thì gán chủ trước
+     * cho rõ flow; tránh tình huống farm có staff mà không có chủ).
+     *
+     * Race condition: 2 admin cùng gán 1 customer cho 2 farm → lockForUpdate
+     * trên customer + check farm_id IS NULL.
+     */
+    public function attachStaff(Request $request, int $farmId)
+    {
+        $farm = Farm::findOrFail($farmId);
+
+        $data = $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+        ]);
+
+        if (is_null($farm->owner_customer_id)) {
+            return back()->with('error', 'Farm chưa có chủ — gán chủ trước khi thêm nhân viên.');
+        }
+
+        try {
+            DB::transaction(function () use ($farm, $data) {
+                $customer = Customer::lockForUpdate()->findOrFail($data['customer_id']);
+
+                if (!$customer->isActive) {
+                    throw new \DomainException('Khách hàng này đang bị vô hiệu hoá.');
+                }
+                if (!is_null($customer->farm_id)) {
+                    $existingFarmName = Farm::where('id', $customer->farm_id)->value('name') ?? '#' . $customer->farm_id;
+                    throw new \DomainException("Khách hàng đã thuộc farm \"{$existingFarmName}\" — gỡ khỏi farm cũ trước khi gán farm mới.");
+                }
+                if ($customer->id === $farm->owner_customer_id) {
+                    throw new \DomainException('Customer này đã là chủ farm — không thể đồng thời là nhân viên.');
+                }
+
+                $customer->farm_id             = $farm->id;
+                $customer->farm_role           = 'staff';
+                $customer->role                = 'farm_partner';
+                $customer->farm_partner_status = 'approved';
+                $customer->save();
+            });
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('farms.show', $farm->id)
+            ->with('success', 'Đã thêm nhân viên vào farm.');
+    }
+
+    /**
+     * Gỡ staff khỏi farm — reset về customer thường (không giữ history role).
+     * Không cho gỡ owner qua route này — owner phải dùng suspend/destroy farm
+     * để tránh nhầm lẫn.
+     */
+    public function detachStaff(int $farmId, int $customerId)
+    {
+        $farm     = Farm::findOrFail($farmId);
+        $customer = Customer::findOrFail($customerId);
+
+        if ($customer->farm_id !== $farm->id) {
+            return back()->with('error', 'Nhân viên này không thuộc farm hiện tại.');
+        }
+        if ($customer->farm_role !== 'staff') {
+            return back()->with('error', 'Không thể gỡ chủ farm qua chức năng này — dùng Tạm khoá hoặc Xoá farm.');
+        }
+
+        DB::transaction(function () use ($customer) {
+            $customer->farm_id             = null;
+            $customer->farm_role           = null;
+            $customer->role                = 'customer';
+            $customer->farm_partner_status = 'none';
+            $customer->save();
+        });
+
+        return redirect()->route('farms.show', $farm->id)
+            ->with('success', "Đã gỡ {$customer->name} khỏi farm.");
     }
 
     // ────────────────────────────────────────────────────────────────────

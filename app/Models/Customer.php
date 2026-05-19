@@ -32,6 +32,11 @@ class Customer extends Authenticatable implements JWTSubject
         // Farm Partner Hub — role mặc định 'customer'. Chỉ admin được set.
         'role',
         'farm_partner_status',
+        // Farm mà customer này thuộc về (owner HOẶC staff). NULL = không thuộc farm.
+        // Mọi điểm gác Hub (middleware, controller) đọc farm_id để xác định scope.
+        // Owner thì giá trị này trùng farms.owner_customer_id ngược lại.
+        'farm_id',
+        'farm_role',
         // Tài khoản ngân hàng riêng cho Farm Partner (tách với affiliate_bank_*
         // để 1 customer có thể nhận 2 dòng tiền vào 2 TK khác nhau).
         'farm_bank_name',
@@ -105,12 +110,35 @@ class Customer extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Farm mà customer này là owner. Một customer chỉ owner tối đa 1 farm.
-     * Chỉ có data khi role='farm_partner' và đã được admin gán owner_customer_id.
+     * Farm mà customer này thuộc về (owner HOẶC staff). 1 customer chỉ thuộc
+     * tối đa 1 farm. Để phân biệt vai trò, dùng farm_role hoặc helper
+     * isFarmOwner() / isFarmStaff().
+     *
+     * Lưu ý migration: trước task Farm Staff, farm() là hasOne qua
+     * owner_customer_id (chỉ owner mới có $customer->farm). Sau migration
+     * 2026_05_19_100000, cả staff cũng có $customer->farm — code nào trước
+     * đây dựa vào farm() để check "là owner" cần đổi qua isFarmOwner().
      */
     public function farm()
     {
-        return $this->hasOne(Farm::class, 'owner_customer_id');
+        return $this->belongsTo(Farm::class, 'farm_id');
+    }
+
+    /**
+     * True nếu customer là chủ của farm họ đang thuộc về.
+     * Owner nhận payout; staff chỉ thao tác Hub.
+     */
+    public function isFarmOwner(): bool
+    {
+        return $this->farm_role === 'owner';
+    }
+
+    /**
+     * True nếu customer là nhân viên/người vận hành (không phải chủ) của farm.
+     */
+    public function isFarmStaff(): bool
+    {
+        return $this->farm_role === 'staff';
     }
 
     public function getProfileAttribute($image)

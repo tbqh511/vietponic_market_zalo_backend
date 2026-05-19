@@ -86,10 +86,13 @@ class EnsureFarmPartner
 
             // Verify customer có farm đang active. scopeActive yêu cầu
             // is_active=true AND approved_at NOT NULL.
-            // Dùng query thay vì $customer->farm để áp được scope.
-            $farm = Farm::active()
-                ->where('owner_customer_id', $customer->id)
-                ->first();
+            // Lookup theo customers.farm_id (cover cả owner và staff). Trước
+            // task Farm Staff, middleware tìm theo farms.owner_customer_id,
+            // nay đã chuyển sang farm_id để 1 farm có thể có nhiều người
+            // thao tác (owner + staff). Xem migration 2026_05_19_100000.
+            $farm = $customer->farm_id
+                ? Farm::active()->find($customer->farm_id)
+                : null;
 
             if (!$farm) {
                 return response()->json([

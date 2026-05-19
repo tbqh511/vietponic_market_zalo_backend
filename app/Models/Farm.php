@@ -57,6 +57,25 @@ class Farm extends Model
     }
 
     /**
+     * Tất cả thành viên thuộc farm (owner + staff). Dùng để liệt kê toàn bộ
+     * người có quyền vào Farm Hub của farm này.
+     */
+    public function members()
+    {
+        return $this->hasMany(Customer::class, 'farm_id');
+    }
+
+    /**
+     * Chỉ staff (nhân viên/người vận hành) — không bao gồm owner. Owner lấy
+     * qua quan hệ owner(). Staff không nhận payout, chỉ thao tác Hub.
+     */
+    public function staff()
+    {
+        return $this->hasMany(Customer::class, 'farm_id')
+            ->where('farm_role', 'staff');
+    }
+
+    /**
      * Admin (User) đã duyệt farm này — để audit.
      */
     public function approver()

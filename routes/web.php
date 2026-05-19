@@ -135,6 +135,9 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         // Tab "Cấu hình Sản phẩm"
         Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');
         Route::delete('farms/{farm}/products/{product}', [FarmController::class, 'detachProduct'])->name('farms.products.detach');
+        // Tab "Nhân viên" — staff/operator của farm (full quyền Hub, không nhận payout)
+        Route::post('farms/{farm}/staff', [FarmController::class, 'attachStaff'])->name('farms.staff.attach');
+        Route::delete('farms/{farm}/staff/{customer}', [FarmController::class, 'detachStaff'])->name('farms.staff.detach');
 
         // Giai đoạn 3: Đối soát (Payout) — không dùng Route::resource vì có flow riêng (mark-paid, cancel)
         Route::get('farm-payouts', [FarmPayoutController::class, 'index'])->name('farm-payouts.index');
@@ -149,6 +152,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::patch('zalo-customers/{id}/toggle-active', [ZaloCustomerController::class, 'toggleActive'])->name('zalo-customers.toggle-active');
         Route::patch('zalo-customers/{id}/promote-farm', [ZaloCustomerController::class, 'promoteFarmPartner'])->name('zalo-customers.promote-farm');
         Route::patch('zalo-customers/{id}/suspend-farm', [ZaloCustomerController::class, 'suspendFarmPartner'])->name('zalo-customers.suspend-farm');
+        Route::patch('zalo-customers/{id}/assign-staff', [ZaloCustomerController::class, 'assignStaff'])->name('zalo-customers.assign-staff');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);

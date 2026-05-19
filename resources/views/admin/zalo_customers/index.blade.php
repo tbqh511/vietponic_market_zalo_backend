@@ -97,8 +97,8 @@
                         <td class="text-center">
                             @php($fps = $c->farm_partner_status ?: 'none')
                             <div class="d-flex flex-column align-items-center gap-1">
-                                @if($fps === 'approved')
-                                    <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Đã duyệt</span>
+                                @if($fps === 'approved' && $c->isFarmOwner())
+                                    <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Chủ farm</span>
                                     @if($c->farm)
                                         <div class="small text-muted" title="Mã: {{ $c->farm->code }}">
                                             {{ $c->farm->name }}
@@ -112,6 +112,20 @@
                                             <i class="bi bi-pause-circle"></i> Tạm dừng
                                         </button>
                                     </form>
+                                @elseif($fps === 'approved' && $c->isFarmStaff())
+                                    <span class="badge bg-info text-dark"><i class="bi bi-person-badge"></i> Nhân viên</span>
+                                    @if($c->farm)
+                                        <div class="small text-muted" title="Mã: {{ $c->farm->code }}">
+                                            {{ $c->farm->name }}
+                                        </div>
+                                        <a href="{{ route('farms.show', $c->farm->id) }}#tab-staff"
+                                           class="btn btn-sm btn-outline-secondary" title="Quản lý tại trang Farm">
+                                            <i class="bi bi-box-arrow-up-right"></i> Vào farm
+                                        </a>
+                                    @endif
+                                @elseif($fps === 'approved')
+                                    {{-- Approved nhưng chưa có farm_id/farm_role — data lệch, hiển thị cảnh báo --}}
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Approved chưa gán farm</span>
                                 @elseif($fps === 'requested')
                                     <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Đang xin</span>
                                     <button type="button" class="btn btn-sm btn-outline-success"
@@ -125,12 +139,21 @@
                                     <div class="small text-muted">Kích hoạt lại trong /farms</div>
                                 @else
                                     <span class="text-muted small">—</span>
-                                    <button type="button" class="btn btn-sm btn-outline-success"
-                                            data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
-                                            data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
-                                            title="Chỉ định làm Farm Partner">
-                                        <i class="bi bi-tree"></i> Chỉ định
-                                    </button>
+                                    <div class="d-flex gap-1 flex-wrap justify-content-center">
+                                        <button type="button" class="btn btn-sm btn-outline-success"
+                                                data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
+                                                data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
+                                                title="Chỉ định làm chủ farm">
+                                            <i class="bi bi-tree"></i> Chủ farm
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-info"
+                                                data-bs-toggle="modal" data-bs-target="#assignStaffModal"
+                                                data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
+                                                title="Gán làm nhân viên farm có sẵn"
+                                                @if($farmsWithOwner->isEmpty()) disabled @endif>
+                                            <i class="bi bi-person-plus"></i> Staff
+                                        </button>
+                                    </div>
                                 @endif
                             </div>
                         </td>
@@ -251,6 +274,50 @@
     </div>
 </div>
 
+{{-- Modal: Gán làm Nhân viên (Staff) — chọn farm đã có chủ + active --}}
+<div class="modal fade" id="assignStaffModal" tabindex="-1" aria-labelledby="assignStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="assignStaffForm" method="POST" action="">
+            @csrf
+            @method('PATCH')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignStaffModalLabel">
+                        <i class="bi bi-person-plus-fill"></i> Gán làm Nhân viên Farm
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Khách hàng</label>
+                        <div class="form-control bg-light" id="assignStaffCustomerName">—</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="assign_farm_id" class="form-label">Farm <span class="text-danger">*</span></label>
+                        <select class="form-select" id="assign_farm_id" name="farm_id" required>
+                            <option value="">— Chọn farm —</option>
+                            @foreach($farmsWithOwner as $f)
+                                <option value="{{ $f->id }}">{{ $f->name }} ({{ $f->code }})</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">
+                            Chỉ liệt kê farm <strong>đã có chủ</strong> và đang active. Nhân viên có full quyền
+                            trong Farm Hub nhưng <strong>không nhận payout</strong> — tiền vẫn về chủ farm.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-check2-circle"></i> Xác nhận
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 (function () {
     const modal       = document.getElementById('promoteFarmModal');
@@ -295,6 +362,30 @@
     });
 
     applyMode();
+})();
+
+(function () {
+    const modal       = document.getElementById('assignStaffModal');
+    const form        = document.getElementById('assignStaffForm');
+    const nameDisplay = document.getElementById('assignStaffCustomerName');
+    const selectFarm  = document.getElementById('assign_farm_id');
+    const baseUrl     = @json(url('zalo-customers'));
+
+    if (!modal) return;
+
+    modal.addEventListener('show.bs.modal', function (event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        const id   = trigger.getAttribute('data-customer-id');
+        const name = trigger.getAttribute('data-customer-name') || ('#' + id);
+        form.action = baseUrl + '/' + id + '/assign-staff';
+        nameDisplay.textContent = name;
+    });
+
+    modal.addEventListener('hidden.bs.modal', function () {
+        form.reset();
+        selectFarm.value = '';
+    });
 })();
 </script>
 
