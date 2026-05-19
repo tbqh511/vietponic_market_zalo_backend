@@ -56,19 +56,28 @@
                                 <li class="submenu-item">
                                     <a href="{{ url('zalo-customers') }}">{{ __('Khách hàng') }}</a>
                                 </li>
-                                {{-- Farm Partner Hub — quản trị đối tác cung cấp rau --}}
-                                <li class="submenu-item">
-                                    <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('farm-payouts') }}">{{ __('Đối soát Farm (Payout)') }}</a>
-                                </li>
                             </ul>
                         </li>
                     {{--@endif--}}
+
+                    {{-- Farm Partner Hub — quản trị đối tác cung cấp rau --}}
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-tree"></i>
+                            <span class="menu-item">{{ __('Quản lý Farm') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('farm-payouts') }}">{{ __('Đối soát Farm (Payout)') }}</a>
+                            </li>
+                        </ul>
+                    </li>
 
                     {{-- HuyTBQ: Old code --}}
                     {{-- @if (has_permissions('read', 'categories') || has_permissions('read', 'bedroom'))
