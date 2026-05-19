@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\ZaloCustomerController;
+use App\Http\Controllers\Admin\FarmController;
+use App\Http\Controllers\Admin\FarmPayoutController;
 use Illuminate\Support\Facades\Artisan;
 
 // ─── Frontend / Landing Page ──────────────────────────────────────────────────
@@ -120,10 +122,27 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('inventory/{inventory}/quick-export', [StockController::class, 'quickExport'])->name('inventory.quick-export');
         Route::post('inventory/{inventory}/reorder-point', [StockController::class, 'reorderPoint'])->name('inventory.reorder-point');
 
-        // ─── Farm Partner Management ──────────────────────────────────────────
-        // Schema cũ (bảng farm_partners + farm_partner_logs) đã chuyển sang Farm
-        // model. Admin UI cho Farm Partner Hub sẽ làm lại trong task riêng — tạm
-        // thời gỡ route để tránh 500 khi click vào link cũ.
+        // ─── Farm Partner Hub ─────────────────────────────────────────────────
+        // Giai đoạn 1: Yêu cầu đăng ký (lọc customers có farm_partner_status='requested')
+        Route::get('farm-requests', [FarmController::class, 'requestsIndex'])->name('farm-requests.index');
+        Route::post('farm-requests/{customer}/approve', [FarmController::class, 'approveRequest'])->name('farm-requests.approve');
+        Route::post('farm-requests/{customer}/reject', [FarmController::class, 'rejectRequest'])->name('farm-requests.reject');
+
+        // Giai đoạn 2: Quản lý Farm — không expose create/store, farm chỉ tạo khi duyệt yêu cầu
+        Route::resource('farms', FarmController::class)->except(['create', 'store']);
+        Route::patch('farms/{farm}/suspend', [FarmController::class, 'suspend'])->name('farms.suspend');
+        Route::patch('farms/{farm}/reactivate', [FarmController::class, 'reactivate'])->name('farms.reactivate');
+        // Tab "Cấu hình Sản phẩm"
+        Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');
+        Route::delete('farms/{farm}/products/{product}', [FarmController::class, 'detachProduct'])->name('farms.products.detach');
+
+        // Giai đoạn 3: Đối soát (Payout) — không dùng Route::resource vì có flow riêng (mark-paid, cancel)
+        Route::get('farm-payouts', [FarmPayoutController::class, 'index'])->name('farm-payouts.index');
+        Route::get('farm-payouts/create', [FarmPayoutController::class, 'create'])->name('farm-payouts.create');
+        Route::post('farm-payouts', [FarmPayoutController::class, 'store'])->name('farm-payouts.store');
+        Route::get('farm-payouts/{payout}', [FarmPayoutController::class, 'show'])->name('farm-payouts.show');
+        Route::post('farm-payouts/{payout}/mark-paid', [FarmPayoutController::class, 'markPaid'])->name('farm-payouts.mark-paid');
+        Route::post('farm-payouts/{payout}/cancel', [FarmPayoutController::class, 'cancel'])->name('farm-payouts.cancel');
 
         // ─── Customer Management ──────────────────────────────────────────────
         Route::resource('zalo-customers', ZaloCustomerController::class)->except(['create', 'store']);

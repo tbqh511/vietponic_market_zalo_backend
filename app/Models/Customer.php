@@ -32,6 +32,11 @@ class Customer extends Authenticatable implements JWTSubject
         // Farm Partner Hub — role mặc định 'customer'. Chỉ admin được set.
         'role',
         'farm_partner_status',
+        // Tài khoản ngân hàng riêng cho Farm Partner (tách với affiliate_bank_*
+        // để 1 customer có thể nhận 2 dòng tiền vào 2 TK khác nhau).
+        'farm_bank_name',
+        'farm_bank_account',
+        'farm_bank_holder',
     ];
 
     protected $casts = [

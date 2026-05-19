@@ -34,6 +34,7 @@ class FarmPayout extends Model
         'paid_at',
         'payment_method',
         'transaction_ref',
+        'proof_image_path',
         'note',
     ];
 

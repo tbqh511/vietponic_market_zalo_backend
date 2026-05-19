@@ -56,6 +56,16 @@
                                 <li class="submenu-item">
                                     <a href="{{ url('zalo-customers') }}">{{ __('Khách hàng') }}</a>
                                 </li>
+                                {{-- Farm Partner Hub — quản trị đối tác cung cấp rau --}}
+                                <li class="submenu-item">
+                                    <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{{ url('farm-payouts') }}">{{ __('Đối soát Farm (Payout)') }}</a>
+                                </li>
                             </ul>
                         </li>
                     {{--@endif--}}
