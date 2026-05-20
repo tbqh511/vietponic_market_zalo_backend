@@ -25,21 +25,30 @@
 
                     <div class="mb-3">
                         <label class="form-label">Chủ mới <span class="text-danger">*</span></label>
-                        <select name="new_owner_id" id="transferNewOwnerSelect" class="form-select" required>
-                            <option value="">— Chọn customer —</option>
-                            @foreach($transferCandidates as $c)
+
+                        {{-- Search box (lọc client-side trên danh sách đã load). --}}
+                        <input type="text" id="transferSearchInput" class="form-control mb-2"
+                               placeholder="Gõ tên hoặc số điện thoại để lọc…" autocomplete="off">
+
+                        <select name="new_owner_id" id="transferNewOwnerSelect"
+                                class="form-select" size="8" required
+                                style="height:auto;">
+                            @forelse($transferCandidates as $c)
                                 <option value="{{ $c->id }}"
                                         data-warning="{{ $c->_transfer_warning }}"
                                         data-blocked="{{ $c->_transfer_blocked ? '1' : '0' }}"
+                                        data-search="{{ mb_strtolower(($c->name ?? '').' '.($c->mobile ?? '').' #'.$c->id) }}"
                                         @if($c->_transfer_blocked) disabled @endif>
                                     {{ $c->name ?: '#'.$c->id }}{{ $c->mobile ? ' — '.$c->mobile : '' }}
                                     @if($c->_transfer_warning) — {{ $c->_transfer_warning }} @endif
                                 </option>
-                            @endforeach
+                            @empty
+                                <option value="" disabled>— Không có khách hàng nào khả dụng —</option>
+                            @endforelse
                         </select>
                         <small class="text-muted">
-                            Hiển thị tối đa 200 customer active. Staff của farm này được xếp đầu danh sách.
-                            Có thể gõ tên / SĐT để tìm nhanh.
+                            Hiển thị tối đa 200 khách hàng đang hoạt động. Nhân viên của farm này được xếp đầu danh sách.
+                            Tổng: {{ count($transferCandidates) }} khách hàng.
                         </small>
                     </div>
 
@@ -68,6 +77,7 @@
 (function () {
     const sel = document.getElementById('transferNewOwnerSelect');
     if (!sel) return;
+    const searchInput = document.getElementById('transferSearchInput');
     const warnBox  = document.getElementById('transferWarningBox');
     const warnText = document.getElementById('transferWarningText');
     const confirmChk = document.getElementById('transferConfirmCheck');
@@ -82,39 +92,32 @@
             warnBox.classList.remove('d-none');
         } else {
             warnBox.classList.add('d-none');
-            confirmChk.checked = false;
+            if (confirmChk) confirmChk.checked = false;
         }
         submitBtn.disabled = blocked;
     }
     sel.addEventListener('change', syncWarning);
 
+    // Client-side filter: ẩn/hiện <option> dựa vào data-search.
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const q = this.value.trim().toLowerCase();
+            Array.from(sel.options).forEach(function (opt) {
+                if (!opt.value) return; // bỏ qua placeholder/empty
+                const hay = opt.dataset.search || opt.textContent.toLowerCase();
+                opt.hidden = q && !hay.includes(q);
+            });
+        });
+    }
+
     // Auto-mở modal khi URL có ?action=transfer (entry point từ /farms list +
-    // trang sửa Khách hàng). Phải đợi DOM + Bootstrap sẵn sàng.
+    // trang sửa Khách hàng).
     document.addEventListener('DOMContentLoaded', function () {
         if (new URLSearchParams(window.location.search).get('action') === 'transfer') {
             const modalEl = document.getElementById('transferOwnershipModal');
             if (modalEl && window.bootstrap) {
                 new bootstrap.Modal(modalEl).show();
             }
-        }
-
-        // Init Select2 nếu có (codebase đã load global ở layouts/include +
-        // footer_script). Phải init SAU khi jQuery load — DOMContentLoaded
-        // chưa đủ vì jQuery có thể load sau, nên thử + retry.
-        function tryInitSelect2() {
-            if (window.jQuery && jQuery.fn.select2) {
-                jQuery(sel).select2({
-                    dropdownParent: jQuery('#transferOwnershipModal'),
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                }).on('change', syncWarning);
-                return true;
-            }
-            return false;
-        }
-        if (!tryInitSelect2()) {
-            // jQuery có thể load ở cuối body — retry 1 lần sau khi window load.
-            window.addEventListener('load', tryInitSelect2);
         }
     });
 })();
