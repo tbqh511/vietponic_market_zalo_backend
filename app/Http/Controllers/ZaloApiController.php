@@ -63,9 +63,15 @@ class ZaloApiController extends Controller
     {
         $payload = Cache::remember('banners.list.v1', 86400, function () {
             return Banner::orderBy('id')->get()->map(function ($banner) {
+                $url = null;
+                if ($banner->image) {
+                    $url = asset($banner->image);
+                    $version = optional($banner->updated_at)->timestamp ?? $banner->id;
+                    $url .= (str_contains($url, '?') ? '&' : '?') . 'v=' . $version;
+                }
                 return [
                     'id'               => $banner->id,
-                    'image'            => $banner->image ? asset($banner->image) : null,
+                    'image'            => $url,
                     'intrinsic_width'  => $banner->intrinsic_width,
                     'intrinsic_height' => $banner->intrinsic_height,
                     'intrinsic_aspect' => $banner->intrinsic_aspect,
