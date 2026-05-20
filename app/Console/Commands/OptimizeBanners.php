@@ -66,6 +66,9 @@ class OptimizeBanners extends Command
                 $banner->save();
             }
 
+            if (!$dry) {
+                clearstatcache(true, $abs);
+            }
             $after = $dry ? $before : filesize($abs);
             $totalAfter += $after;
 
