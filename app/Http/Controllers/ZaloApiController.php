@@ -16,6 +16,7 @@ use App\Services\VtpOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -60,15 +61,23 @@ class ZaloApiController extends Controller
 
     public function banners()
     {
-        $data = Banner::orderBy('id')->get()->map(function ($banner) {
-            return [
-                'id' => $banner->id,
-                'image' => $banner->image ? asset($banner->image) : null,
-                'created_at' => $banner->created_at,
-                'updated_at' => $banner->updated_at,
-            ];
+        $payload = Cache::remember('banners.list.v1', 86400, function () {
+            return Banner::orderBy('id')->get()->map(function ($banner) {
+                return [
+                    'id'               => $banner->id,
+                    'image'            => $banner->image ? asset($banner->image) : null,
+                    'intrinsic_width'  => $banner->intrinsic_width,
+                    'intrinsic_height' => $banner->intrinsic_height,
+                    'intrinsic_aspect' => $banner->intrinsic_aspect,
+                    'created_at'       => $banner->created_at,
+                    'updated_at'       => $banner->updated_at,
+                ];
+            })->toArray();
         });
-        return response()->json(['error' => false, 'data' => $data]);
+
+        return response()
+            ->json(['error' => false, 'data' => $payload])
+            ->header('Cache-Control', 'public, max-age=300, s-maxage=86400, stale-while-revalidate=3600');
     }
 
     public function stations()
