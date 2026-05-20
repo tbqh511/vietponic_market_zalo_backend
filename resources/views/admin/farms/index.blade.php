@@ -72,6 +72,13 @@
                                     @endif
                                 </td>
                                 <td class="text-end">
+                                    @if($f->is_active && $f->owner_customer_id)
+                                        <a href="{{ route('farms.show', $f->id) }}?action=transfer"
+                                           class="btn btn-outline-warning btn-sm"
+                                           title="Chuyển chủ farm">
+                                            <i class="bi bi-arrow-left-right"></i>
+                                        </a>
+                                    @endif
                                     <a href="{{ route('farms.show', $f->id) }}" class="btn btn-primary btn-sm">Chi tiết</a>
                                 </td>
                             </tr>

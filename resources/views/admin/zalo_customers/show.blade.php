@@ -263,7 +263,7 @@
             @if($customer->affiliate_approved_at)
             <tr>
                 <td class="text-muted">Ngày duyệt</td>
-                <td>{{ $customer->affiliate_approved_at->format('d/m/Y H:i') }}</td>
+                <td>{{ $customer->affiliate_approved_at?->format('d/m/Y H:i') ?: '—' }}</td>
             </tr>
             @endif
         </table>

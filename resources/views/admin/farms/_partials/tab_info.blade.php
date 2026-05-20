@@ -32,6 +32,13 @@
                     <td><code>{{ $farm->owner->farm_partner_status ?: 'none' }}</code></td></tr>
             </table>
 
+            @if($farm->is_active)
+                <button type="button" class="btn btn-warning btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#transferOwnershipModal">
+                    Chuyển chủ farm cho người khác
+                </button>
+            @endif
+
             <h6 class="text-muted mt-4 mb-2">Tài khoản nhận tiền</h6>
             <table class="table table-sm">
                 <tr><td style="width:40%" class="text-muted">Ngân hàng</td>

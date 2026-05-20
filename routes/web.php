@@ -51,16 +51,12 @@ Route::get('customer-privacy-policy', [SettingController::class, 'show_privacy_p
 Route::get('customer-terms-conditions', [SettingController::class, 'show_terms_conditions'])->name('customer-terms-conditions');
 Route::get('privacypolicy', [HomeController::class, 'privacy_policy']);
 
-Auth::routes();
+Auth::routes(['register' => false]);
 
 // ─── Admin Panel (authenticated) ──────────────────────────────────────────────
 
 Route::middleware(['auth', 'checklogin'])->group(function () {
     Route::group(['middleware' => 'language'], function () {
-
-        Artisan::call('cache:clear');
-        Artisan::call('view:clear');
-        Artisan::call('view:cache');
 
         Route::get('dashboard', [HomeController::class, 'blank_dashboard'])->name('dashboard');
         Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -132,6 +128,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('farms', FarmController::class)->except(['create', 'store']);
         Route::patch('farms/{farm}/suspend', [FarmController::class, 'suspend'])->name('farms.suspend');
         Route::patch('farms/{farm}/reactivate', [FarmController::class, 'reactivate'])->name('farms.reactivate');
+        Route::patch('farms/{farm}/transfer-ownership', [FarmController::class, 'transferOwnership'])->name('farms.transfer-ownership');
         // Tab "Cấu hình Sản phẩm"
         Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');
         Route::delete('farms/{farm}/products/{product}', [FarmController::class, 'detachProduct'])->name('farms.products.detach');
@@ -163,5 +160,3 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::patch('affiliate-settings/enabled', [AffiliatePartnerController::class, 'toggleEnabled'])->name('affiliate-settings.enabled');
     });
 });
-
-Auth::routes();

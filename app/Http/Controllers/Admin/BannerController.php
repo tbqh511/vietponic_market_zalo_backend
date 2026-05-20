@@ -26,7 +26,11 @@ class BannerController extends Controller
     {
         $request->validate([
             'image' => 'nullable|string',
-            'image_file' => 'nullable|image|max:5120', // max 5MB
+            'image_file' => 'nullable|image|mimes:jpeg,png,gif,webp|max:5120',
+        ], [
+            'image_file.mimes' => 'Định dạng ảnh không hỗ trợ. Chỉ chấp nhận JPEG, PNG, GIF hoặc WEBP.',
+            'image_file.image' => 'Tệp tải lên phải là ảnh.',
+            'image_file.max'   => 'Kích thước ảnh tối đa 5MB.',
         ]);
 
         // Check if at least one image source is provided
@@ -113,7 +117,11 @@ class BannerController extends Controller
         $banner = Banner::findOrFail($id);
         $data = $request->validate([
             'image' => 'nullable|string',
-            'image_file' => 'nullable|image|max:5120',
+            'image_file' => 'nullable|image|mimes:jpeg,png,gif,webp|max:5120',
+        ], [
+            'image_file.mimes' => 'Định dạng ảnh không hỗ trợ. Chỉ chấp nhận JPEG, PNG, GIF hoặc WEBP.',
+            'image_file.image' => 'Tệp tải lên phải là ảnh.',
+            'image_file.max'   => 'Kích thước ảnh tối đa 5MB.',
         ]);
 
         $result = null;
@@ -194,8 +202,14 @@ class BannerController extends Controller
             case 'image/gif':
                 $source = imagecreatefromgif($imagePath);
                 break;
+            case 'image/webp':
+                if (!function_exists('imagecreatefromwebp')) {
+                    throw new \Exception('Server chưa bật hỗ trợ WEBP (GD --with-webp). Vui lòng dùng JPEG/PNG.');
+                }
+                $source = imagecreatefromwebp($imagePath);
+                break;
             default:
-                throw new \Exception('Unsupported image type');
+                throw new \Exception('Định dạng ảnh không hỗ trợ: ' . $mime);
         }
 
         $width = imagesx($source);

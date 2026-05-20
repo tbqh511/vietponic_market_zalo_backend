@@ -21,6 +21,27 @@
             </div>
         @endif
 
+        {{-- Callout cho chủ farm: cho phép admin chuyển farm sang người khác
+             từ trang sửa khách hàng (entry point thứ 4 ngoài trang Farm). --}}
+        @if($customer->isFarmOwner() && $customer->farm)
+            <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <i class="bi bi-shop"></i>
+                    <strong>Khách hàng này là chủ farm:</strong>
+                    {{ $customer->farm->name }}
+                    <span class="text-muted small">({{ $customer->farm->code }})</span>
+                </div>
+                @if($customer->farm->is_active)
+                    <a href="{{ route('farms.show', $customer->farm_id) }}?action=transfer"
+                       class="btn btn-warning btn-sm">
+                        Chuyển farm cho người khác
+                    </a>
+                @else
+                    <span class="badge bg-secondary">Farm đang tạm khoá</span>
+                @endif
+            </div>
+        @endif
+
         {{-- Read-only system info --}}
         <div class="p-3 bg-light rounded mb-4">
             <small class="text-muted d-block"><strong>Firebase ID:</strong> {{ $customer->firebase_id ?: '—' }}</small>

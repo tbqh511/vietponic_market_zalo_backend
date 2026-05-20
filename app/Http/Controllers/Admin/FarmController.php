@@ -192,11 +192,49 @@ class FarmController extends Controller
             ->limit(50)
             ->get(['id', 'name', 'mobile']);
 
+        // Ứng viên cho "Chuyển chủ farm": tất cả active customer (trừ chủ hiện
+        // tại). Sort: staff của farm này lên đầu (case phổ biến: promote staff
+        // hiện có lên owner). Cap 200 — Select2 search-as-you-type xử lý phần
+        // còn lại; admin cần ngoài top 200 thì hiếm gặp.
+        $ownerId = $farm->owner_customer_id;
+        $transferCandidates = Customer::query()
+            ->where('isActive', 1)
+            ->when($ownerId, fn ($q) => $q->where('id', '!=', $ownerId))
+            ->orderByRaw('CASE WHEN farm_id = ? THEN 0 ELSE 1 END', [$farm->id])
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'mobile', 'farm_id', 'farm_role', 'isActive']);
+
+        // Pre-compute warning label (1 query Farm cho toàn bộ — tránh N+1).
+        $otherFarmIds = $transferCandidates->pluck('farm_id')
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === $farm->id)
+            ->values();
+        $otherFarmNames = $otherFarmIds->isEmpty()
+            ? collect()
+            : Farm::whereIn('id', $otherFarmIds)->pluck('name', 'id');
+
+        $transferCandidates->each(function ($c) use ($farm, $otherFarmNames) {
+            $c->_transfer_warning = null;
+            $c->_transfer_blocked = false;
+            if ($c->farm_id && $c->farm_id !== $farm->id) {
+                $name = $otherFarmNames[$c->farm_id] ?? '#' . $c->farm_id;
+                if ($c->farm_role === 'owner') {
+                    $c->_transfer_warning = "⛔ Đang là CHỦ farm \"{$name}\" (không thể chuyển)";
+                    $c->_transfer_blocked = true;
+                } else {
+                    $c->_transfer_warning = "⚠ Đang là nhân viên farm \"{$name}\"";
+                }
+            }
+        });
+
         return view('admin.farms.show', compact(
             'farm',
             'batches',
             'availableProducts',
-            'availableStaffCandidates'
+            'availableStaffCandidates',
+            'transferCandidates'
         ));
     }
 
@@ -451,6 +489,106 @@ class FarmController extends Controller
 
         return redirect()->route('farms.show', $farm->id)
             ->with('success', "Đã gỡ {$customer->name} khỏi farm.");
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    //  CHUYỂN CHỦ FARM — Đồng bộ farms.owner_customer_id + customers.farm_*
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Chuyển chủ farm cho customer khác. Chủ cũ tự động trở thành Staff cùng
+     * farm (giữ quyền Hub, mất payout). Yêu cầu farm đang active.
+     *
+     * Hai tầng bảo vệ chủ mới:
+     *   - CHẶN CỨNG nếu chủ mới đang là chủ farm khác (sẽ làm farm kia mồ côi).
+     *   - CẢNH BÁO nếu chủ mới đang là nhân viên farm khác — yêu cầu
+     *     confirm_warnings=1 trước khi cho qua (auto rời farm cũ).
+     *
+     * Optimistic concurrency: form gửi kèm current_owner_id; nếu DB đã đổi
+     * giữa lúc page load và submit → fail sớm thay vì ghi đè im lặng.
+     */
+    public function transferOwnership(Request $request, int $farmId)
+    {
+        $farm = Farm::with('owner')->findOrFail($farmId);
+
+        $data = $request->validate([
+            'new_owner_id'     => 'required|integer|exists:customers,id',
+            'current_owner_id' => 'nullable|integer',
+            'confirm_warnings' => 'nullable|boolean',
+        ]);
+
+        if (! $farm->is_active) {
+            return back()->with('error', 'Farm đang tạm khoá — kích hoạt lại trước khi chuyển chủ.');
+        }
+        if ((int) $data['new_owner_id'] === (int) ($farm->owner_customer_id ?? 0)) {
+            return back()->with('error', 'Customer được chọn đang là chủ farm hiện tại — không có gì để chuyển.');
+        }
+
+        try {
+            DB::transaction(function () use ($farm, $data) {
+                // Lock farm trước, sau đó lock customers theo id tăng dần →
+                // tránh deadlock khi 2 transaction cùng đụng cặp customer/farm.
+                $farm = Farm::lockForUpdate()->findOrFail($farm->id);
+
+                if ((int) ($data['current_owner_id'] ?? 0) !== (int) ($farm->owner_customer_id ?? 0)) {
+                    throw new \DomainException('Chủ farm đã bị thay đổi bởi admin khác — tải lại trang và thử lại.');
+                }
+
+                $ids = array_filter([$farm->owner_customer_id, (int) $data['new_owner_id']]);
+                sort($ids);
+                $locked = Customer::whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+
+                $newOwner = $locked[$data['new_owner_id']] ?? null;
+                $oldOwner = $farm->owner_customer_id ? ($locked[$farm->owner_customer_id] ?? null) : null;
+
+                if (! $newOwner) {
+                    throw new \DomainException('Không tìm thấy customer mới.');
+                }
+                if (! $newOwner->isActive) {
+                    throw new \DomainException('Customer mới đang bị vô hiệu hoá.');
+                }
+
+                // CHẶN CỨNG: chủ mới đang là chủ farm khác → farm kia sẽ mồ côi.
+                if ($newOwner->farm_id && $newOwner->farm_id !== $farm->id && $newOwner->farm_role === 'owner') {
+                    $other = Farm::find($newOwner->farm_id);
+                    throw new \DomainException("Customer đang là chủ farm \"{$other?->name}\" — chuyển/giải thể farm đó trước.");
+                }
+
+                // CẢNH BÁO: chủ mới đang là nhân viên farm khác → cần confirm.
+                if ($newOwner->farm_id && $newOwner->farm_id !== $farm->id && $newOwner->farm_role === 'staff') {
+                    if (empty($data['confirm_warnings'])) {
+                        $other = Farm::find($newOwner->farm_id);
+                        throw new \DomainException("Customer đang là nhân viên farm \"{$other?->name}\". Tick \"Tôi đã hiểu\" để chuyển (họ sẽ rời farm cũ).");
+                    }
+                    // Khi qua confirm: cập nhật farm_id bên dưới sẽ tự động
+                    // chuyển họ ra khỏi farm cũ — không cần code dọn riêng.
+                }
+
+                // 1) Chủ cũ → Staff cùng farm (giữ Hub access, mất payout).
+                if ($oldOwner) {
+                    $oldOwner->farm_role = 'staff';
+                    // farm_id giữ nguyên = farm->id; role/status giữ nguyên.
+                    // farm_bank_* KHÔNG xoá — dữ liệu lịch sử per-customer.
+                    $oldOwner->save();
+                }
+
+                // 2) Chủ mới → Owner.
+                $newOwner->farm_id             = $farm->id;
+                $newOwner->farm_role           = 'owner';
+                $newOwner->role                = 'farm_partner';
+                $newOwner->farm_partner_status = 'approved';
+                $newOwner->save();
+
+                // 3) Cập nhật canonical owner trên farm.
+                $farm->owner_customer_id = $newOwner->id;
+                $farm->save();
+            });
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('farms.show', $farm->id)
+            ->with('success', 'Đã chuyển chủ farm thành công. Chủ cũ đã trở thành nhân viên — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.');
     }
 
     // ────────────────────────────────────────────────────────────────────

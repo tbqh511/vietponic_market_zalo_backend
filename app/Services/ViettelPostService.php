@@ -54,6 +54,10 @@ class ViettelPostService
 
         $shortToken = $loginRes['data']['token'] ?? null;
         if (!$shortToken) {
+            Log::channel('shipping')->error('[VTP] Login: token missing in response', [
+                'response' => $loginRes,
+                'username' => config('viettelpost.username'),
+            ]);
             throw new \RuntimeException('VTP Login: token không có trong response');
         }
 
@@ -70,6 +74,10 @@ class ViettelPostService
 
         $longToken = $ownerRes['data']['token'] ?? null;
         if (!$longToken) {
+            Log::channel('shipping')->error('[VTP] ownerconnect: token missing in response', [
+                'response' => $ownerRes,
+                'username' => config('viettelpost.username'),
+            ]);
             throw new \RuntimeException('VTP ownerconnect: token không có trong response');
         }
 

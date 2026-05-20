@@ -45,6 +45,12 @@
                         <button class="btn btn-success btn-sm">Kích hoạt lại</button>
                     </form>
                 @endif
+                @if($farm->is_active && $farm->owner_customer_id)
+                    <button type="button" class="btn btn-info btn-sm"
+                            data-bs-toggle="modal" data-bs-target="#transferOwnershipModal">
+                        Chuyển chủ
+                    </button>
+                @endif
                 <form action="{{ route('farms.destroy', $farm->id) }}" method="POST"
                       onsubmit="return confirm('Xoá Farm? Chỉ thành công nếu chưa có batch/payout/đơn hàng.');">
                     @csrf
@@ -99,4 +105,13 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal "Chuyển chủ farm" — include 1 lần ở đây, shared cho cả nút trong
+         header và nút trong tab Thông tin chung. --}}
+    @if($farm->is_active && $farm->owner_customer_id)
+        @include('admin.farms._partials.modal_transfer_ownership', [
+            'farm' => $farm,
+            'transferCandidates' => $transferCandidates,
+        ])
+    @endif
 @endsection
