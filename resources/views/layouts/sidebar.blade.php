@@ -64,10 +64,10 @@
                         </a>
                         <ul class="submenu" style="padding-left: 0rem">
                             <li class="submenu-item">
-                                <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
+                                <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
                             </li>
                             <li class="submenu-item">
-                                <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
+                                <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
                             </li>
                             <li class="submenu-item">
                                 <a href="{{ url('farm-payouts') }}">{{ __('Đối soát Farm (Payout)') }}</a>
