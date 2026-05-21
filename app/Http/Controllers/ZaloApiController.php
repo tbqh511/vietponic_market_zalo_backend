@@ -10,8 +10,10 @@ use App\Models\ZaloOrder;
 use App\Models\ZaloOrderItem;
 use App\Models\ZaloDelivery;
 use App\Models\Customer;
+use App\Models\Voucher;
 use App\Services\StockService;
 use App\Services\RefundService;
+use App\Services\VoucherService;
 use App\Services\VtpOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -26,6 +28,7 @@ class ZaloApiController extends Controller
     public function __construct(
         private StockService $stockService,
         private RefundService $refundService,
+        private VoucherService $voucherService,
     ) {}
     public function categories()
     {
@@ -152,6 +155,7 @@ class ZaloApiController extends Controller
             'shipping_fee' => 'nullable|string',
             'shipping_service_code' => 'nullable|string|max:32',
             'shipping_service_name' => 'nullable|string',
+            'voucher_code' => 'nullable|string|max:50',
             'note' => 'nullable|string',
             'created_at' => 'required|string',
         ]);
@@ -179,16 +183,44 @@ class ZaloApiController extends Controller
 
         // Shipping fee: server nhận từ client nhưng tự tính lại total để chống tamper
         $clientShippingFee = (int) ($request->shipping_fee ?? 0);
-        $serverFinalTotal  = $serverTotal + $clientShippingFee;
-        $clientTotal       = (float) $request->total;
 
-        // Chênh lệch > 1000đ → reject (có thể client tự sửa total để giảm tiền ship)
+        // ─── Voucher: validate + tính discount trước khi check tamper total ──
+        $voucher          = null;
+        $discountSubtotal = 0;
+        $discountShipping = 0;
+        $voucherCodeInput = trim((string) $request->input('voucher_code', ''));
+
+        if ($voucherCodeInput !== '') {
+            $voucherCheck = $this->voucherService->validate(
+                $voucherCodeInput,
+                (int) $customerId,
+                $serverTotal,
+                $clientShippingFee
+            );
+            if (!$voucherCheck['ok']) {
+                return response()->json([
+                    'error'   => true,
+                    'message' => $voucherCheck['error'],
+                    'reason'  => 'voucher_invalid',
+                ], 422);
+            }
+            $voucher          = $voucherCheck['voucher'];
+            $discountSubtotal = (int) $voucherCheck['discount_subtotal'];
+            $discountShipping = (int) $voucherCheck['discount_shipping'];
+        }
+
+        $totalDiscount    = $discountSubtotal + $discountShipping;
+        $serverFinalTotal = max(0, $serverTotal + $clientShippingFee - $totalDiscount);
+        $clientTotal      = (float) $request->total;
+
+        // Chênh lệch > 1000đ → reject (có thể client tự sửa total để giảm tiền ship/voucher)
         if (abs($clientTotal - $serverFinalTotal) > 1000) {
             Log::warning('Zalo Order total mismatch (shipping)', [
                 'customer_id'       => $customerId,
                 'client_total'      => $clientTotal,
                 'server_subtotal'   => $serverTotal,
                 'client_ship_fee'   => $clientShippingFee,
+                'server_discount'   => $totalDiscount,
                 'server_final'      => $serverFinalTotal,
             ]);
             return response()->json([
@@ -221,10 +253,10 @@ class ZaloApiController extends Controller
         }
 
         // Bọc trong DB Transaction để tránh orphan data
-        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $serverFinalTotal, $clientShippingFee, $request, $products) {
+        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $serverFinalTotal, $clientShippingFee, $request, $products, $voucher, $discountSubtotal, $discountShipping, $totalDiscount) {
             $createdAt = Carbon::parse($request->created_at);
 
-            // total = subtotal (giá SP từ DB) + shipping_fee (từ client, đã verify trên)
+            // total = subtotal (giá SP từ DB) + shipping_fee (từ client, đã verify trên) - discount
             $order = ZaloOrder::create([
                 'status'                => 'pending',
                 'payment_status'        => 'cod',
@@ -235,9 +267,18 @@ class ZaloApiController extends Controller
                 'total'                 => $serverFinalTotal,
                 'shipping_service_code' => $request->shipping_service_code ?? null,
                 'shipping_service_name' => $request->shipping_service_name ?? null,
+                'voucher_id'            => $voucher?->id,
+                'voucher_code'          => $voucher?->code,
+                'discount_amount'       => $totalDiscount,
                 'note'                  => $note,
                 'customer_id'           => $customerId,
             ]);
+
+            // Redeem voucher (tạo redemption row + increment used_count) — phải
+            // trong cùng transaction để rollback nếu order_items create fail sau đó.
+            if ($voucher) {
+                $this->voucherService->redeem($voucher, $order, (int) $customerId, $totalDiscount);
+            }
 
             // Create order items (dùng giá + đơn vị từ DB, không tin payload client)
             foreach ($items as $item) {
@@ -421,6 +462,14 @@ class ZaloApiController extends Controller
                 ]);
             }
             try {
+                $this->voucherService->release($order);
+            } catch (\Throwable $e) {
+                Log::error('voucher release failed on admin cancellation', [
+                    'order_id' => $order->id,
+                    'message'  => $e->getMessage(),
+                ]);
+            }
+            try {
                 $this->refundService->processCancellationRefund($order, 'admin');
             } catch (\Throwable $e) {
                 Log::error('processCancellationRefund failed on admin cancellation', [
@@ -509,6 +558,14 @@ class ZaloApiController extends Controller
             $this->stockService->releaseReservation($order->id);
         } catch (\Throwable $e) {
             Log::error('releaseReservation failed on customer cancellation', [
+                'order_id' => $order->id,
+                'message'  => $e->getMessage(),
+            ]);
+        }
+        try {
+            $this->voucherService->release($order);
+        } catch (\Throwable $e) {
+            Log::error('voucher release failed on customer cancellation', [
                 'order_id' => $order->id,
                 'message'  => $e->getMessage(),
             ]);

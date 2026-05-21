@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\ZaloStationController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
+use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\ZaloCustomerController;
 use App\Http\Controllers\Admin\FarmController;
 use App\Http\Controllers\Admin\FarmPayoutController;
@@ -150,6 +151,11 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::patch('zalo-customers/{id}/promote-farm', [ZaloCustomerController::class, 'promoteFarmPartner'])->name('zalo-customers.promote-farm');
         Route::patch('zalo-customers/{id}/suspend-farm', [ZaloCustomerController::class, 'suspendFarmPartner'])->name('zalo-customers.suspend-farm');
         Route::patch('zalo-customers/{id}/assign-staff', [ZaloCustomerController::class, 'assignStaff'])->name('zalo-customers.assign-staff');
+
+        // ─── Voucher Management ───────────────────────────────────────────────
+        Route::resource('vouchers', VoucherController::class);
+        Route::patch('vouchers/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
+            ->name('vouchers.toggle-active');
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);

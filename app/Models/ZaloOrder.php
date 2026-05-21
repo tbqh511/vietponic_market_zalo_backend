@@ -21,6 +21,8 @@ class ZaloOrder extends Model
         // Farm Partner Hub — mốc giao xong, set khi status chuyển sang 'delivered'.
         // FarmDashboardService query cutoff theo cột này (KHÔNG dùng created_at).
         'delivered_at',
+        // Voucher snapshot — bảo toàn lịch sử khi voucher bị sửa/xoá.
+        'voucher_id','voucher_code','discount_amount',
     ];
     protected $casts = [
         'created_at'   => 'datetime',
@@ -47,5 +49,10 @@ class ZaloOrder extends Model
     public function trackingEvents()
     {
         return $this->hasMany(VtpTrackingEvent::class, 'order_id')->orderBy('status_at', 'desc');
+    }
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class, 'voucher_id');
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\ViettelPostWebhookController;
+use App\Http\Controllers\VoucherApiController;
 use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmHubController;
@@ -54,6 +55,10 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     // ─── Shipping estimate (rate-limited: 60 req/phút) ────────────────────
     Route::middleware('throttle:60,1')
         ->post('shipping/estimate', [ShippingController::class, 'estimate']);
+
+    // ─── Voucher / mã giảm giá (customer-facing) ──────────────────────────
+    Route::get('vouchers/available', [VoucherApiController::class, 'available']);
+    Route::post('vouchers/validate', [VoucherApiController::class, 'validateCode']);
 });
 
 // ─── Farm Partnership Request — customer JWT (chưa cần là farm partner) ──────

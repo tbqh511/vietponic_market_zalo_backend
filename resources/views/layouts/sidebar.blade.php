@@ -47,6 +47,9 @@
                                     <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
                                 </li>
                                 <li class="submenu-item">
+                                    <a href="{{ url('vouchers') }}">{{ __('Mã giảm giá') }}</a>
+                                </li>
+                                <li class="submenu-item">
                                     <a href="{{ route('inventory.index') }}">{{ __('Quản lý Tồn kho') }}</a>
                                 </li>
                                 <li class="submenu-item">
