@@ -201,19 +201,10 @@ class ViettelPostWebhookTest extends TestCase
 
     public function test_status_504_returns_cancels_order_and_releases_stock(): void
     {
-        // Tạo reservation trước (giả lập stock đã được reserve khi tạo đơn)
-        \DB::table('zalo_products')->where('id', 1)->update(['stock_reserved' => 5]);
-        \DB::table('stock_movements')->insert([
-            'product_id'      => 1,
-            'order_id'        => $this->order->id,
-            'movement_type'   => 'reserved',
-            'quantity_change' => 5,
-            'quantity_before' => 100,
-            'quantity_after'  => 100,
-            'note'            => 'reserved by order',
-            'created_at'      => now(),
-        ]);
-
+        // Setup cũ touch zalo_products.stock_reserved + stock_movements đã bị
+        // remove khi chuyển sang FEFO batch model. releaseReservation() giờ
+        // là no-op nếu order không có item gắn farm_stock_batch_id, nên đủ
+        // để kiểm tra side-effects: status, cancelled_by, reason.
         $this->postJson('/api/viettelpost/webhook', $this->payload(504))
             ->assertStatus(200);
 

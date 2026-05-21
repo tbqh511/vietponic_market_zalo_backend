@@ -11,10 +11,12 @@ use App\Models\ZaloOrderItem;
 use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use App\Models\Voucher;
+use App\Models\AffiliateCommission;
 use App\Services\StockService;
 use App\Services\RefundService;
 use App\Services\VoucherService;
 use App\Services\VtpOrderService;
+use App\Services\ViettelPostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
@@ -156,6 +158,7 @@ class ZaloApiController extends Controller
             'shipping_service_code' => 'nullable|string|max:32',
             'shipping_service_name' => 'nullable|string',
             'voucher_code' => 'nullable|string|max:50',
+            'payment_method' => 'nullable|string|max:32',
             'note' => 'nullable|string',
             'created_at' => 'required|string',
         ]);
@@ -252,14 +255,35 @@ class ZaloApiController extends Controller
             ], 422);
         }
 
+        // Normalize payment_method từ client (vd: 'COD_SANDBOX' → 'COD_SANDBOX',
+        // 'BANK_SANDBOX' → 'BANK_SANDBOX'). Whitelist để chống tamper. Default 'COD'
+        // nếu client không gửi (giữ tương thích với client cũ) — nhưng log warning
+        // để admin phát hiện request bất thường (vd custom payment gateway).
+        $allowedMethods = ['COD','COD_SANDBOX','BANK','BANK_SANDBOX','ZALOPAY','ZALOPAY_SANDBOX','MOMO','MOMO_SANDBOX'];
+        $rawMethod = strtoupper(trim((string) $request->input('payment_method', '')));
+        if ($rawMethod !== '' && !in_array($rawMethod, $allowedMethods, true)) {
+            Log::warning('Zalo Order: unknown payment_method, falling back to COD', [
+                'customer_id' => $customerId,
+                'received'    => $rawMethod,
+            ]);
+        }
+        $paymentMethod = in_array($rawMethod, $allowedMethods, true) ? $rawMethod : 'COD';
+
+        // payment_status: COD coi như "cod" (chờ giao + thu tiền); các phương thức
+        // online thì 'pending' cho tới khi webhook /notify hoặc job CheckPaymentStatus
+        // chuyển sang 'success'/'failed'.
+        $isCodOrder = str_starts_with($paymentMethod, 'COD');
+        $initialPaymentStatus = $isCodOrder ? 'cod' : 'pending';
+
         // Bọc trong DB Transaction để tránh orphan data
-        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $serverFinalTotal, $clientShippingFee, $request, $products, $voucher, $discountSubtotal, $discountShipping, $totalDiscount) {
+        $order = DB::transaction(function () use ($items, $delivery, $note, $customerId, $serverTotal, $serverFinalTotal, $clientShippingFee, $request, $products, $voucher, $discountSubtotal, $discountShipping, $totalDiscount, $paymentMethod, $initialPaymentStatus) {
             $createdAt = Carbon::parse($request->created_at);
 
             // total = subtotal (giá SP từ DB) + shipping_fee (từ client, đã verify trên) - discount
             $order = ZaloOrder::create([
                 'status'                => 'pending',
-                'payment_status'        => 'cod',
+                'payment_status'        => $initialPaymentStatus,
+                'payment_method'        => $paymentMethod,
                 'created_at'            => $createdAt,
                 'received_at'           => $createdAt->copy()->addDays(3),
                 'subtotal'              => $serverTotal,
@@ -477,6 +501,18 @@ class ZaloApiController extends Controller
                     'message'  => $e->getMessage(),
                 ]);
             }
+
+            // Clawback commission affiliate đã ghi (nếu có)
+            $this->clawbackAffiliateCommission(
+                $order,
+                'Admin huỷ đơn: ' . ($request->input('cancellation_reason', 'Admin huỷ qua API'))
+            );
+
+            // Hủy đơn VTP nếu đã tạo
+            $this->cancelVtpOrderIfExists(
+                $order,
+                'Admin hủy: ' . ($request->input('cancellation_reason', 'Admin huỷ qua API'))
+            );
         }
 
         $order->load(['items', 'delivery']);
@@ -579,6 +615,17 @@ class ZaloApiController extends Controller
             ]);
         }
 
+        // Clawback commission affiliate đã ghi (nếu có) — chỉ revert pending/confirmed,
+        // KHÔNG đụng vào 'paid' (đã chi trả).
+        $this->clawbackAffiliateCommission(
+            $order,
+            'Khách huỷ đơn: ' . ($order->cancellation_reason ?? '')
+        );
+
+        // Hủy đơn VTP nếu đã tạo — nếu fail thì admin xử lý sau qua tool riêng,
+        // không block flow cancel của customer.
+        $this->cancelVtpOrderIfExists($order, 'Khách hủy: ' . ($order->cancellation_reason ?? ''));
+
         $order->refresh()->load(['items', 'delivery']);
         return response()->json(['error' => false, 'data' => $order]);
     }
@@ -609,7 +656,100 @@ class ZaloApiController extends Controller
         $order->load(['items', 'delivery']);
         return response()->json(['error' => false, 'data' => $order]);
     }
-    //HuyTBQ End: Order Apis 
+
+    /**
+     * Hủy đơn VTP nếu order đã có vtp_order_number. Idempotent — gọi nhiều lần
+     * an toàn vì VTP UpdateOrder type=1 chỉ đổi status sang "Duyệt huỷ".
+     *
+     * KHÔNG throw: cancel VTP fail không được làm fail flow cancel của customer/admin
+     * (đã release stock + refund rồi). Admin phải retry hủy VTP qua tool riêng.
+     *
+     * Trả về true nếu đã gửi cancel sang VTP, false nếu skip (không có vtp_order_number)
+     * hoặc cancel fail.
+     */
+    private function cancelVtpOrderIfExists(ZaloOrder $order, string $reason): bool
+    {
+        $order->loadMissing('delivery');
+        $delivery = $order->delivery;
+        $vtpNumber = $delivery?->vtp_order_number;
+        if (empty($vtpNumber)) {
+            return false;
+        }
+
+        // Bump attempts + set requested_at (set một lần duy nhất ở lần thử đầu).
+        $delivery->vtp_cancel_attempts = (int) $delivery->vtp_cancel_attempts + 1;
+        if (empty($delivery->vtp_cancel_requested_at)) {
+            $delivery->vtp_cancel_requested_at = now();
+        }
+
+        try {
+            app(ViettelPostService::class)->cancelOrder(
+                (string) $vtpNumber,
+                1,
+                mb_substr($reason, 0, 200)
+            );
+            // Đánh dấu trạng thái local để dashboard hiển thị đúng. KHÔNG clear
+            // vtp_cancel_requested_at — cron retry-cancel sẽ tự skip khi
+            // vtp_status_code rơi vào terminal cancel codes (101/105/107/201/503/504/505).
+            $delivery->vtp_status_code      = '105';
+            $delivery->vtp_status_name      = 'Đã huỷ';
+            $delivery->vtp_status_at        = now();
+            $delivery->vtp_cancel_failed_at = null;
+            $delivery->vtp_cancel_last_error = null;
+            $delivery->save();
+            Log::channel('viettelpost')->info('[VTP cancelOrder] OK', [
+                'order_id'     => $order->id,
+                'order_number' => $vtpNumber,
+                'reason'       => $reason,
+                'attempts'     => $delivery->vtp_cancel_attempts,
+            ]);
+            return true;
+        } catch (\Throwable $e) {
+            $delivery->vtp_cancel_failed_at = now();
+            $delivery->vtp_cancel_last_error = mb_substr($e->getMessage(), 0, 500);
+            $delivery->save();
+            Log::channel('viettelpost')->error('[VTP cancelOrder] FAIL', [
+                'order_id'     => $order->id,
+                'order_number' => $vtpNumber,
+                'message'      => $e->getMessage(),
+                'attempts'     => $delivery->vtp_cancel_attempts,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Clawback commission khi đơn bị huỷ. Chỉ revert các commission đang ở
+     * trạng thái 'pending' hoặc 'confirmed' — KHÔNG đụng đến 'paid'
+     * (đã chi trả qua payout, không thể recall).
+     *
+     * Idempotent: gọi nhiều lần an toàn vì where('status', whereIn pending/confirmed).
+     */
+    private function clawbackAffiliateCommission(ZaloOrder $order, string $reason): void
+    {
+        try {
+            $affected = AffiliateCommission::where('order_id', $order->id)
+                ->whereIn('status', ['pending', 'confirmed'])
+                ->update([
+                    'status'     => 'cancelled',
+                    'notes'      => mb_substr($reason, 0, 500),
+                    'updated_at' => now(),
+                ]);
+            if ($affected > 0) {
+                Log::info('Affiliate commission clawback OK', [
+                    'order_id' => $order->id,
+                    'affected' => $affected,
+                    'reason'   => $reason,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Affiliate commission clawback FAIL', [
+                'order_id' => $order->id,
+                'message'  => $e->getMessage(),
+            ]);
+        }
+    }
+    //HuyTBQ End: Order Apis
     //HuyTBQ: Zalo Auth Apis
     public function authenticate(Request $request)
     {
@@ -985,15 +1125,24 @@ class ZaloApiController extends Controller
             'miniAppId' => $request->miniAppId,
         ]);
 
-        // Liên kết order với checkoutSdkOrderId và đánh dấu đang chờ xác nhận
+        // Liên kết order với checkoutSdkOrderId.
+        // payment_status: với đơn COD giữ nguyên 'cod' (KHÔNG chuyển 'pending') để job
+        // CheckPaymentStatus không poll vô ích. Với đơn online thì chuyển 'pending'
+        // để job theo dõi cho tới khi webhook /notify hoặc poll xác nhận success/failed.
         $order->checkout_sdk_order_id = $request->checkoutSdkOrderId;
-        $order->payment_status = 'pending';
+        $isCodOrder = str_starts_with(strtoupper((string) $order->payment_method), 'COD');
+        if (!$isCodOrder) {
+            $order->payment_status = 'pending';
+        }
         $order->save();
 
         // Safety net: poll Zalo nhanh phòng trường hợp webhook /notify không tới.
-        // Job tự reschedule (30s → 2min → 10min) nếu vẫn pending.
-        \App\Jobs\CheckPaymentStatus::dispatch($order->id, $request->checkoutSdkOrderId, $request->miniAppId)
-            ->delay(now()->addSeconds(30));
+        // Job tự reschedule (30s → 2min → 10min) nếu vẫn pending — chỉ dispatch cho
+        // đơn online (đơn COD sẽ tự stop ở guard payment_status !== 'pending').
+        if (!$isCodOrder) {
+            \App\Jobs\CheckPaymentStatus::dispatch($order->id, $request->checkoutSdkOrderId, $request->miniAppId)
+                ->delay(now()->addSeconds(30));
+        }
 
         return response()->json(['message' => 'Đã liên kết đơn hàng thành công!']);
     }

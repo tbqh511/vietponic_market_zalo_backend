@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AffiliateCommission;
 use App\Models\VtpTrackingEvent;
 use App\Models\ZaloOrder;
 use Carbon\Carbon;
@@ -166,6 +167,26 @@ class VtpWebhookService
             $this->refundService->processCancellationRefund($order, 'system');
         } catch (\Throwable $e) {
             Log::channel('viettelpost')->error('[Webhook] processCancellationRefund FAIL', [
+                'order_id' => $order->id, 'message' => $e->getMessage(),
+            ]);
+        }
+
+        // Clawback commission affiliate (chỉ pending/confirmed, không đụng 'paid').
+        try {
+            $affected = AffiliateCommission::where('order_id', $order->id)
+                ->whereIn('status', ['pending', 'confirmed'])
+                ->update([
+                    'status'     => 'cancelled',
+                    'notes'      => mb_substr("VTP huỷ tự động: {$reason}", 0, 500),
+                    'updated_at' => now(),
+                ]);
+            if ($affected > 0) {
+                Log::channel('viettelpost')->info('[Webhook] Affiliate commission clawback OK', [
+                    'order_id' => $order->id, 'affected' => $affected,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::channel('viettelpost')->error('[Webhook] Affiliate commission clawback FAIL', [
                 'order_id' => $order->id, 'message' => $e->getMessage(),
             ]);
         }

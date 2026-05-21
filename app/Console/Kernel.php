@@ -35,6 +35,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('farms:snapshot-daily')
             ->dailyAt('23:30')
             ->withoutOverlapping();
+
+        // Retry hủy đơn VTP — chạy mỗi 30 phút. Picks up các order đã cancel
+        // local nhưng VTP cancel chưa xác nhận. Self-throttle nội bộ (backoff
+        // 60 phút giữa các attempts trên cùng một đơn, max 5 attempts).
+        $schedule->command('vtp:retry-cancel')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping();
     }
 
     /**

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Farm;
+use App\Models\FarmStockBatch;
 use App\Models\Station;
 use App\Models\VtpDistrict;
 use App\Models\VtpProvince;
@@ -55,6 +57,23 @@ class VtpCreateOrderTest extends TestCase
         $this->customer = Customer::create([
             'name' => 'T', 'email' => 't@x', 'firebase_id' => 'fb1',
             'logintype' => 'zalo', 'isActive' => 1,
+        ]);
+
+        // Farm + batch để StockService FEFO allocation tìm thấy stock — bằng không
+        // POST /orders sẽ 422 với "không đủ số lượng tồn kho".
+        $owner = Customer::create([
+            'name' => 'Farm Owner', 'email' => 'owner@x',
+            'firebase_id' => 'farm-owner', 'logintype' => 'zalo', 'isActive' => 1,
+        ]);
+        $farm = Farm::create([
+            'name' => 'Vietponics', 'slug' => 'vietponics', 'code' => 'VP01',
+            'owner_customer_id' => $owner->id, 'status' => 'active',
+        ]);
+        FarmStockBatch::create([
+            'farm_id' => $farm->id, 'product_id' => $this->product->id,
+            'batch_date' => now()->toDateString(),
+            'quantity_in' => 100, 'quantity_sold' => 0, 'quantity_remaining' => 100,
+            'cost_price' => 20000, 'status' => 'active',
         ]);
     }
 
