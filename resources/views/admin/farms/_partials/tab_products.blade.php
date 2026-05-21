@@ -9,7 +9,8 @@
     <table class="table table-hover align-middle">
         <thead>
             <tr>
-                <th>ID</th>
+                <th style="width:90px">Mã SP</th>
+                <th style="width:72px">Ảnh</th>
                 <th>Tên Sản phẩm</th>
                 <th class="text-end">Giá vốn (pivot)</th>
                 <th class="text-center">Primary?</th>
@@ -19,7 +20,12 @@
         <tbody>
             @forelse($farm->products as $p)
                 <tr>
-                    <td>#{{ $p->id }}</td>
+                    <td><code>#{{ $p->id }}</code></td>
+                    <td>
+                        <img src="{{ $p->image_url }}" alt=""
+                             style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#f3f4f6"
+                             onerror="this.style.visibility='hidden'">
+                    </td>
                     <td>{{ $p->name }}</td>
                     <td class="text-end">{{ number_format($p->pivot->cost_price, 0, ',', '.') }} đ</td>
                     <td class="text-center">
@@ -40,7 +46,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">Chưa gắn sản phẩm nào. Bấm "Gắn thêm sản phẩm" để bắt đầu.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Chưa gắn sản phẩm nào. Bấm "Gắn thêm sản phẩm" để bắt đầu.</td>
                 </tr>
             @endforelse
         </tbody>

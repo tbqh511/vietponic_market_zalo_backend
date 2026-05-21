@@ -5,9 +5,10 @@ namespace App\Http\Controllers\Farm;
 use App\Http\Controllers\Controller;
 use App\Models\Farm;
 use App\Models\FarmStockBatch;
-use App\Models\ZaloProduct;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 /**
  * FarmStockController — Farm Partner Hub: quản lý batch tồn kho.
@@ -26,10 +27,14 @@ class FarmStockController extends Controller
 {
     /**
      * GET /api/farm/inventory
-     *   ?view=batches|skus    — default batches
-     *   ?status=active|depleted|expired|recalled|all   — default active
-     *   ?product_id=...
-     *   ?q= search SKU name (khi view=skus)
+     *   ?view=skus|batches    — default skus (SKU-level, dùng cho mini app inventory list)
+     *   ?status=active|depleted|expired|recalled|all   — chỉ áp dụng khi view=batches
+     *   ?product_id=...       — chỉ áp dụng khi view=batches
+     *   ?q=                   — search SKU name
+     *   ?category_id=         — filter theo danh mục (view=skus)
+     *   ?stock_status=all|in_stock|low|out — filter tồn kho (view=skus)
+     *   ?sort=name|low_first|stock_asc|stock_desc — sắp xếp (view=skus)
+     *   ?page=1
      *   ?per_page=20
      */
     public function index(Request $request): JsonResponse
@@ -37,12 +42,12 @@ class FarmStockController extends Controller
         /** @var Farm $farm */
         $farm = $request->attributes->get('farm');
 
-        $view = $request->query('view', 'batches') === 'skus' ? 'skus' : 'batches';
+        $view = $request->query('view', 'skus') === 'batches' ? 'batches' : 'skus';
 
-        if ($view === 'skus') {
-            return $this->indexSkus($request, $farm);
+        if ($view === 'batches') {
+            return $this->indexBatches($request, $farm);
         }
-        return $this->indexBatches($request, $farm);
+        return $this->indexSkus($request, $farm);
     }
 
     private function indexBatches(Request $request, Farm $farm): JsonResponse
@@ -96,45 +101,179 @@ class FarmStockController extends Controller
     }
 
     /**
-     * View aggregate theo SKU: 1 row = 1 product, tổng remaining + earliest expire.
-     * Chỉ tính batch active của farm hiện tại.
+     * View aggregate theo SKU — 1 row = 1 sản phẩm farm cung cấp.
+     *
+     * Response shape match interface InventoryProduct ở frontend
+     * (mini app farm inventory page). Bao gồm cả sản phẩm đã gắn farm qua pivot
+     * farm_product nhưng CHƯA có batch active nào — stock=0, is_out_of_stock=true.
+     *
+     * Support filter q / category_id / stock_status / sort + paginate + stats overview.
      */
     private function indexSkus(Request $request, Farm $farm): JsonResponse
     {
-        $q = trim((string) $request->query('q', ''));
+        $q           = trim((string) $request->query('q', ''));
+        $categoryId  = $request->query('category_id');
+        $stockStatus = (string) $request->query('stock_status', 'all');
+        $sort        = (string) $request->query('sort', 'name');
+        $perPage     = max(1, min((int) $request->query('per_page', 20), 100));
+        $lowThr      = StockService::LOW_STOCK_THRESHOLD;
 
-        $rows = FarmStockBatch::query()
-            ->leftJoin('zalo_products', 'zalo_products.id', '=', 'farm_stock_batches.product_id')
-            ->where('farm_stock_batches.farm_id', $farm->id)
-            ->where('farm_stock_batches.status', 'active')
-            ->where('farm_stock_batches.quantity_remaining', '>', 0)
-            ->when($q !== '', fn ($qb) => $qb->where('zalo_products.name', 'like', "%{$q}%"))
+        // Base query: tất cả SP gắn farm qua pivot, LEFT join batch active để vẫn
+        // hiện SP chưa nhập kho (stock=0). Categories left-join vì zalo_products
+        // cho phép category_id NULL (onDelete set null).
+        $base = DB::table('zalo_products')
+            ->join('farm_product', function ($j) use ($farm) {
+                $j->on('farm_product.product_id', '=', 'zalo_products.id')
+                  ->where('farm_product.farm_id', '=', $farm->id);
+            })
+            ->leftJoin('zalo_categories', 'zalo_categories.id', '=', 'zalo_products.category_id')
+            ->leftJoin('farm_stock_batches', function ($j) use ($farm) {
+                $j->on('farm_stock_batches.product_id', '=', 'zalo_products.id')
+                  ->where('farm_stock_batches.farm_id', '=', $farm->id)
+                  ->where('farm_stock_batches.status', '=', 'active')
+                  ->where('farm_stock_batches.quantity_remaining', '>', 0);
+            })
+            ->groupBy(
+                'zalo_products.id',
+                'zalo_products.name',
+                'zalo_products.image',
+                'zalo_products.category_id',
+                'zalo_categories.name'
+            )
             ->selectRaw('
-                farm_stock_batches.product_id AS product_id,
-                COALESCE(zalo_products.name, \'\') AS name,
-                COALESCE(zalo_products.image, \'\') AS image,
-                SUM(farm_stock_batches.quantity_remaining) AS total_remaining,
-                COUNT(*) AS batches_count,
-                MIN(farm_stock_batches.expire_date) AS earliest_expire
-            ')
-            ->groupBy('farm_stock_batches.product_id', 'name', 'image')
-            ->orderByDesc('total_remaining')
-            ->get();
+                zalo_products.id AS id,
+                zalo_products.name AS name,
+                zalo_products.image AS image,
+                zalo_products.category_id AS category_id,
+                zalo_categories.name AS category_name,
+                COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) AS stock
+            ');
 
-        $items = $rows->map(fn ($r) => [
-            'product_id'      => (int) $r->product_id,
-            'name'            => (string) $r->name,
-            'image'           => (string) $r->image,
-            'total_remaining' => round((float) $r->total_remaining, 2),
-            'batches_count'   => (int) $r->batches_count,
-            'earliest_expire' => $r->earliest_expire,
-        ])->all();
+        if ($q !== '') {
+            $base->where('zalo_products.name', 'like', "%{$q}%");
+        }
+        if ($categoryId !== null && $categoryId !== '' && $categoryId !== 'all') {
+            $base->where('zalo_products.category_id', (int) $categoryId);
+        }
+
+        // stock_status filter: dùng HAVING vì stock là aggregate
+        switch ($stockStatus) {
+            case 'in_stock':
+                $base->havingRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) > ?', [$lowThr]);
+                break;
+            case 'low':
+                $base->havingRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) > 0')
+                     ->havingRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) <= ?', [$lowThr]);
+                break;
+            case 'out':
+                $base->havingRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) <= 0');
+                break;
+        }
+
+        switch ($sort) {
+            case 'low_first':
+                // Hết hàng (0) trước, rồi sắp hết, rồi tăng dần tồn
+                $base->orderByRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) ASC')
+                     ->orderBy('zalo_products.name');
+                break;
+            case 'stock_asc':
+                $base->orderByRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) ASC');
+                break;
+            case 'stock_desc':
+                $base->orderByRaw('COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) DESC');
+                break;
+            case 'name':
+            default:
+                $base->orderBy('zalo_products.name');
+                break;
+        }
+
+        $paginator = $base->paginate($perPage);
+
+        $items = collect($paginator->items())->map(function ($r) use ($lowThr) {
+            $stock = (float) $r->stock;
+            return [
+                'id'              => (int) $r->id,
+                'name'            => (string) $r->name,
+                'category'        => $r->category_name !== null ? (string) $r->category_name : null,
+                'category_id'     => $r->category_id !== null ? (int) $r->category_id : null,
+                'image_url'       => $this->resolveImageUrl($r->image),
+                'stock'           => $stock,
+                'stock_reserved'  => 0.0,
+                'stock_available' => $stock,
+                'reorder_point'   => $lowThr,
+                'is_low_stock'    => $stock > 0 && $stock <= $lowThr,
+                'is_out_of_stock' => $stock <= 0,
+            ];
+        })->all();
 
         return response()->json([
             'error' => false,
             'data'  => $items,
-            'meta'  => ['view' => 'skus'],
+            'meta'  => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'view'         => 'skus',
+            ],
+            'stats' => $this->statsForFarm($farm, $lowThr),
         ]);
+    }
+
+    /**
+     * Stats overview: không áp filter q/category/stock_status — luôn là tổng quan farm.
+     *   total_products    = số SKU gắn pivot
+     *   total_stock       = SUM remaining trên mọi batch active của farm
+     *   low_stock_count   = số SKU có 0 < stock <= LOW_STOCK_THRESHOLD
+     *   out_of_stock_count = số SKU stock <= 0
+     */
+    private function statsForFarm(Farm $farm, int $lowThr): array
+    {
+        $rows = DB::table('zalo_products')
+            ->join('farm_product', function ($j) use ($farm) {
+                $j->on('farm_product.product_id', '=', 'zalo_products.id')
+                  ->where('farm_product.farm_id', '=', $farm->id);
+            })
+            ->leftJoin('farm_stock_batches', function ($j) use ($farm) {
+                $j->on('farm_stock_batches.product_id', '=', 'zalo_products.id')
+                  ->where('farm_stock_batches.farm_id', '=', $farm->id)
+                  ->where('farm_stock_batches.status', '=', 'active')
+                  ->where('farm_stock_batches.quantity_remaining', '>', 0);
+            })
+            ->groupBy('zalo_products.id')
+            ->selectRaw('
+                zalo_products.id AS id,
+                COALESCE(SUM(farm_stock_batches.quantity_remaining), 0) AS stock
+            ')
+            ->get();
+
+        $total       = $rows->count();
+        $totalStock  = (float) $rows->sum('stock');
+        $lowCount    = $rows->filter(fn ($r) => $r->stock > 0 && $r->stock <= $lowThr)->count();
+        $outCount    = $rows->filter(fn ($r) => $r->stock <= 0)->count();
+
+        return [
+            'total_products'     => $total,
+            'low_stock_count'    => $lowCount,
+            'out_of_stock_count' => $outCount,
+            'total_stock'        => $totalStock,
+        ];
+    }
+
+    /**
+     * Resolve image URL — tái sử dụng logic của ZaloProduct::getImageUrlAttribute()
+     * nhưng nhận trực tiếp raw image string (vì query builder không hydrate model).
+     */
+    private function resolveImageUrl(?string $image): string
+    {
+        if (!$image) {
+            return rtrim((string) config('app.url'), '/') . '/images/no-image.png';
+        }
+        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) {
+            return $image;
+        }
+        return rtrim((string) config('app.url'), '/') . '/' . ltrim($image, '/');
     }
 
     /**
