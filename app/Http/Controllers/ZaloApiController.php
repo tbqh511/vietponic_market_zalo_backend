@@ -819,9 +819,11 @@ class ZaloApiController extends Controller
             // Find or create customer based on Zalo ID
             $customer = Customer::where('firebase_id', $zaloProfile['id'])->first();
 
+            $zaloName = trim((string) ($zaloProfile['name'] ?? ''));
+
             if (!$customer) {
                 $customer = Customer::create([
-                    'name'        => $zaloProfile['name'] ?? 'Zalo User',
+                    'name'        => $zaloName !== '' ? $zaloName : 'Zalo User',
                     'email'       => $zaloProfile['id'] . '@zalo.user',
                     'firebase_id' => $zaloProfile['id'],
                     'mobile'      => $phoneNumber,
@@ -831,9 +833,21 @@ class ZaloApiController extends Controller
                     'logintype'   => 'zalo',
                     'isActive'    => 1,
                 ]);
-            } elseif ($phoneNumber && !$customer->mobile) {
-                // Cập nhật số điện thoại nếu chưa có
-                $customer->update(['mobile' => $phoneNumber]);
+            } else {
+                // Backfill các trường mà lần auth trước Zalo chưa trả về:
+                //  - name: lần đầu fallback 'Zalo User' khi user chưa cấp scope.userInfo.
+                //    Khi user cấp quyền lại, Zalo trả tên thật — đồng bộ về DB.
+                //  - mobile: tương tự với phone_token.
+                $updates = [];
+                if ($zaloName !== '' && ($customer->name === null || $customer->name === '' || $customer->name === 'Zalo User')) {
+                    $updates['name'] = $zaloName;
+                }
+                if ($phoneNumber && !$customer->mobile) {
+                    $updates['mobile'] = $phoneNumber;
+                }
+                if (!empty($updates)) {
+                    $customer->update($updates);
+                }
             }
 
             // Generate JWT token

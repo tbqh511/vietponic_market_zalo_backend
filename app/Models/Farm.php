@@ -40,11 +40,13 @@ class Farm extends Model
     ];
 
     protected $casts = [
-        'is_active'       => 'boolean',
-        'approved_at'     => 'datetime',
-        'lat'             => 'decimal:7',
-        'lng'             => 'decimal:7',
-        'commission_rate' => 'decimal:4',
+        'is_active'         => 'boolean',
+        'approved_at'       => 'datetime',
+        'lat'               => 'decimal:7',
+        'lng'               => 'decimal:7',
+        'commission_rate'   => 'decimal:4',
+        'owner_customer_id' => 'integer',
+        'approved_by'       => 'integer',
     ];
 
     /**

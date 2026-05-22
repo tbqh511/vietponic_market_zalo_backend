@@ -45,7 +45,9 @@ class Customer extends Authenticatable implements JWTSubject
     ];
 
     protected $casts = [
-        'affiliate_approved_at' => 'datetime',
+        'affiliate_approved_at'   => 'datetime',
+        'farm_id'                 => 'integer',
+        'referred_by_customer_id' => 'integer',
     ];
 
     protected $hidden = [
