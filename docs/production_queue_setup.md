@@ -40,7 +40,14 @@ php artisan tinker --execute="echo Schema::hasTable('jobs') ? 'jobs OK' : 'MISSI
 
 ---
 
-## 2. Cài queue worker bằng Supervisor
+## 2. Cài queue worker
+
+Có 2 cách tuỳ môi trường:
+
+- **Option A — Supervisor** (khuyến nghị nếu có quyền sudo trên VPS/Dedicated). Worker chạy liên tục, latency thấp.
+- **Option B — Crontab** (workaround cho shared hosting không có Supervisor). Worker chạy mỗi phút, xử lý hết job rồi thoát. Latency tối đa ~60s.
+
+### Option A — Supervisor (VPS/Dedicated)
 
 Tạo `/etc/supervisor/conf.d/vietponics-worker.conf` (đổi `APP_PATH`, `USER` cho phù hợp):
 
@@ -78,6 +85,30 @@ Sau mỗi deploy code, **luôn** chạy:
 php artisan queue:restart   # signal worker tự graceful restart
 # HOẶC nếu cần restart ngay:
 sudo supervisorctl restart vietponics-worker:*
+```
+
+### Option B — Crontab workaround (shared hosting)
+
+Khi không có quyền cài Supervisor (vd qymxlvghhosting và các shared hosting tương tự), thêm dòng sau vào `crontab -e` của user chạy app:
+
+```cron
+* * * * * cd /home/qymxlvghhosting/public_html/vietponics.vn/laravel && php artisan queue:work --stop-when-empty --tries=3 --timeout=60 >> storage/logs/worker-cron.log 2>&1
+```
+
+Đổi đường dẫn `/home/qymxlvghhosting/...` cho phù hợp với layout hosting thật. Cron gọi mỗi phút, worker xử lý hết job đang có rồi tự thoát (`--stop-when-empty`) — không để 2 worker chạy song song.
+
+Trade-off so với Supervisor:
+
+- **Latency**: tối đa 60s/batch (Supervisor: ~3s vì có `--sleep=3`). Với `CheckPaymentStatus` đã có safety net `/notify` webhook, mức latency này chấp nhận được.
+- **Reload code**: không cần `queue:restart` sau deploy — worker mới mỗi phút.
+- **Concurrency**: chỉ 1 process tại một thời điểm. Nếu burst > 60 jobs/phút worker sẽ không bắt kịp — khi đó phải nâng cấp lên VPS + Supervisor.
+
+Verify cron đang chạy:
+
+```bash
+crontab -l | grep queue:work
+tail -f /home/qymxlvghhosting/public_html/vietponics.vn/laravel/storage/logs/worker-cron.log
+# kỳ vọng: thấy dòng log mới mỗi phút (kể cả khi queue rỗng — `--stop-when-empty` thoát ngay)
 ```
 
 ---
@@ -211,7 +242,7 @@ Cho tới khi resolve, đặt giả định: **toàn bộ refund ZaloPay đi qua
 
 - [ ] `QUEUE_CONNECTION=database` trong `.env` prod
 - [ ] Migration `2026_05_22_000001_create_jobs_table` đã chạy (`php artisan migrate:status`)
-- [ ] Supervisor config tạo + 2 worker process đang RUNNING
+- [ ] Queue worker đang chạy — Supervisor (VPS) hoặc cron `queue:work --stop-when-empty` mỗi phút (shared hosting)
 - [ ] Cron `* * * * * php artisan schedule:run` đã có trong `crontab -u www-data -l`
 - [ ] Smoke test 4.1 pass (queue pick up job test)
 - [ ] Smoke test 4.2 pass (`orders:auto-cancel-stale --dry-run` không error)

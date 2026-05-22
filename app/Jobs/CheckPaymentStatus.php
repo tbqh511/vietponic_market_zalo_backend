@@ -114,9 +114,27 @@ class CheckPaymentStatus implements ShouldQueue
         }
 
         $order->refresh();
-        if ($order->payment_status === 'pending' && $this->attempt < 2) {
+
+        // Đã có kết quả (success/failed/cod) từ /notify hoặc lần check này → dừng poll.
+        // Quan trọng: refresh() ngay trước khi quyết định reschedule để tránh zombie jobs
+        // khi /notify chạy song song và đã set payment_status sau khi job này bắt đầu.
+        if ($order->payment_status !== 'pending') {
+            Log::info('CheckPaymentStatus: đã có payment_status, dừng poll', [
+                'orderId'        => $this->orderId,
+                'payment_status' => $order->payment_status,
+                'attempt'        => $this->attempt,
+            ]);
+            return;
+        }
+
+        if ($this->attempt < 2) {
             // Backoff: 30s (lần đầu) → 2min → 10min, sau đó dừng.
             $nextDelay = $this->attempt === 0 ? 120 : 600;
+            Log::info('CheckPaymentStatus: reschedule', [
+                'orderId'    => $this->orderId,
+                'attempt'    => $this->attempt + 1,
+                'delay_secs' => $nextDelay,
+            ]);
             self::dispatch($this->orderId, $this->checkoutSdkOrderId, $this->miniAppId, $this->attempt + 1)
                 ->delay(now()->addSeconds($nextDelay));
         }
