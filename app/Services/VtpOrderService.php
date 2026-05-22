@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Station;
 use App\Models\VtpTrackingEvent;
+use App\Models\VtpWard;
 use App\Models\ZaloOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,13 @@ class VtpOrderService
         );
         if (!$station) {
             throw new \RuntimeException("Không tìm thấy trạm lấy hàng cho order #{$order->id} (province={$delivery->province_id}).");
+        }
+
+        // Nếu delivery không có district_id (v3 API bỏ cấp huyện), tự lookup từ ward
+        $receiverDistrict = (int) ($delivery->district_id ?? 0);
+        if (!$receiverDistrict && $delivery->ward_id) {
+            $ward = VtpWard::find($delivery->ward_id);
+            $receiverDistrict = (int) ($ward?->district_id ?? 0);
         }
 
         // 2. Build LIST_ITEM + tổng weight (lấy weight từ ZaloProduct qua relation/query)
@@ -103,7 +111,7 @@ class VtpOrderService
             'RECEIVER_ADDRESS'   => (string) $delivery->address,
             'RECEIVER_PHONE'     => (string) ($delivery->phone ?? ''),
             'RECEIVER_PROVINCE'  => (int) ($delivery->province_id ?? 0),
-            'RECEIVER_DISTRICT'  => (int) ($delivery->district_id ?? 0),
+            'RECEIVER_DISTRICT'  => $receiverDistrict,
             'RECEIVER_WARD'      => (int) ($delivery->ward_id ?? 0),
             'PRODUCT_NAME'       => $this->buildProductName($items),
             'PRODUCT_DESCRIPTION'=> 'Đơn hàng Vietponics #' . $order->id,
