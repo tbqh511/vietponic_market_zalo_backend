@@ -128,6 +128,8 @@
 | 48 | Refund pending_manual khi user cancel sau BANK đã trả | User thanh toán BANK_SANDBOX thành công, sau đó vào `/orders` huỷ đơn. Kỳ vọng: `refund_status='pending_manual'`, đơn xuất hiện trong admin dashboard `/admin/refunds/pending`. | E2E, Backend |
 | 49 | Admin confirm manual refund | Admin click "Đã hoàn tiền" trên dashboard. Kỳ vọng: `refund_status='refunded'`, `refunded_at` được set, đơn biến khỏi list, badge counter giảm. | UI, Backend |
 
+> **⚠️ Lưu ý refund ZaloPay (2026-05-22):** Probe `php artisan zalopay:probe-refund` trên sandbox cho thấy endpoint `payment-mini.zalo.me/api/transaction/refund` trả `200 + []` (không có `returnCode`). `ZaloPayRefundClient::requestRefund()` hiện sẽ fallback `pending_manual` cho mọi đơn ZaloPay. Xem [docs/production_queue_setup.md](docs/production_queue_setup.md#%EF%B8%8F-zalopay-refund-endpoint--chưa-confirm) để rõ action items.
+
 ---
 
 ## Phase 9 — Regression & Production Readiness
