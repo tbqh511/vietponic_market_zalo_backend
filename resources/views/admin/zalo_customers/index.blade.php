@@ -95,7 +95,7 @@
 
                         {{-- Trạng thái Farm Partner + thao tác inline --}}
                         <td class="text-center">
-                            @php($fps = $c->farm_partner_status ?: 'none')
+                            @php $fps = $c->farm_partner_status ?: 'none'; @endphp
                             <div class="d-flex flex-column align-items-center gap-1">
                                 @if($fps === 'approved' && $c->isFarmOwner())
                                     <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Chủ farm</span>

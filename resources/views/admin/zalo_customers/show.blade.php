@@ -139,7 +139,7 @@
         <h5 class="mb-0"><i class="bi bi-tree"></i> Farm Partner</h5>
     </div>
     <div class="card-body">
-        @php($fps = $customer->farm_partner_status ?: 'none')
+        @php $fps = $customer->farm_partner_status ?: 'none'; @endphp
         <table class="table table-sm mb-0" style="max-width:520px;">
             <tr>
                 <td class="text-muted" style="width:40%">Trạng thái</td>
