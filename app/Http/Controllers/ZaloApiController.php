@@ -167,6 +167,39 @@ class ZaloApiController extends Controller
         $delivery = $request->delivery;
         $note = $request->note ?? '';
 
+        // Idempotency dedupe: chặn 2 request giống hệt nhau từ cùng 1 khách trong
+        // cửa sổ 90s tạo 2 đơn (defense-in-depth cho double-click ở FE khi
+        // PaymentDone event không fire ngay với COD/sandbox).
+        //
+        // Khoá: customer_id + items (id+qty) + total + payment_method + delivery type.
+        // Nếu request thứ 2 đến trong khi request đầu chưa trả response, trả về
+        // chính orderId của request đầu (vẫn 201) để client không tạo đơn thứ 2.
+        $itemSig = collect($items)
+            ->map(fn ($i) => $i['product_id'] . ':' . $i['quantity'])
+            ->sort()
+            ->implode('|');
+        $idempotencyKey = 'zalo_order_dedupe:' . md5(implode(';', [
+            $customerId,
+            $itemSig,
+            (string) $request->input('total'),
+            strtoupper((string) $request->input('payment_method', '')),
+            $delivery['type'] ?? '',
+        ]));
+
+        $cachedOrderId = Cache::get($idempotencyKey);
+        if ($cachedOrderId) {
+            Log::info('Zalo Order: idempotency hit, trả về order cũ', [
+                'customer_id' => $customerId,
+                'order_id'    => $cachedOrderId,
+                'key'         => $idempotencyKey,
+            ]);
+            return response()->json([
+                'message'    => 'Đã tạo đơn hàng thành công!',
+                'orderId'    => $cachedOrderId,
+                'duplicated' => true,
+            ], 201);
+        }
+
         // Server-side validate total: tính lại từ giá sản phẩm trong DB, ghi đè total từ client
         $productIds = collect($items)->pluck('product_id')->toArray();
         $products = ZaloProduct::whereIn('id', $productIds)->get()->keyBy('id');
@@ -398,12 +431,15 @@ class ZaloApiController extends Controller
             }
         }
 
+        // Lưu idempotency key để chặn request trùng trong 90s tiếp theo.
+        Cache::put($idempotencyKey, $order->id, now()->addSeconds(90));
+
         return response()->json([
             'message' => 'Đã tạo đơn hàng thành công!',
             'orderId' => $order->id,
         ], 201);
     }
-    
+
     public function prepareOrder(Request $request)
     {
         $request->validate([
