@@ -188,7 +188,14 @@ class ShippingController extends Controller
             return response()->json(['error' => false, 'data' => $this->fallbackServices($isCod), 'fallback' => true]);
 
         } catch (\Throwable $e) {
-            Log::channel('shipping')->error('[FALLBACK] estimate: lỗi không xác định', $logContext + ['error' => $e->getMessage()]);
+            Log::channel('shipping')->error('[FALLBACK] estimate: lỗi không xác định', $logContext + [
+                'error'   => $e->getMessage(),
+                'class'   => get_class($e),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'trace'   => collect($e->getTrace())->take(5)->map(fn ($t) => ($t['file'] ?? '?') . ':' . ($t['line'] ?? '?'))->all(),
+                'payload' => $payload,
+            ]);
             return response()->json(['error' => true, 'message' => 'Không thể tính phí vận chuyển, vui lòng thử lại'], 500);
         }
     }
