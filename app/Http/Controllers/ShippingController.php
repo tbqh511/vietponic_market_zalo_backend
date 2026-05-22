@@ -182,8 +182,11 @@ class ShippingController extends Controller
             }
             return $response;
 
-        } catch (\Illuminate\Http\Client\RequestException | \Illuminate\Http\Client\ConnectionException $e) {
-            Log::channel('shipping')->warning('[FALLBACK] VTP API không phản hồi', $logContext + ['error' => $e->getMessage()]);
+        } catch (\Illuminate\Http\Client\RequestException | \Illuminate\Http\Client\ConnectionException | \RuntimeException $e) {
+            Log::channel('shipping')->warning('[FALLBACK] VTP không khả dụng', $logContext + [
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+            ]);
 
             return response()->json(['error' => false, 'data' => $this->fallbackServices($isCod), 'fallback' => true]);
 
@@ -196,7 +199,7 @@ class ShippingController extends Controller
                 'trace'   => collect($e->getTrace())->take(5)->map(fn ($t) => ($t['file'] ?? '?') . ':' . ($t['line'] ?? '?'))->all(),
                 'payload' => $payload,
             ]);
-            return response()->json(['error' => true, 'message' => 'Không thể tính phí vận chuyển, vui lòng thử lại'], 500);
+            return response()->json(['error' => false, 'data' => $this->fallbackServices($isCod), 'fallback' => true]);
         }
     }
 
