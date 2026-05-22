@@ -377,9 +377,13 @@ class ZaloApiController extends Controller
             ], 422);
         }
 
-        // Tạo đơn VTP nếu delivery type = shipping. Lỗi KHÔNG fail order
-        // (frontend đã kích hoạt SDK thanh toán) — log để admin retry qua artisan vtp:retry-create.
-        if ($order->delivery && $order->delivery->type === 'shipping') {
+        // Tạo đơn VTP ngay TẠI ĐÂY chỉ cho COD — đơn COD không có flow xác nhận
+        // payment qua webhook nên không thể dời sang listener OrderPaymentSucceeded.
+        //
+        // BANK / ZALOPAY / MOMO: VTP sẽ được tạo trong CreateVtpOrderOnPayment listener
+        // sau khi /notify hoặc CheckPaymentStatus xác nhận payment_status='success'.
+        // Tránh zombie VTP khi user huỷ giữa chừng hoặc tài khoản không đủ tiền.
+        if ($isCodOrder && $order->delivery && $order->delivery->type === 'shipping') {
             try {
                 $vtpResult = app(VtpOrderService::class)->dispatchOrderToVtp($order);
                 Log::channel('viettelpost')->info('[VTP createOrder] OK', [

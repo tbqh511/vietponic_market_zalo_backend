@@ -35,6 +35,14 @@
                                     <a href="{{ url('zalo-orders') }}">{{ __('Đơn hàng') }}</a>
                                 </li>
                                 <li class="submenu-item">
+                                    <a href="{{ route('refunds.pending') }}" class="d-flex justify-content-between align-items-center">
+                                        <span>{{ __('Hoàn tiền chờ xử lý') }}</span>
+                                        @if(($pendingRefundCount ?? 0) > 0)
+                                            <span class="badge bg-danger ms-2">{{ $pendingRefundCount }}</span>
+                                        @endif
+                                    </a>
+                                </li>
+                                <li class="submenu-item">
                                     <a href="{{ url('zalo-products') }}">{{ __('Sản phẩm') }}</a>
                                 </li>
                                 <li class="submenu-item">

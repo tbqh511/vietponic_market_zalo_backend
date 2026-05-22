@@ -87,16 +87,60 @@
 
 ---
 
-## Phase 8 — Regression & Production Readiness
+## Phase 8 — BANK Payment Failure Scenarios ⭐
+
+> **Phase mới** — verify đơn online (BANK/ZALOPAY/MOMO) được auto-recover khi
+> thanh toán fail, user huỷ giữa chừng, hoặc webhook không tới. Tiền đề: VTP
+> createOrder cho BANK đã dời sang `CreateVtpOrderOnPayment` listener, và
+> `orders:auto-cancel-stale` đã được schedule.
+
+### 8.1. Auto-cancel job
+
+| # | Test case | Mô tả | Tag |
+|---|-----------|--------|-----|
+| 31 | `orders:auto-cancel-stale --dry-run` | Chạy lệnh khi DB không có đơn match. Kỳ vọng: in `"Không có đơn nào cần auto-cancel."`, exit 0. | Backend |
+| 32 | Auto-cancel khi `payment_status='failed'` | Tạo đơn BANK_SANDBOX, set `payment_status='failed'` qua tinker. Chạy `orders:auto-cancel-stale`. Kỳ vọng: đơn chuyển `cancelled`, `cancelled_by='system'`, stock được release, voucher release (nếu có). | Backend, E2E |
+| 33 | Auto-cancel khi `payment_status='pending'` quá ngưỡng | Tạo đơn BANK_SANDBOX, backdate `created_at` 31 phút qua. Chạy job. Kỳ vọng: đơn cancel với reason `"Auto-cancel: thanh toán quá hạn (30 phút)"`. | Backend |
+| 34 | KHÔNG cancel đơn COD pending | Tạo đơn COD_SANDBOX, backdate 1 giờ. Chạy job. Kỳ vọng: đơn KHÔNG bị cancel (COD có thể chờ lâu). | Backend |
+| 35 | KHÔNG cancel đơn BANK pending mới (< 30 phút) | Tạo đơn BANK_SANDBOX vừa đặt. Chạy job. Kỳ vọng: đơn KHÔNG bị cancel. | Backend |
+| 36 | KHÔNG cancel đơn `payment_status='success'` | Tạo đơn BANK_SANDBOX, set `payment_status='success'`. Chạy job. Kỳ vọng: đơn KHÔNG bị cancel. | Backend |
+| 37 | Idempotency — chạy job 2 lần liên tiếp | Sau khi đơn đã bị auto-cancel ở lần 1, chạy lại job. Kỳ vọng: không cancel lại, stock không bị release âm. | Backend |
+| 38 | Race condition với webhook | Đơn pending > 30 phút. Webhook `/notify` resultCode=1 đến CHÍNH XÁC khi job đang lock đơn. Kỳ vọng: hoặc webhook thắng (đơn success, không cancel) hoặc job thắng (đơn cancel, webhook return order not found gracefully). Không có inconsistent state. | Backend, E2E |
+
+### 8.2. VTP timing — chỉ tạo sau payment success
+
+| # | Test case | Mô tả | Tag |
+|---|-----------|--------|-----|
+| 39 | COD shipping → VTP tạo ngay ở `store()` | Đặt đơn COD_SANDBOX type=shipping. Kỳ vọng: ngay sau `/checkout` response, `zalo_deliveries.vtp_order_number` đã có giá trị. | API, Backend |
+| 40 | BANK shipping pending → CHƯA có VTP | Đặt đơn BANK_SANDBOX type=shipping nhưng không thanh toán. Kỳ vọng: `vtp_order_number IS NULL` cho tới khi payment success. | API, Backend |
+| 41 | BANK shipping success → VTP tạo qua listener | Hoàn tất thanh toán BANK_SANDBOX. Kỳ vọng: sau khi `/notify` set `payment_status='success'`, listener `CreateVtpOrderOnPayment` fire và `vtp_order_number` được populate (verify trong log channel `viettelpost`). | Backend, E2E |
+| 42 | BANK pickup success → KHÔNG tạo VTP | Đặt đơn BANK_SANDBOX type=pickup. Thanh toán xong. Kỳ vọng: listener skip, `vtp_order_number IS NULL` (pickup không cần VTP). | Backend |
+| 43 | Listener idempotent | Trigger event `OrderPaymentSucceeded` 2 lần cho cùng đơn (vd webhook retry). Kỳ vọng: VTP chỉ tạo 1 lần, lần 2 skip qua guard `!empty(vtp_order_number)`. | Backend |
+
+### 8.3. User failure scenarios (E2E)
+
+| # | Test case | Mô tả | Tag |
+|---|-----------|--------|-----|
+| 44 | Tài khoản BANK không đủ tiền | Trên thiết bị thật: chọn BANK_SANDBOX với tài khoản test có balance=0. Kỳ vọng: SDK trả `resultCode=-1`, toast lỗi. Kiểm tra log có request `/notify` đến không. | E2E, UI |
+| 45 | User huỷ giữa SDK | Mở SDK BANK_SANDBOX, bấm Back/Cancel. Kỳ vọng: KHÔNG có event `PaymentDone`. Đơn ở `payment_status='pending'`. Sau 30 phút, auto-cancel job xử lý. | E2E |
+| 46 | User đóng app sau khi mở SDK | Mở SDK BANK_SANDBOX, kill app process. Kỳ vọng: đơn `payment_status='pending'`. `CheckPaymentStatus` poll job 30s/2min/10min không thấy success. Sau 30 phút từ `created_at`, auto-cancel job xử lý. Stock được release. | E2E |
+| 47 | Webhook /notify không tới (network failure) | Block outbound từ Zalo bằng firewall (hoặc thay ngrok URL). Thanh toán BANK_SANDBOX thành công ở phía Zalo nhưng webhook không tới backend. Kỳ vọng: `CheckPaymentStatus` poll job (30s → 2min → 10min) verify với Zalo qua `get-status` và set `payment_status='success'`. Listener tạo VTP. | E2E, Backend |
+| 48 | Refund pending_manual khi user cancel sau BANK đã trả | User thanh toán BANK_SANDBOX thành công, sau đó vào `/orders` huỷ đơn. Kỳ vọng: `refund_status='pending_manual'`, đơn xuất hiện trong admin dashboard `/admin/refunds/pending`. | E2E, Backend |
+| 49 | Admin confirm manual refund | Admin click "Đã hoàn tiền" trên dashboard. Kỳ vọng: `refund_status='refunded'`, `refunded_at` được set, đơn biến khỏi list, badge counter giảm. | UI, Backend |
+
+---
+
+## Phase 9 — Regression & Production Readiness
 
 > **Bước cuối cùng** — chỉ thực hiện sau khi tất cả các phase trên đã pass.
 
 | # | Test case | Mô tả | Tag |
 |---|-----------|--------|-----|
-| 31 | Đổi channels sang `COD` và `BANK` | Thay `COD_SANDBOX` → `COD`, `BANK_SANDBOX` → `BANK` trong `hooks.ts`. Test toàn bộ luồng lại với phương thức thật. | UI, E2E |
-| 32 | Đổi key sang production (`.env`) | Cập nhật `ZALO_CHECK_OUT_SECRET` và `ZALO_APP_SECRET` sang giá trị production. Kiểm tra MAC vẫn đúng. | Backend |
-| 33 | Test trên thiết bị thật qua QR | Scan QR từ Zalo Developer Console, chạy toàn bộ luồng từ chọn sản phẩm → thanh toán → xem đơn. | E2E, UI |
-| 34 | Kiểm tra log lỗi production | Sau khi go-live: theo dõi `storage/logs/laravel.log` 24h đầu. Đặc biệt chú ý lỗi Notify SDK và `CheckPaymentStatus` job. | Backend |
+| 50 | Đổi channels sang `COD` và `BANK` | Thay `COD_SANDBOX` → `COD`, `BANK_SANDBOX` → `BANK` trong `hooks.ts`. Test toàn bộ luồng lại với phương thức thật. | UI, E2E |
+| 51 | Đổi key sang production (`.env`) | Cập nhật `ZALO_CHECK_OUT_SECRET` và `ZALO_APP_SECRET` sang giá trị production. Kiểm tra MAC vẫn đúng. | Backend |
+| 52 | Verify cron `orders:auto-cancel-stale` đang chạy | Trên server production: `crontab -l` có entry `* * * * * php artisan schedule:run`. Tail log để xác nhận lệnh fire mỗi 5 phút. | Backend |
+| 53 | Test trên thiết bị thật qua QR | Scan QR từ Zalo Developer Console, chạy toàn bộ luồng từ chọn sản phẩm → thanh toán → xem đơn. | E2E, UI |
+| 54 | Kiểm tra log lỗi production | Sau khi go-live: theo dõi `storage/logs/laravel.log` 24h đầu. Đặc biệt chú ý lỗi Notify SDK, `CheckPaymentStatus` job, và channel `viettelpost` (CreateVtpOrderOnPayment fail). | Backend |
 
 ---
 
@@ -111,9 +155,10 @@
 | 5 | Webhook Notify SDK | 5 |
 | 6 | Xác nhận kết quả & PaymentDone | 4 |
 | 7 | Quản lý đơn hàng (Admin) | 3 |
-| 8 | Regression & Production Readiness | 4 |
-| **Tổng** | | **34** |
+| 8 | BANK Payment Failure Scenarios | 19 |
+| 9 | Regression & Production Readiness | 5 |
+| **Tổng** | | **54** |
 
 ---
 
-> **Lưu ý:** Phase 1–3 nên chạy trước để có nền tảng. Phase 4–6 chạy song song vì liên quan trực tiếp đến nhau. Phase 8 chỉ thực hiện sau khi tất cả các phase trước đã pass hoàn toàn.
+> **Lưu ý:** Phase 1–3 nên chạy trước để có nền tảng. Phase 4–6 chạy song song vì liên quan trực tiếp đến nhau. **Phase 8 phải pass trước Phase 9** — đây là phần verify các fix cho zombie VTP và stock-leak. Phase 9 chỉ thực hiện sau khi tất cả các phase trước đã pass hoàn toàn.

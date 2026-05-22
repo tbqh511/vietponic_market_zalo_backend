@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use App\Console\Commands\AutoCancelStaleOrders;
 use App\Console\Commands\ClearRedisCache;
 use App\Console\Commands\FarmsSnapshotDaily;
 use App\Console\Commands\SeedProductDimensions;
@@ -13,6 +14,7 @@ use App\Console\Commands\VtpRefreshToken;
 class Kernel extends ConsoleKernel
 {
     protected $commands = [
+        AutoCancelStaleOrders::class,
         ClearRedisCache::class,
         FarmsSnapshotDaily::class,
         SeedProductDimensions::class,
@@ -42,6 +44,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('vtp:retry-cancel')
             ->everyThirtyMinutes()
             ->withoutOverlapping();
+
+        // Auto-cancel đơn online (BANK/ZALOPAY/MOMO) bị kẹt: payment_status='failed'
+        // hoặc 'pending' > 30 phút. Release stock + voucher + cancel VTP. Chạy mỗi
+        // 5 phút để release stock kịp thời, không quá tải DB (limit=100/lần).
+        $schedule->command('orders:auto-cancel-stale')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
     }
 
     /**
