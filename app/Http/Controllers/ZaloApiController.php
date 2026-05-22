@@ -1136,6 +1136,19 @@ class ZaloApiController extends Controller
             $resultCode = $data['resultCode'] ?? 1;
             $paymentStatus = ((int) $resultCode === 1) ? 'success' : 'failed';
 
+            // COD chưa thu tiền thật — tiền chỉ thu khi giao hàng. Webhook /notify
+            // của Zalo SDK vẫn được gọi sau khi khách chọn COD, nhưng không được
+            // chuyển payment_status sang 'success' (sẽ sai dữ liệu kế toán và
+            // trigger trừ kho / ghi commission sai thời điểm). Chỉ lưu method.
+            $isCodMethod = str_starts_with(strtoupper($method), 'COD');
+            if ($isCodMethod) {
+                $order->update(['payment_method' => $method]);
+                return response()->json([
+                    'returnCode' => 1,
+                    'returnMessage' => 'Success',
+                ]);
+            }
+
             $order->update([
                 'payment_method' => $method,
                 'payment_status' => $paymentStatus,

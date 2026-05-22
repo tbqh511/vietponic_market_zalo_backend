@@ -46,7 +46,7 @@ class CommissionCreditedOnPaymentTest extends TestCase
         $data = [
             'appId' => '1234567890',
             'orderId' => $sdkOrderId,
-            'method' => 'COD_SANDBOX',
+            'method' => 'BANK_SANDBOX',
             'resultCode' => 1,
         ];
         ksort($data);
@@ -63,6 +63,42 @@ class CommissionCreditedOnPaymentTest extends TestCase
         $row = AffiliateCommission::where('order_id', $order->id)->first();
         $this->assertEquals(5000, $row->commission_amount);
         $this->assertEquals('confirmed', $row->status);
+    }
+
+    public function test_webhook_notify_cod_keeps_status_and_skips_commission(): void
+    {
+        $secret = env('ZALO_CHECK_OUT_SECRET');
+        $sdkOrderId = 'sdk-order-cod-001';
+        $order = ZaloOrder::create([
+            'customer_id' => $this->referred->id,
+            'status' => 'pending',
+            'payment_status' => 'cod',
+            'payment_method' => 'COD_SANDBOX',
+            'total' => 100000,
+            'checkout_sdk_order_id' => $sdkOrderId,
+            'created_at' => now(),
+        ]);
+
+        $data = [
+            'appId' => '1234567890',
+            'orderId' => $sdkOrderId,
+            'method' => 'COD_SANDBOX',
+            'resultCode' => 1,
+        ];
+        ksort($data);
+        $raw = implode('&', array_map(fn($k, $v) => "$k=$v", array_keys($data), array_values($data)));
+        $mac = hash_hmac('sha256', $raw, $secret);
+
+        $response = $this->postJson('/api/notify', [
+            'data' => $data,
+            'overallMac' => $mac,
+        ]);
+        $response->assertOk()->assertJson(['returnCode' => 1]);
+
+        $order->refresh();
+        $this->assertEquals('cod', $order->payment_status);
+        $this->assertEquals('COD_SANDBOX', $order->payment_method);
+        $this->assertEquals(0, AffiliateCommission::where('order_id', $order->id)->count());
     }
 
     public function test_job_polling_path_credits_commission(): void
