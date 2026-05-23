@@ -21,15 +21,64 @@ class ZaloOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = ZaloOrder::query();
-        if ($request->has('customer_id') && $request->customer_id) {
+        $query = ZaloOrder::query()
+            ->with(['customer', 'delivery'])
+            ->withCount('items');
+
+        if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
         }
-        if ($request->has('status') && $request->status) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        $orders = $query->orderBy('id', 'desc')->get();
-        return view('admin.zalo_orders.index', compact('orders'));
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+        if ($request->filled('q')) {
+            $term = trim($request->q);
+            $query->where(function ($q) use ($term) {
+                $q->where('id', $term)
+                  ->orWhere('customer_id', $term)
+                  ->orWhereHas('customer', function ($c) use ($term) {
+                      $c->where('name', 'like', "%{$term}%")
+                        ->orWhere('mobile', 'like', "%{$term}%");
+                  });
+            });
+        }
+
+        // Summary stats trên TOÀN BỘ tập đã lọc (không chỉ trang hiện tại).
+        $statsQuery   = (clone $query);
+        $totalOrders  = (clone $statsQuery)->count();
+        $totalRevenue = (clone $statsQuery)
+            ->whereNotIn('status', ['cancelled'])
+            ->sum('total');
+        $pendingCount = (clone $statsQuery)->where('status', 'pending')->count();
+        $unpaidCount  = (clone $statsQuery)
+            ->whereIn('payment_status', ['pending'])
+            ->count();
+
+        $orders = $query->orderBy('id', 'desc')->paginate(20)->withQueryString();
+
+        // Danh sách trạng thái cho dropdown filter.
+        $statusOptions = [
+            'pending'    => 'Chờ xác nhận',
+            'confirmed'  => 'Đã xác nhận',
+            'preparing'  => 'Đang chuẩn bị',
+            'delivering' => 'Đang giao',
+            'delivered'  => 'Đã giao',
+            'cancelled'  => 'Đã huỷ',
+        ];
+
+        return view('admin.zalo_orders.index', compact(
+            'orders', 'statusOptions',
+            'totalOrders', 'totalRevenue', 'pendingCount', 'unpaidCount'
+        ));
     }
 
     public function show($id)
