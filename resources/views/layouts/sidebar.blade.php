@@ -23,68 +23,101 @@
                             </a>
                         </li>
                     @endif
-                    {{-- Zalo management menu --}}
-                    {{--@if(has_permissions('read', 'zalo_categories') || has_permissions('read', 'zalo_products'))--}}
-                        <li class="sidebar-item has-sub">
-                            <a href="#" class='sidebar-link'>
-                                <i class="bi bi-box-seam"></i>
-                                <span class="menu-item">{{ __('Quản lý Zalo') }}</span>
-                            </a>
-                            <ul class="submenu" style="padding-left: 0rem">
-                                <li class="submenu-item">
-                                    <a href="{{ url('zalo-orders') }}">{{ __('Đơn hàng') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ route('refunds.pending') }}" class="d-flex justify-content-between align-items-center">
-                                        <span>{{ __('Hoàn tiền chờ xử lý') }}</span>
-                                        @if(($pendingRefundCount ?? 0) > 0)
-                                            <span class="badge bg-danger ms-2">{{ $pendingRefundCount }}</span>
-                                        @endif
-                                    </a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('zalo-products') }}">{{ __('Sản phẩm') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('zalo-categories') }}">{{ __('Danh mục') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('zalo-stations') }}">{{ __('Trạm lấy hàng') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('vouchers') }}">{{ __('Mã giảm giá') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ route('inventory.index') }}">{{ __('Quản lý Tồn kho') }}</a>
-                                </li>
-                                <li class="submenu-item">
-                                    <a href="{{ url('zalo-customers') }}">{{ __('Khách hàng') }}</a>
-                                </li>
-                            </ul>
-                        </li>
-                    {{--@endif--}}
-
-                    {{-- Farm Partner Hub — quản trị đối tác cung cấp rau --}}
+                    {{-- Quản lý Bán hàng --}}
                     <li class="sidebar-item has-sub">
                         <a href="#" class='sidebar-link'>
-                            <i class="bi bi-tree"></i>
-                            <span class="menu-item">{{ __('Quản lý Farm') }}</span>
+                            <i class="bi bi-cart-fill"></i>
+                            <span class="menu-item">{{ __('Quản lý Bán hàng') }}</span>
                         </a>
                         <ul class="submenu" style="padding-left: 0rem">
                             <li class="submenu-item">
-                                <a href="{{ url('farms') }}">{{ __('Danh sách Farm') }}</a>
+                                <a href="{{ url('zalo-orders') }}">{{ __('Danh sách đơn hàng') }}</a>
                             </li>
                             <li class="submenu-item">
-                                <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu Farm Partner') }}</a>
+                                <a href="{{ route('refunds.pending') }}" class="d-flex justify-content-between align-items-center">
+                                    <span>{{ __('Hoàn tiền chờ xử lý') }}</span>
+                                    @if(($pendingRefundCount ?? 0) > 0)
+                                        <span class="badge bg-danger ms-2">{{ $pendingRefundCount }}</span>
+                                    @endif
+                                </a>
                             </li>
                             <li class="submenu-item">
-                                <a href="{{ url('farm-payouts') }}">{{ __('Đối soát Farm (Payout)') }}</a>
+                                <a href="{{ url('zalo-stations') }}">{{ __('Trạm lấy hàng') }}</a>
                             </li>
                         </ul>
                     </li>
+
+                    {{-- Quản lý Sản phẩm --}}
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-box-seam"></i>
+                            <span class="menu-item">{{ __('Quản lý Sản phẩm') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('zalo-products') }}">{{ __('Danh sách sản phẩm') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('zalo-categories') }}">{{ __('Danh mục sản phẩm') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('inventory.index') }}">{{ __('Quản lý tồn kho') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    {{-- Khách hàng và Đối tác --}}
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-people-fill"></i>
+                            <span class="menu-item">{{ __('Khách hàng và Đối tác') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('zalo-customers') }}">{{ __('Danh sách khách hàng') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    {{-- Quản lý Nông trại --}}
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-tree"></i>
+                            <span class="menu-item">{{ __('Quản lý Nông trại') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('farms') }}">{{ __('Danh sách nông trại') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu hợp tác nông trại') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('farm-payouts') }}">{{ __('Đối soát doanh thu nông trại') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    {{-- Quảng cáo và Khuyến mãi --}}
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-megaphone-fill"></i>
+                            <span class="menu-item">{{ __('Quảng cáo và Khuyến mãi') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('vouchers') }}">{{ __('Mã giảm giá') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ url('banners') }}">{{ __('Quản lý ảnh quảng cáo') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    {{-- Cài đặt Hệ thống --}}
                     @if (has_permissions('read', 'users_accounts') ||
                             has_permissions('read', 'about_us') ||
                             has_permissions('read', 'privacy_policy') ||
@@ -92,22 +125,19 @@
                         <li class="sidebar-item has-sub">
                             <a href="#" class='sidebar-link'>
                                 <i class="bi bi-gear"></i>
-                                <span class="menu-item">{{ __('Cài đặt') }}</span>
+                                <span class="menu-item">{{ __('Cài đặt Hệ thống') }}</span>
                             </a>
                             <ul class="submenu" style="padding-left: 0rem">
-                                <li class="submenu-item">
-                                    <a href="{{ url('banners') }}">{{ __('Banners') }}</a>
-                                </li>
                                 @if (has_permissions('read', 'users_accounts'))
                                     <li class="submenu-item">
                                         <a href="{{ url('users') }}">{{ __('Tài khoản người dùng') }}</a>
                                     </li>
                                 @endif
-                                {{-- @if (has_permissions('read', 'about_us'))
+                                @if (has_permissions('read', 'system_settings'))
                                     <li class="submenu-item">
-                                        <a href="{{ url('about-us') }}">{{ __('About Us') }}</a>ck
+                                        <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
                                     </li>
-                                @endif --}}
+                                @endif
                                 @if (has_permissions('read', 'privacy_policy'))
                                     <li class="submenu-item">
                                         <a href="{{ url('privacy-policy') }}">{{ __('Chính sách bảo mật') }}</a>
@@ -118,18 +148,6 @@
                                         <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
                                     </li>
                                 @endif
-                                @if (has_permissions('read', 'system_settings'))
-                                    <li class="submenu-item">
-                                        <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
-                                    </li>
-                                @endif
-                                {{-- <li class="submenu-item">
-                                    <a href="{{ url('firebase_settings') }}">{{ __('Firebase Settings') }}</a>
-                                </li>
-
-                                <li class="submenu-item">
-                                    <a href="{{ url('language') }}">{{ __('Languages') }}</a>
-                                </li> --}}
                             </ul>
                         </li>
                         {{-- <li class="sidebar-item">
