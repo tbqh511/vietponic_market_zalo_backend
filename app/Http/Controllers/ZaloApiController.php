@@ -501,17 +501,45 @@ class ZaloApiController extends Controller
             return response()->json(['error' => true, 'message' => 'Order not found'], 404);
         }
 
+        // Guard transition: chặn các chuyển đổi không hợp lệ
+        $newStatus = $request->status;
+
+        // Không cho phép hủy đơn đã giao thành công
+        if ($newStatus === 'cancelled' && $order->status === 'delivered') {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Không thể hủy đơn hàng đã giao thành công (status: delivered). '
+                           . 'Liên hệ kế toán để xử lý hoàn tiền thủ công nếu cần.',
+            ], 422);
+        }
+
+        // Idempotent: đã cancelled rồi thì không làm gì thêm
+        if ($newStatus === 'cancelled' && $order->status === 'cancelled') {
+            $order->load(['items', 'delivery']);
+            return response()->json(['error' => false, 'data' => $order]);
+        }
+
+        // Không cho phép chuyển ngược từ delivering/delivered về các status trước
+        $forwardOnly = ['delivering', 'delivered'];
+        $backwardTarget = ['pending', 'confirmed', 'preparing'];
+        if (in_array($order->status, $forwardOnly) && in_array($newStatus, $backwardTarget)) {
+            return response()->json([
+                'error'   => true,
+                'message' => "Không thể chuyển đơn từ \"{$order->status}\" về \"{$newStatus}\".",
+            ], 422);
+        }
+
         $previousStatus = $order->status;
-        $updates = ['status' => $request->status];
+        $updates = ['status' => $newStatus];
         // Farm Partner Hub: admin chuyển sang 'delivered' → chốt delivered_at = now().
         // Idempotent: nếu đã có delivered_at (vd webhook VTP set trước) thì giữ nguyên.
-        if ($request->status === 'delivered' && empty($order->delivered_at)) {
+        if ($newStatus === 'delivered' && empty($order->delivered_at)) {
             $updates['delivered_at'] = now();
         }
         $order->update($updates);
 
         // Khi đơn bị huỷ: release stock + tính refund theo payment method
-        if ($request->status === 'cancelled' && $previousStatus !== 'cancelled') {
+        if ($newStatus === 'cancelled' && $previousStatus !== 'cancelled') {
             $order->update([
                 'cancelled_at'         => now(),
                 'cancelled_by'         => 'admin',
@@ -1129,6 +1157,21 @@ class ZaloApiController extends Controller
                 return response()->json([
                     'returnCode' => 0,
                     'returnMessage' => 'Order not found',
+                ]);
+            }
+
+            // Idempotency guard — Zalo có thể retry /notify nhiều lần. Nếu đã có
+            // kết quả thanh toán cuối (success/failed) thì trả về luôn, không re-fire
+            // OrderPaymentSucceeded (tránh duplicate VTP order, trừ kho lần 2, commission lần 2).
+            if (in_array($order->payment_status, ['success', 'failed'], true)) {
+                Log::info('notifySDK: idempotent — payment already processed', [
+                    'orderId'        => $orderId,
+                    'payment_status' => $order->payment_status,
+                    'method'         => $method,
+                ]);
+                return response()->json([
+                    'returnCode'    => 1,
+                    'returnMessage' => 'Success',
                 ]);
             }
 

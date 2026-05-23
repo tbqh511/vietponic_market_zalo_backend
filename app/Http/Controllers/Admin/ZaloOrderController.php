@@ -74,6 +74,32 @@ class ZaloOrderController extends Controller
 
         $previousStatus = $order->status;
 
+        // Guard: không cho phép hủy đơn đã delivered qua admin web
+        if (isset($data['status']) && $data['status'] === 'cancelled') {
+            if ($previousStatus === 'delivered') {
+                return redirect()->back()->withErrors([
+                    'status' => 'Không thể hủy đơn hàng đã giao thành công. '
+                              . 'Liên hệ kế toán nếu cần xử lý hoàn tiền thủ công.'
+                ]);
+            }
+            // Idempotent: đã cancelled rồi thì redirect thành công luôn
+            if ($previousStatus === 'cancelled') {
+                return redirect()->route('zalo-orders.show', $order->id)
+                                 ->with('success', 'Đơn hàng đã ở trạng thái hủy.');
+            }
+        }
+
+        // Chặn chuyển ngược từ delivering/delivered về pending/confirmed/preparing
+        if (
+            isset($data['status'])
+            && in_array($previousStatus, ['delivering', 'delivered'], true)
+            && in_array($data['status'], ['pending', 'confirmed', 'preparing'], true)
+        ) {
+            return redirect()->back()->withErrors([
+                'status' => "Không thể chuyển đơn từ \"{$previousStatus}\" về \"{$data['status']}\"."
+            ]);
+        }
+
         DB::transaction(function () use ($order, $data, $previousStatus) {
             // Farm Partner Hub: admin web chuyển sang 'delivered' → chốt delivered_at.
             // Set trước update để dính vào cùng query, idempotent với delivered_at có sẵn.
