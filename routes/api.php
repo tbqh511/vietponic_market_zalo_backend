@@ -93,6 +93,7 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     Route::get('products/today', [FarmHubController::class, 'productsToday']);
     Route::get('orders/incoming', [FarmHubController::class, 'incomingOrders']);
     Route::get('payouts', [FarmHubController::class, 'payouts']);
+    Route::get('payouts/{id}', [FarmHubController::class, 'payoutDetail'])->whereNumber('id');
     // Alias write: /farm/stock-in trỏ thẳng FarmStockController@import.
     Route::post('stock-in', [FarmStockController::class, 'import']);
 

@@ -44,6 +44,10 @@ class FarmHubController extends Controller
                 'description'    => $farm->description,
                 'address'        => $farm->address,
                 'payment_cycle'  => $farm->payment_cycle,
+                // commission_rate = phần farm GIỮ LẠI (vd 0.85 = farm nhận 85%).
+                // Phí Vietponics = 1 - commission_rate (vd 15%). FE dùng để hiển
+                // thị dòng "Phí Vietponics (x%)" trong breakdown payout.
+                'commission_rate' => (float) $farm->commission_rate,
                 'approved_at'    => optional($farm->approved_at)->toIso8601String(),
             ],
         ]);
@@ -497,21 +501,120 @@ class FarmHubController extends Controller
         $limit = (int) $request->query('limit', 20);
         $rows  = $query->limit($limit)->get();
 
-        $data = $rows->map(fn ($p) => [
-            'id'              => (int) $p->id,
-            'period_start'    => optional($p->period_start)->toDateString(),
-            'period_end'      => optional($p->period_end)->toDateString(),
-            'total_sold'      => (float) $p->total_sold,
-            'gross_revenue'   => (float) $p->gross_revenue,
-            'adjustment'      => (float) $p->adjustment,
-            'net_payout'      => (float) $p->net_payout,
-            'status'          => $p->status,
-            'paid_at'         => optional($p->paid_at)->toIso8601String(),
-            'payment_method'  => $p->payment_method,
-            'transaction_ref' => $p->transaction_ref,
-            'note'            => $p->note,
-        ])->all();
+        $commissionRate = (float) $farm->commission_rate;
+
+        $data = $rows->map(fn ($p) => $this->formatPayout($p, $commissionRate, $farm))->all();
 
         return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    /**
+     * GET /farm/payouts/{id} — chi tiết một đợt thanh toán + danh sách đơn đóng góp.
+     *
+     * Header (gross/phí/net/kg) lấy từ row payout đã chốt. Phần "orders" liệt kê
+     * từng đơn trong kỳ (đơn delivering/delivered, gom theo order_id) để farm đối
+     * soát: mỗi đơn bao nhiêu kg, doanh thu gộp bao nhiêu. Với payout draft (đang
+     * tích lũy) danh sách này phản ánh trạng thái live tại thời điểm gọi.
+     */
+    public function payoutDetail(Request $request, int $id): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $payout = \App\Models\FarmPayout::where('farm_id', $farm->id)->find($id);
+        if (! $payout) {
+            return response()->json(['error' => true, 'message' => 'Không tìm thấy đợt thanh toán'], 404);
+        }
+
+        $commissionRate = (float) $farm->commission_rate;
+
+        // Đơn đóng góp trong kỳ: order_items của farm thuộc đơn delivering/delivered,
+        // created_at trong [period_start, period_end]. Gom theo order_id.
+        $orders = [];
+        if ($payout->period_start && $payout->period_end) {
+            $rows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+                ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('oi.farm_id', $farm->id)
+                ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(o.created_at)'), [
+                    $payout->period_start->toDateString(),
+                    $payout->period_end->toDateString(),
+                ])
+                ->whereIn('o.status', ['delivering', 'delivered'])
+                ->selectRaw('
+                    o.id AS order_id,
+                    o.created_at AS order_created_at,
+                    o.status AS order_status,
+                    COALESCE(SUM(oi.quantity), 0) AS qty,
+                    COALESCE(SUM(oi.cost_price_snapshot * oi.quantity), 0) AS gross
+                ')
+                ->groupBy('o.id', 'o.created_at', 'o.status')
+                ->orderByDesc('o.created_at')
+                ->get();
+
+            $orders = $rows->map(fn ($r) => [
+                'order_id'         => (int) $r->order_id,
+                'order_created_at' => $r->order_created_at,
+                'order_status'     => (string) $r->order_status,
+                'qty'              => round((float) $r->qty, 2),
+                'gross'            => round((float) $r->gross, 2),
+            ])->all();
+        }
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'payout' => $this->formatPayout($payout, $commissionRate, $farm),
+                'orders' => $orders,
+            ],
+        ]);
+    }
+
+    /**
+     * Chuẩn hoá 1 row FarmPayout cho FE, bổ sung breakdown phí hoa hồng và ngày
+     * dự kiến trả.
+     *
+     * commission_amount = gross * (1 - commission_rate)  → phí Vietponics giữ.
+     * net_estimated      = gross * commission_rate + adjustment → khớp công thức
+     *   admin dùng khi chốt lệnh chi (FarmPayoutController@store). Trả kèm để FE
+     *   hiển thị nhất quán kể cả khi row draft chưa áp phí vào net_payout.
+     */
+    private function formatPayout($p, float $commissionRate, Farm $farm): array
+    {
+        $gross      = (float) $p->gross_revenue;
+        $adjustment = (float) $p->adjustment;
+        $commission = round($gross * (1 - $commissionRate), 2);
+        $netEst     = round($gross * $commissionRate + $adjustment, 2);
+
+        return [
+            'id'                => (int) $p->id,
+            'period_start'      => optional($p->period_start)->toDateString(),
+            'period_end'        => optional($p->period_end)->toDateString(),
+            'total_sold'        => (float) $p->total_sold,
+            'gross_revenue'     => $gross,
+            'commission_rate'   => $commissionRate,
+            'commission_amount' => $commission,
+            'adjustment'        => $adjustment,
+            'net_payout'        => (float) $p->net_payout,
+            'net_estimated'     => $netEst,
+            'status'            => $p->status,
+            'expected_pay_date' => $this->expectedPayDate($p, $farm),
+            'paid_at'           => optional($p->paid_at)->toIso8601String(),
+            'payment_method'    => $p->payment_method,
+            'transaction_ref'   => $p->transaction_ref,
+            'note'              => $p->note,
+        ];
+    }
+
+    /**
+     * Ngày dự kiến trả cho một payout chưa trả: ngày làm việc đầu tiên SAU khi
+     * kết thúc kỳ. Quy ước hiện tại: period_end + 1 ngày (vd kỳ kết thúc CN 19/05
+     * → dự kiến trả T2 20/05). Trả null cho payout đã paid/cancelled.
+     */
+    private function expectedPayDate($p, Farm $farm): ?string
+    {
+        if (in_array($p->status, ['paid', 'cancelled'], true) || ! $p->period_end) {
+            return null;
+        }
+        return $p->period_end->copy()->addDay()->toDateString();
     }
 }
