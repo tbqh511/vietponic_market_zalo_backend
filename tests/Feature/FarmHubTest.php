@@ -61,6 +61,10 @@ class FarmHubTest extends TestCase
             'approved_at'       => now(),
         ]);
 
+        // EnsureFarmPartner tra farm theo customers.farm_id (owner + staff),
+        // không còn theo farms.owner_customer_id (xem migration 2026_05_19_100000).
+        $customer->forceFill(['farm_id' => $farm->id, 'farm_role' => 'owner'])->save();
+
         return [$customer, $farm];
     }
 
@@ -607,5 +611,150 @@ class FarmHubTest extends TestCase
         $this->assertEquals(200000.0, (float) $overview['revenue']);
         // profit = revenue - cost = 200000 - 100000
         $this->assertEquals(100000.0, (float) $overview['profit']);
+    }
+
+    // ─── D. Stock-In (Khai báo nhập kho buổi sáng) ─────────────────────────────
+
+    /**
+     * suggestions: TB 7 ngày = tổng bán / 7, gợi ý = round(avg), và
+     * suggested_total trong meta = tổng gợi ý các SKU.
+     */
+    public function test_stock_in_suggestions_computes_7day_average(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+        $farm->products()->attach($product->id, ['cost_price' => 8000]);
+
+        // Đã giao 14kg trong 7 ngày qua → TB = 2kg/ngày → gợi ý = 2.
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivered',
+            'payment_status' => 'completed',
+            'total'          => '210000',
+            'created_at'     => \Carbon\Carbon::now('UTC')->subDays(2),
+            'delivered_at'   => \Carbon\Carbon::now('UTC')->subDays(2),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $order->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 14,
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/stock-in/suggestions');
+
+        $response->assertOk();
+        $row = collect($response->json('data'))->firstWhere('product_id', $product->id);
+        $this->assertNotNull($row);
+        $this->assertEquals(2.0, $row['avg_daily_sold']);
+        $this->assertEquals(2, $row['suggested_qty']);
+        $this->assertEquals(15000.0, $row['price']);
+        $this->assertEquals(7, $row['window_days']);
+        // Hạn dùng mặc định = ngày + 5.
+        $this->assertEquals(
+            \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->addDays(5)->toDateString(),
+            $row['suggested_expire_date']
+        );
+        $this->assertEquals(2, $response->json('meta.suggested_total'));
+    }
+
+    /**
+     * sold_out_yesterday=true khi hôm qua có bán nhưng tồn hiện tại = 0.
+     */
+    public function test_stock_in_suggestions_flags_sold_out_yesterday(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+        $farm->products()->attach($product->id, ['cost_price' => 8000]);
+
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivered',
+            'payment_status' => 'completed',
+            'total'          => '75000',
+            'created_at'     => \Carbon\Carbon::now('UTC')->subDay(),
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->setTime(10, 0)->setTimezone('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $order->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 5,
+        ]);
+        // Không tạo batch active nào → stock = 0.
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/stock-in/suggestions');
+
+        $response->assertOk();
+        $row = collect($response->json('data'))->firstWhere('product_id', $product->id);
+        $this->assertTrue($row['sold_out_yesterday']);
+        // Cháy hàng & tồn 0 → gợi ý ít nhất bằng phần bán hôm qua (5).
+        $this->assertGreaterThanOrEqual(5, $row['suggested_qty']);
+    }
+
+    /**
+     * importBatch: tạo nhiều batch một lần, tự gắn farm_id + expire_date mặc định.
+     */
+    public function test_stock_in_batch_creates_multiple_batches(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $p1 = $this->makeProduct();
+        $p2 = $this->makeProduct();
+        $farm->products()->attach($p1->id, ['cost_price' => 8000]);
+        $farm->products()->attach($p2->id, ['cost_price' => 12000]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->postJson('/api/farm/stock-in/batch', [
+                'items' => [
+                    ['product_id' => $p1->id, 'quantity' => 30],
+                    ['product_id' => $p2->id, 'quantity' => 15],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals(2, $response->json('meta.count'));
+
+        $this->assertDatabaseHas('farm_stock_batches', [
+            'farm_id'     => $farm->id,
+            'product_id'  => $p1->id,
+            'quantity_in' => 30,
+            'cost_price'  => 8000, // lấy từ pivot khi không truyền
+            'status'      => 'active',
+        ]);
+        // expire_date tự tính = batch_date + 5 ngày.
+        $batch = FarmStockBatch::where('product_id', $p1->id)->first();
+        $this->assertEquals(
+            \Carbon\Carbon::parse($batch->batch_date)->addDays(5)->toDateString(),
+            \Carbon\Carbon::parse($batch->expire_date)->toDateString()
+        );
+    }
+
+    /**
+     * importBatch: SKU không thuộc farm (không có pivot) → 403, không tạo batch nào.
+     */
+    public function test_stock_in_batch_rejects_unowned_product(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $owned   = $this->makeProduct();
+        $foreign = $this->makeProduct(); // KHÔNG attach vào farm
+        $farm->products()->attach($owned->id, ['cost_price' => 8000]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->postJson('/api/farm/stock-in/batch', [
+                'items' => [
+                    ['product_id' => $owned->id, 'quantity' => 10],
+                    ['product_id' => $foreign->id, 'quantity' => 5],
+                ],
+            ]);
+
+        $response->assertStatus(403)->assertJson(['error' => true]);
+        // Transaction chưa chạy → không batch nào được tạo.
+        $this->assertDatabaseMissing('farm_stock_batches', ['product_id' => $owned->id]);
     }
 }

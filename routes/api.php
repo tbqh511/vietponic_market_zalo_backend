@@ -79,6 +79,11 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     // Đóng/recall/expire batch.
     Route::post('inventory/{id}/close', [FarmStockController::class, 'close']);
 
+    // ─── Khai báo nhập kho buổi sáng (Stock-In) ──────────────────────────────
+    // Gợi ý nhập (TB 7 ngày, giá, cháy hàng) + khai báo nhiều SKU một lần.
+    Route::get('stock-in/suggestions', [FarmStockController::class, 'suggestions']);
+    Route::post('stock-in/batch', [FarmStockController::class, 'importBatch']);
+
     // ─── Farm Hub dashboard aliases (flat URL theo spec FE) ─────────────────
     // Map sang methods sẵn có trong FarmHubController. Đặt trước group /hub
     // để FE có thể chọn URL phẳng (/farm/dashboard) hoặc nested (/farm/hub/overview).

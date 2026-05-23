@@ -8,6 +8,7 @@ use App\Models\FarmStockBatch;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -323,6 +324,235 @@ class FarmStockController extends Controller
                 'total'        => $movements->total(),
             ],
         ]);
+    }
+
+    /**
+     * Số ngày dùng để tính trung bình bán & gợi ý nhập (cửa sổ trượt).
+     */
+    private const SUGGEST_WINDOW_DAYS = 7;
+
+    /**
+     * Hạn dùng (tươi) mặc định cho rau khi nhập batch, tính từ ngày nhập.
+     * Dùng khi FE/farm không truyền expire_date thủ công.
+     */
+    public const DEFAULT_SHELF_LIFE_DAYS = 5;
+
+    /**
+     * GET /api/farm/stock-in/suggestions
+     *
+     * Dữ liệu cho màn "Khai báo nhập kho buổi sáng": mỗi SKU farm cung cấp kèm
+     *   - avg_daily_sold  : TB số lượng bán/ngày trong {SUGGEST_WINDOW_DAYS} ngày qua
+     *   - suggested_qty   : gợi ý nhập = round(avg_daily_sold) (tối thiểu 0)
+     *   - price           : giá bán lẻ hiện tại (đ/kg) — để ước doanh thu
+     *   - cost_price      : giá vốn mặc định trên pivot farm_product
+     *   - stock           : tồn kho active hiện tại
+     *   - sold_out_yesterday : true nếu hôm qua có bán nhưng tồn hiện = 0 (cháy hàng)
+     *   - shelf_life_days / suggested_expire_date : hạn dùng tươi mặc định
+     *
+     * Sales window dựa trên zalo_order_items.farm_id (đã phân bổ) JOIN
+     * zalo_orders status='delivered' + delivered_at — cùng nguồn với
+     * FarmDashboardService để số liệu nhất quán. Timezone Asia/Ho_Chi_Minh.
+     */
+    public function suggestions(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $vnNow      = Carbon::now('Asia/Ho_Chi_Minh');
+        $windowFrom = $vnNow->copy()->subDays(self::SUGGEST_WINDOW_DAYS - 1)->startOfDay();
+        // Convert sang UTC để so với delivered_at (lưu UTC trong DB).
+        $windowFromUtc = $windowFrom->copy()->setTimezone('UTC');
+        $nowUtc        = $vnNow->copy()->setTimezone('UTC');
+        $yStartUtc     = $vnNow->copy()->subDay()->startOfDay()->setTimezone('UTC');
+        $yEndUtc       = $vnNow->copy()->subDay()->endOfDay()->setTimezone('UTC');
+
+        // Tổng bán trong cửa sổ + bán riêng hôm qua, group theo product_id.
+        $salesRows = DB::table('zalo_order_items')
+            ->join('zalo_orders', 'zalo_orders.id', '=', 'zalo_order_items.order_id')
+            ->where('zalo_order_items.farm_id', $farm->id)
+            ->where('zalo_orders.status', 'delivered')
+            ->whereNotNull('zalo_orders.delivered_at')
+            ->whereBetween('zalo_orders.delivered_at', [$windowFromUtc, $nowUtc])
+            ->groupBy('zalo_order_items.product_id')
+            ->selectRaw('
+                zalo_order_items.product_id AS product_id,
+                COALESCE(SUM(zalo_order_items.quantity), 0) AS window_qty,
+                COALESCE(SUM(CASE WHEN zalo_orders.delivered_at BETWEEN ? AND ? THEN zalo_order_items.quantity ELSE 0 END), 0) AS yesterday_qty
+            ', [$yStartUtc, $yEndUtc])
+            ->get()
+            ->keyBy('product_id');
+
+        // Tồn kho active hiện tại theo product_id.
+        $stockRows = DB::table('farm_stock_batches')
+            ->where('farm_id', $farm->id)
+            ->where('status', 'active')
+            ->where('quantity_remaining', '>', 0)
+            ->groupBy('product_id')
+            ->selectRaw('product_id, COALESCE(SUM(quantity_remaining), 0) AS stock')
+            ->pluck('stock', 'product_id');
+
+        // Danh sách SKU farm cung cấp (kèm giá bán + giá vốn pivot).
+        $products = DB::table('zalo_products')
+            ->join('farm_product', function ($j) use ($farm) {
+                $j->on('farm_product.product_id', '=', 'zalo_products.id')
+                  ->where('farm_product.farm_id', '=', $farm->id);
+            })
+            ->leftJoin('zalo_categories', 'zalo_categories.id', '=', 'zalo_products.category_id')
+            ->orderBy('zalo_products.name')
+            ->get([
+                'zalo_products.id',
+                'zalo_products.name',
+                'zalo_products.image',
+                'zalo_products.price',
+                'zalo_products.category_id',
+                'zalo_categories.name AS category_name',
+                'farm_product.cost_price AS pivot_cost_price',
+            ]);
+
+        $window = self::SUGGEST_WINDOW_DAYS;
+        $items = $products->map(function ($p) use ($salesRows, $stockRows, $window, $vnNow) {
+            $sale         = $salesRows->get($p->id);
+            $windowQty    = (float) ($sale->window_qty ?? 0);
+            $yesterdayQty = (float) ($sale->yesterday_qty ?? 0);
+            $avgDaily     = $windowQty / $window;
+            $stock        = (float) ($stockRows[$p->id] ?? 0);
+
+            return [
+                'product_id'           => (int) $p->id,
+                'name'                 => (string) $p->name,
+                'category'             => $p->category_name !== null ? (string) $p->category_name : null,
+                'image_url'            => $this->resolveImageUrl($p->image),
+                'price'                => (float) $p->price,
+                'cost_price'           => (float) ($p->pivot_cost_price ?? 0),
+                'stock'                => round($stock, 2),
+                'avg_daily_sold'       => round($avgDaily, 1),
+                'window_days'          => $window,
+                // Gợi ý nhập: làm tròn TB ngày, tối thiểu 0. Nếu cháy hàng hôm qua
+                // mà chưa từng bán đủ thì vẫn gợi ý ít nhất phần đã bán hôm qua.
+                'suggested_qty'        => (int) max(round($avgDaily), $yesterdayQty > 0 && $stock <= 0 ? ceil($yesterdayQty) : 0),
+                // Cháy hàng hôm qua: có bán hôm qua nhưng giờ tồn = 0.
+                'sold_out_yesterday'   => $yesterdayQty > 0 && $stock <= 0,
+                'shelf_life_days'      => self::DEFAULT_SHELF_LIFE_DAYS,
+                'suggested_expire_date'=> $vnNow->copy()->addDays(self::DEFAULT_SHELF_LIFE_DAYS)->toDateString(),
+            ];
+        })->values()->all();
+
+        // Tổng gợi ý nhập hôm nay (banner "nên nhập khoảng Xkg").
+        $suggestedTotal = array_sum(array_column($items, 'suggested_qty'));
+
+        return response()->json([
+            'error' => false,
+            'data'  => $items,
+            'meta'  => [
+                'date'             => $vnNow->toDateString(),
+                'window_days'      => $window,
+                'suggested_total'  => $suggestedTotal,
+                'shelf_life_days'  => self::DEFAULT_SHELF_LIFE_DAYS,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/farm/stock-in/batch
+     * Khai báo nhập kho nhiều SKU một lần (màn "Khai báo nhập kho buổi sáng").
+     * Mỗi dòng tạo một FarmStockBatch riêng trong một transaction.
+     *
+     * Body: {
+     *   batch_date?: date,                       // mặc định hôm nay
+     *   items: [{ product_id, quantity, expire_date?, cost_price?, note? }, ...]
+     * }
+     *
+     * expire_date mỗi dòng: nếu không truyền, tự tính = batch_date + shelf_life_days.
+     * cost_price mỗi dòng: nếu không truyền, lấy giá vốn pivot farm_product.
+     */
+    public function importBatch(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $request->validate([
+            'batch_date'           => 'nullable|date',
+            'items'                => 'required|array|min:1',
+            'items.*.product_id'   => 'required|integer|exists:zalo_products,id',
+            'items.*.quantity'     => 'required|numeric|min:0.01',
+            'items.*.expire_date'  => 'nullable|date',
+            'items.*.cost_price'   => 'nullable|numeric|min:0',
+            'items.*.note'         => 'nullable|string|max:500',
+        ]);
+
+        $batchDate = $request->input('batch_date')
+            ? Carbon::parse($request->input('batch_date'))->toDateString()
+            : Carbon::now('Asia/Ho_Chi_Minh')->toDateString();
+
+        $rows = $request->input('items');
+
+        // Kiểm soát: tất cả SKU phải thuộc farm (pivot farm_product). Tra một lần.
+        $productIds  = collect($rows)->pluck('product_id')->map(fn ($id) => (int) $id)->unique();
+        $allowed     = $farm->products()
+            ->whereIn('zalo_products.id', $productIds)
+            ->get(['zalo_products.id'])
+            ->pluck('id')
+            ->all();
+        $allowedSet  = array_flip($allowed);
+
+        $costDefaults = $farm->products()
+            ->whereIn('zalo_products.id', $productIds)
+            ->get()
+            ->mapWithKeys(fn ($p) => [$p->id => (float) ($p->pivot->cost_price ?? 0)]);
+
+        $notAllowed = $productIds->reject(fn ($id) => isset($allowedSet[$id]))->values();
+        if ($notAllowed->isNotEmpty()) {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Một số sản phẩm chưa được gán cho farm của bạn. Vui lòng liên hệ admin.',
+                'product_ids' => $notAllowed->all(),
+            ], 403);
+        }
+
+        $created = DB::transaction(function () use ($rows, $farm, $batchDate, $costDefaults) {
+            $out = [];
+            foreach ($rows as $row) {
+                $pid       = (int) $row['product_id'];
+                $costPrice = isset($row['cost_price']) && $row['cost_price'] !== null
+                    ? (float) $row['cost_price']
+                    : (float) ($costDefaults[$pid] ?? 0);
+                $expire = $row['expire_date']
+                    ?? Carbon::parse($batchDate)->addDays(self::DEFAULT_SHELF_LIFE_DAYS)->toDateString();
+
+                $batch = FarmStockBatch::create([
+                    'farm_id'       => $farm->id,
+                    'product_id'    => $pid,
+                    'batch_date'    => $batchDate,
+                    'quantity_in'   => (float) $row['quantity'],
+                    'quantity_sold' => 0,
+                    'cost_price'    => $costPrice,
+                    'expire_date'   => $expire,
+                    'status'        => 'active',
+                    'note'          => $row['note'] ?? null,
+                ]);
+
+                $out[] = [
+                    'id'                 => (int) $batch->id,
+                    'product_id'         => (int) $batch->product_id,
+                    'batch_date'         => $batch->batch_date?->toDateString(),
+                    'expire_date'        => $batch->expire_date?->toDateString(),
+                    'quantity_in'        => (float) $batch->quantity_in,
+                    'quantity_remaining' => (float) $batch->quantity_remaining,
+                    'cost_price'         => (float) $batch->cost_price,
+                    'status'             => $batch->status,
+                ];
+            }
+            return $out;
+        });
+
+        return response()->json([
+            'error' => false,
+            'data'  => $created,
+            'meta'  => [
+                'count'      => count($created),
+                'batch_date' => $batchDate,
+            ],
+        ], 201);
     }
 
     /**
