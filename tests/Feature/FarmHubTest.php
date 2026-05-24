@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Farm;
+use App\Models\FarmPayout;
 use App\Models\FarmStockBatch;
 use App\Models\ZaloOrder;
 use App\Models\ZaloOrderItem;
@@ -756,5 +757,180 @@ class FarmHubTest extends TestCase
         $response->assertStatus(403)->assertJson(['error' => true]);
         // Transaction chưa chạy → không batch nào được tạo.
         $this->assertDatabaseMissing('farm_stock_batches', ['product_id' => $owned->id]);
+    }
+
+    // ─── E. Payouts (Công nợ & Thanh toán) ──────────────────────────────────────
+
+    /**
+     * /farm/me trả commission_rate (FE cần để hiển thị "Phí Vietponics x%").
+     */
+    public function test_farm_me_returns_commission_rate(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/me');
+
+        $response->assertOk()
+            ->assertJsonPath('data.commission_rate', 0.1)
+            ->assertJsonPath('data.payment_cycle', 'monthly');
+    }
+
+    /**
+     * /farm/payouts trả breakdown: commission_amount = gross*(1-rate),
+     * net_estimated = gross*rate + adjustment, expected_pay_date cho đợt chưa trả.
+     */
+    public function test_payouts_list_includes_commission_breakdown(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+
+        FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 187,
+            'gross_revenue' => 1_000_000,
+            'adjustment'    => 0,
+            'net_payout'    => 1_000_000, // draft chưa áp phí (theo cron hiện tại)
+            'status'        => 'draft',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/payouts');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.commission_rate', 0.1)
+            // rate=0.1 → phí Vietponics = 90% = 900.000 (JSON serialize số nguyên)
+            ->assertJsonPath('data.0.commission_amount', 900000)
+            // net ước tính = gross*rate + adj = 100.000
+            ->assertJsonPath('data.0.net_estimated', 100000)
+            // period_end 19/05 → dự kiến trả 20/05
+            ->assertJsonPath('data.0.expected_pay_date', '2026-05-20');
+    }
+
+    /**
+     * Đợt đã paid không có expected_pay_date (đã trả rồi).
+     */
+    public function test_paid_payout_has_no_expected_pay_date(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+
+        FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-06',
+            'period_end'    => '2026-05-12',
+            'total_sold'    => 100,
+            'gross_revenue' => 500_000,
+            'adjustment'    => 0,
+            'net_payout'    => 50_000,
+            'status'        => 'paid',
+            'paid_at'       => \Carbon\Carbon::parse('2026-05-13 09:00:00'),
+            'payment_method'=> 'bank_transfer',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/payouts');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.status', 'paid')
+            ->assertJsonPath('data.0.expected_pay_date', null);
+    }
+
+    /**
+     * /farm/payouts/{id} liệt kê từng đơn đóng góp (delivering/delivered) trong kỳ,
+     * gom theo order_id với qty + gross (cost_price_snapshot * quantity).
+     */
+    public function test_payout_detail_lists_contributing_orders(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        $payout = FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 10,
+            'gross_revenue' => 100_000,
+            'adjustment'    => 0,
+            'net_payout'    => 100_000,
+            'status'        => 'draft',
+        ]);
+
+        // Đơn delivered trong kỳ → được tính.
+        $inPeriod = ZaloOrder::create([
+            'customer_id' => $customer->id,
+            'status'      => 'delivered',
+            'total'       => '200000',
+            'created_at'  => '2026-05-15 03:00:00',
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $inPeriod->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 10,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        // Đơn pending → KHÔNG tính (tránh số ảo).
+        $pending = ZaloOrder::create([
+            'customer_id' => $customer->id,
+            'status'      => 'pending',
+            'total'       => '50000',
+            'created_at'  => '2026-05-16 03:00:00',
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $pending->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 5,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson("/api/farm/payouts/{$payout->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.payout.id', $payout->id)
+            ->assertJsonCount(1, 'data.orders')
+            ->assertJsonPath('data.orders.0.order_id', $inPeriod->id)
+            ->assertJsonPath('data.orders.0.qty', 10)
+            ->assertJsonPath('data.orders.0.gross', 100000);
+    }
+
+    /**
+     * Không xem được payout của farm khác → 404 (không leak dữ liệu).
+     */
+    public function test_payout_detail_404_for_other_farms_payout(): void
+    {
+        [$customer] = $this->makeFarmPartner();
+
+        // Payout thuộc một farm khác.
+        $otherFarm = Farm::create([
+            'code'            => 'OTHER' . uniqid(),
+            'name'            => 'Other Farm',
+            'commission_rate' => 0.15,
+            'payment_cycle'   => 'weekly',
+            'is_active'       => true,
+            'approved_at'     => now(),
+        ]);
+        $otherPayout = FarmPayout::create([
+            'farm_id'       => $otherFarm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 5,
+            'gross_revenue' => 50_000,
+            'adjustment'    => 0,
+            'net_payout'    => 50_000,
+            'status'        => 'draft',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson("/api/farm/payouts/{$otherPayout->id}");
+
+        $response->assertStatus(404)->assertJson(['error' => true]);
     }
 }
