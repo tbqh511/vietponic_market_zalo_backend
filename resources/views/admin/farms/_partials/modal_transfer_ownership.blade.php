@@ -36,9 +36,8 @@
                             @forelse($transferCandidates as $c)
                                 <option value="{{ $c->id }}"
                                         data-warning="{{ $c->_transfer_warning }}"
-                                        data-blocked="{{ $c->_transfer_blocked ? '1' : '0' }}"
-                                        data-search="{{ mb_strtolower(($c->name ?? '').' '.($c->mobile ?? '').' #'.$c->id) }}"
-                                        @if($c->_transfer_blocked) disabled @endif>
+                                        data-needsconfirm="{{ $c->_transfer_needs_confirm ? '1' : '0' }}"
+                                        data-search="{{ mb_strtolower(($c->name ?? '').' '.($c->mobile ?? '').' #'.$c->id) }}">
                                     {{ $c->name ?: '#'.$c->id }}{{ $c->mobile ? ' — '.$c->mobile : '' }}
                                     @if($c->_transfer_warning) — {{ $c->_transfer_warning }} @endif
                                 </option>
@@ -83,20 +82,37 @@
     const confirmChk = document.getElementById('transferConfirmCheck');
     const submitBtn  = document.getElementById('transferSubmitBtn');
 
+    const confirmRow = confirmChk ? confirmChk.closest('.form-check') : null;
+
     function syncWarning() {
         const opt = sel.options[sel.selectedIndex];
         const warning = opt ? (opt.dataset.warning || '') : '';
-        const blocked = opt ? opt.dataset.blocked === '1' : false;
-        if (warning && !blocked) {
+        const needsConfirm = opt ? opt.dataset.needsconfirm === '1' : false;
+
+        if (warning) {
             warnText.textContent = warning;
             warnBox.classList.remove('d-none');
         } else {
             warnBox.classList.add('d-none');
-            if (confirmChk) confirmChk.checked = false;
         }
-        submitBtn.disabled = blocked;
+
+        // Checkbox "Tôi đã hiểu" chỉ bắt buộc khi chủ mới đang là CHỦ farm khác
+        // (chuyển sẽ làm farm đó mồ côi). Nhân viên farm khác → chuyển ngay,
+        // chỉ hiện cảnh báo thông tin, không cần tick.
+        if (confirmRow) confirmRow.classList.toggle('d-none', !needsConfirm);
+        if (!needsConfirm && confirmChk) confirmChk.checked = false;
+
+        updateSubmitState();
     }
+
+    function updateSubmitState() {
+        const opt = sel.options[sel.selectedIndex];
+        const needsConfirm = opt ? opt.dataset.needsconfirm === '1' : false;
+        submitBtn.disabled = needsConfirm && confirmChk && !confirmChk.checked;
+    }
+
     sel.addEventListener('change', syncWarning);
+    if (confirmChk) confirmChk.addEventListener('change', updateSubmitState);
 
     // Client-side filter: ẩn/hiện <option> dựa vào data-search.
     if (searchInput) {

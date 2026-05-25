@@ -3,6 +3,12 @@
         ->orderBy('sort_order')
         ->orderBy('id')
         ->get(['slug', 'title']);
+
+    // 5 danh mục đầu tiên → link mở Zalo Mini App vào đúng trang danh mục đó.
+    $footerCategories = \App\Models\ZaloCategory::orderBy('id')
+        ->take(5)
+        ->get(['id', 'name']);
+    $zaloAppId = '2984181565024919663';
 @endphp
 <footer id="lien-he">
   <div class="footer-inner">
@@ -20,12 +26,9 @@
       <div>
         <div class="footer-col-title">Sản Phẩm</div>
         <div class="footer-links">
-          <a href="#">Rau lá xanh</a>
-          <a href="#">Rau củ quả</a>
-          <a href="#">Rau mầm</a>
-          <a href="#">Trái cây hữu cơ</a>
-          <a href="#">Combo tiết kiệm</a>
-          <a href="#">Đăng ký định kỳ</a>
+          @foreach($footerCategories as $cat)
+            <a href="https://zalo.me/s/{{ $zaloAppId }}?path={{ urlencode('/category/' . $cat->id) }}" target="_blank" rel="noopener">{{ $cat->name }}</a>
+          @endforeach
         </div>
       </div>
       <div>

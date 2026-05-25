@@ -1,5 +1,11 @@
 @extends('frontends.vietponics_master')
 
+@php
+  // ID Zalo Mini App — dùng chung cho mọi link mở mini app trên landing page + footer.
+  $zaloAppId = '2984181565024919663';
+  $zaloAppUrl = 'https://zalo.me/s/' . $zaloAppId;
+@endphp
+
 @push('styles')
 <style>
   .vp-home { max-width: 100%; }
@@ -458,10 +464,9 @@
           <div class="section-title">Rau Thủy Canh Bán Chạy Nhất</div>
           <div class="section-sub">Tươi ngon từ vườn Đà Lạt, giao nhanh mỗi buổi sáng</div>
         </div>
-        <a href="#" class="see-all">Xem tất cả</a>
+        <a href="{{ $zaloAppUrl }}" target="_blank" rel="noopener" class="see-all">Xem tất cả</a>
       </div>
       <div class="product-grid">
-        @php $zaloAppId = '2984181565024919663'; @endphp
         @forelse($newestProducts as $product)
         @php $zaloProductUrl = 'https://zalo.me/s/' . $zaloAppId . '?path=' . urlencode('/product/' . $product->id); @endphp
         <div class="prod-card" onclick="window.open('{{ $zaloProductUrl }}','_blank','noopener')" style="cursor:pointer">
@@ -580,7 +585,7 @@
           <div class="section-title">Thực Phẩm Sạch Cho Sức Khoẻ</div>
           <div class="section-sub">Chọn lọc từ vườn thủy canh uy tín nhất Đà Lạt</div>
         </div>
-        <a href="#" class="see-all">Xem tất cả</a>
+        <a href="{{ $zaloAppUrl }}" target="_blank" rel="noopener" class="see-all">Xem tất cả</a>
       </div>
       @php $catVisibleLimit = 4; @endphp
       <div class="cat-filter" id="explore-filter" role="group" aria-label="Lọc theo danh mục">
@@ -632,7 +637,7 @@
           <div class="section-title">Khám Phá Theo Danh Mục</div>
           <div class="section-sub">{{ $allCategories->count() }} danh mục rau sạch, tươi ngon mỗi ngày</div>
         </div>
-        <a href="#san-pham" class="see-all">Xem tất cả</a>
+        <a href="{{ $zaloAppUrl }}" target="_blank" rel="noopener" class="see-all">Xem tất cả</a>
       </div>
       @php
         $ctColors = ['ct1','ct2','ct3','ct4','ct5','ct6'];

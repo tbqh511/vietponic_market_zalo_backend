@@ -216,15 +216,16 @@ class FarmController extends Controller
             : Farm::whereIn('id', $otherFarmIds)->pluck('name', 'id');
 
         $transferCandidates->each(function ($c) use ($farm, $otherFarmNames) {
-            $c->_transfer_warning = null;
-            $c->_transfer_blocked = false;
+            $c->_transfer_warning      = null;
+            $c->_transfer_needs_confirm = false; // chỉ chủ farm khác mới buộc tick
             if ($c->farm_id && $c->farm_id !== $farm->id) {
                 $name = $otherFarmNames[$c->farm_id] ?? '#' . $c->farm_id;
                 if ($c->farm_role === 'owner') {
-                    $c->_transfer_warning = "⛔ Đang là CHỦ farm \"{$name}\" (không thể chuyển)";
-                    $c->_transfer_blocked = true;
+                    // Chuyển được, nhưng cần confirm — farm kia sẽ thành mồ côi.
+                    $c->_transfer_warning       = "⚠ Đang là CHỦ farm \"{$name}\" — chuyển sẽ làm farm đó mất chủ";
+                    $c->_transfer_needs_confirm = true;
                 } else {
-                    $c->_transfer_warning = "⚠ Đang là nhân viên farm \"{$name}\"";
+                    $c->_transfer_warning = "ℹ Đang là nhân viên farm \"{$name}\" — sẽ tự rời farm cũ";
                 }
             }
         });
@@ -499,10 +500,12 @@ class FarmController extends Controller
      * Chuyển chủ farm cho customer khác. Chủ cũ tự động trở thành Staff cùng
      * farm (giữ quyền Hub, mất payout). Yêu cầu farm đang active.
      *
-     * Hai tầng bảo vệ chủ mới:
-     *   - CHẶN CỨNG nếu chủ mới đang là chủ farm khác (sẽ làm farm kia mồ côi).
-     *   - CẢNH BÁO nếu chủ mới đang là nhân viên farm khác — yêu cầu
-     *     confirm_warnings=1 trước khi cho qua (auto rời farm cũ).
+     * Chủ mới đang gắn với farm khác:
+     *   - Nếu là NHÂN VIÊN farm khác → chuyển ngay, tự rời farm cũ (không cần
+     *     confirm — rời nhân viên không làm farm kia mồ côi).
+     *   - Nếu là CHỦ farm khác → cần confirm_warnings=1; khi qua, farm cũ của họ
+     *     bị gỡ chủ (owner_customer_id = null, thành "mồ côi") cho tới khi admin
+     *     gán chủ mới. Đây là lựa chọn có chủ ý — admin phải tick xác nhận.
      *
      * Optimistic concurrency: form gửi kèm current_owner_id; nếu DB đã đổi
      * giữa lúc page load và submit → fail sớm thay vì ghi đè im lặng.
@@ -548,21 +551,27 @@ class FarmController extends Controller
                     throw new \DomainException('Customer mới đang bị vô hiệu hoá.');
                 }
 
-                // CHẶN CỨNG: chủ mới đang là chủ farm khác → farm kia sẽ mồ côi.
-                if ($newOwner->farm_id && $newOwner->farm_id !== $farm->id && $newOwner->farm_role === 'owner') {
-                    $other = Farm::find($newOwner->farm_id);
-                    throw new \DomainException("Customer đang là chủ farm \"{$other?->name}\" — chuyển/giải thể farm đó trước.");
-                }
+                // Chủ mới đang gắn với farm khác?
+                $newOwnerOnOtherFarm =
+                    $newOwner->farm_id && $newOwner->farm_id !== $farm->id;
 
-                // CẢNH BÁO: chủ mới đang là nhân viên farm khác → cần confirm.
-                if ($newOwner->farm_id && $newOwner->farm_id !== $farm->id && $newOwner->farm_role === 'staff') {
+                // Nếu chủ mới đang LÀ CHỦ farm khác → cần confirm; khi qua, gỡ
+                // chủ farm kia (mồ côi). Lock farm kia để tránh race.
+                if ($newOwnerOnOtherFarm && $newOwner->farm_role === 'owner') {
                     if (empty($data['confirm_warnings'])) {
                         $other = Farm::find($newOwner->farm_id);
-                        throw new \DomainException("Customer đang là nhân viên farm \"{$other?->name}\". Tick \"Tôi đã hiểu\" để chuyển (họ sẽ rời farm cũ).");
+                        throw new \DomainException("Customer đang là chủ farm \"{$other?->name}\". Tick \"Tôi đã hiểu\" để chuyển — farm đó sẽ tạm thời KHÔNG có chủ cho tới khi bạn gán chủ mới.");
                     }
-                    // Khi qua confirm: cập nhật farm_id bên dưới sẽ tự động
-                    // chuyển họ ra khỏi farm cũ — không cần code dọn riêng.
+                    $orphanFarm = Farm::lockForUpdate()->find($newOwner->farm_id);
+                    if ($orphanFarm) {
+                        $orphanFarm->owner_customer_id = null;
+                        $orphanFarm->save();
+                    }
+                    // farm_id của newOwner được gán lại = $farm->id bên dưới →
+                    // tự động rời farm cũ.
                 }
+                // Nếu chủ mới là NHÂN VIÊN farm khác → chuyển ngay (không cần
+                // confirm). Cập nhật farm_id bên dưới tự động đưa họ rời farm cũ.
 
                 // 1) Chủ cũ → Staff cùng farm (giữ Hub access, mất payout).
                 if ($oldOwner) {
