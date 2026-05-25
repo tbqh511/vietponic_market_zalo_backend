@@ -36,6 +36,7 @@ Route::get('/nha-ban', [FrontEndPropertiesController::class, 'index']);
 Route::get('/dat-ban', [FrontEndPropertiesController::class, 'index']);
 
 Route::get('/gioi-thieu', [FrontEndHomeController::class, 'about'])->name('about');
+Route::get('/chinh-sach/{slug}', [FrontEndHomeController::class, 'showPolicy'])->name('policy.show');
 Route::get('/lien-he', function () {
     return view('contact');
 });

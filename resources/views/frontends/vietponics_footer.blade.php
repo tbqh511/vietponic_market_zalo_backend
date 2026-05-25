@@ -1,3 +1,9 @@
+@php
+    $footerPolicies = \App\Models\Policy::active()
+        ->orderBy('sort_order')
+        ->orderBy('id')
+        ->get(['slug', 'title']);
+@endphp
 <footer id="lien-he">
   <div class="footer-inner">
     <div class="footer-grid">
@@ -31,6 +37,9 @@
           <a href="#">Blog sức khoẻ</a>
           <a href="#">Tuyển dụng</a>
           <a href="#">Liên hệ đại lý</a>
+          @foreach($footerPolicies as $p)
+            <a href="{{ route('policy.show', $p->slug) }}">{{ $p->title }}</a>
+          @endforeach
         </div>
       </div>
       <div>
@@ -47,7 +56,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span>© 2025 HTX Dịch vụ nông nghiệp thủy canh Việt - Vietponics Tất cả quyền được bảo lưu. &nbsp;·&nbsp; <a href="#">Chính sách bảo mật</a> &nbsp;·&nbsp; <a href="#">Điều khoản sử dụng</a></span>
+      <span>© 2025 HTX Dịch vụ nông nghiệp thủy canh Việt - Vietponics. Tất cả quyền được bảo lưu.</span>
       <div class="payment-icons">
         <div class="pay-icon">VISA</div>
         <div class="pay-icon">MASTERCARD</div>

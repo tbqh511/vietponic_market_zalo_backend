@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Policy;
 use App\Models\ZaloCategory;
 use App\Models\ZaloProduct;
 use Illuminate\Http\Request;
@@ -36,6 +37,19 @@ class FrontEndHomeController extends Controller
             'allCategories'      => $allCategories,
             'featuredCategories' => $featuredCategories,
             'exploreProducts'    => $exploreProducts,
+        ]);
+    }
+
+    /**
+     * Hiển thị một chính sách (điều khoản, vận chuyển, thanh toán, bảo mật...)
+     * theo slug, dùng layout landing page. 404 nếu không tồn tại hoặc đang ẩn.
+     */
+    public function showPolicy($slug)
+    {
+        $policy = Policy::active()->where('slug', $slug)->firstOrFail();
+
+        return view('policy_show', [
+            'policy' => $policy,
         ]);
     }
 
