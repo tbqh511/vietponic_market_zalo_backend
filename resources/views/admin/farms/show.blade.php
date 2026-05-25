@@ -45,10 +45,11 @@
                         <button class="btn btn-success btn-sm">Kích hoạt lại</button>
                     </form>
                 @endif
-                @if($farm->is_active && $farm->owner_customer_id)
-                    <button type="button" class="btn btn-info btn-sm"
+                @if($farm->is_active)
+                    <button type="button"
+                            class="btn btn-sm {{ $farm->owner_customer_id ? 'btn-info' : 'btn-primary' }}"
                             data-bs-toggle="modal" data-bs-target="#transferOwnershipModal">
-                        Chuyển chủ
+                        {{ $farm->owner_customer_id ? 'Chuyển chủ' : 'Gán chủ' }}
                     </button>
                 @endif
                 <form action="{{ route('farms.destroy', $farm->id) }}" method="POST"
@@ -108,7 +109,7 @@
 
     {{-- Modal "Chuyển chủ farm" — include 1 lần ở đây, shared cho cả nút trong
          header và nút trong tab Thông tin chung. --}}
-    @if($farm->is_active && $farm->owner_customer_id)
+    @if($farm->is_active)
         @include('admin.farms._partials.modal_transfer_ownership', [
             'farm' => $farm,
             'transferCandidates' => $transferCandidates,

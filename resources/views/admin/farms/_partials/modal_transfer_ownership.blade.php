@@ -10,18 +10,29 @@
             @method('PATCH')
             <input type="hidden" name="current_owner_id" value="{{ $farm->owner_customer_id ?? '' }}">
 
+            @php($hasOwner = (bool) $farm->owner_customer_id)
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Chuyển chủ farm — {{ $farm->name }}</h5>
+                    <h5 class="modal-title">
+                        {{ $hasOwner ? 'Chuyển chủ farm' : 'Gán chủ farm' }} — {{ $farm->name }}
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info small">
-                        <strong>Lưu ý:</strong> Chủ cũ
-                        (<strong>{{ $farm->owner?->name ?? '— chưa có —' }}</strong>) sẽ tự động trở thành
-                        <strong>nhân viên</strong> của farm này (giữ quyền truy cập Hub
-                        nhưng không nhận payout). Để gỡ hẳn khỏi farm, vào Tab Nhân viên sau khi chuyển.
-                    </div>
+                    @if($hasOwner)
+                        <div class="alert alert-info small">
+                            <strong>Lưu ý:</strong> Chủ cũ
+                            (<strong>{{ $farm->owner?->name }}</strong>) sẽ tự động trở thành
+                            <strong>nhân viên</strong> của farm này (giữ quyền truy cập Hub
+                            nhưng không nhận payout). Để gỡ hẳn khỏi farm, vào Tab Nhân viên sau khi chuyển.
+                        </div>
+                    @else
+                        <div class="alert alert-info small">
+                            <strong>Lưu ý:</strong> Farm này chưa có chủ. Khách hàng được chọn sẽ trở thành
+                            <strong>chủ farm</strong> (Owner) — có quyền truy cập Hub và nhận payout.
+                            Nhớ cập nhật thông tin tài khoản ngân hàng của chủ mới trước kỳ payout.
+                        </div>
+                    @endif
 
                     <div class="mb-3">
                         <label class="form-label">Chủ mới <span class="text-danger">*</span></label>
@@ -65,7 +76,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-                    <button type="submit" class="btn btn-warning" id="transferSubmitBtn">Chuyển chủ farm</button>
+                    <button type="submit" class="btn {{ $hasOwner ? 'btn-warning' : 'btn-primary' }}" id="transferSubmitBtn">
+                        {{ $hasOwner ? 'Chuyển chủ farm' : 'Gán chủ farm' }}
+                    </button>
                 </div>
             </div>
         </form>

@@ -78,6 +78,12 @@
                                            title="Chuyển chủ farm">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>
+                                    @elseif($f->is_active && !$f->owner_customer_id)
+                                        <a href="{{ route('farms.show', $f->id) }}?action=transfer"
+                                           class="btn btn-outline-primary btn-sm"
+                                           title="Gán chủ farm">
+                                            <i class="bi bi-person-plus"></i>
+                                        </a>
                                     @endif
                                     <a href="{{ route('farms.show', $f->id) }}" class="btn btn-primary btn-sm">Chi tiết</a>
                                 </td>

@@ -55,6 +55,16 @@
             @endif
         @else
             <div class="alert alert-warning">Farm này chưa có Owner Customer.</div>
+            @if($farm->is_active)
+                <button type="button" class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#transferOwnershipModal">
+                    Gán chủ cho farm
+                </button>
+            @else
+                <div class="alert alert-secondary py-2 small mb-0">
+                    Farm đang tạm khoá — kích hoạt lại trước khi gán chủ.
+                </div>
+            @endif
         @endif
     </div>
 </div>

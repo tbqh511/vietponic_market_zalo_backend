@@ -527,6 +527,10 @@ class FarmController extends Controller
             return back()->with('error', 'Customer được chọn đang là chủ farm hiện tại — không có gì để chuyển.');
         }
 
+        // Farm chưa có chủ → đây là thao tác GÁN chủ lần đầu (không có chủ cũ
+        // để hạ xuống staff). Dùng cờ này để chọn message phản hồi phù hợp.
+        $wasOwnerless = is_null($farm->owner_customer_id);
+
         try {
             DB::transaction(function () use ($farm, $data) {
                 // Lock farm trước, sau đó lock customers theo id tăng dần →
@@ -597,7 +601,9 @@ class FarmController extends Controller
         }
 
         return redirect()->route('farms.show', $farm->id)
-            ->with('success', 'Đã chuyển chủ farm thành công. Chủ cũ đã trở thành nhân viên — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.');
+            ->with('success', $wasOwnerless
+                ? 'Đã gán chủ farm thành công — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.'
+                : 'Đã chuyển chủ farm thành công. Chủ cũ đã trở thành nhân viên — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.');
     }
 
     // ────────────────────────────────────────────────────────────────────
