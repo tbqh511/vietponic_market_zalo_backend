@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\AffiliatePartnerController;
 use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Admin\PolicyController;
 use App\Http\Controllers\Admin\ZaloCustomerController;
 use App\Http\Controllers\Admin\FarmController;
 use App\Http\Controllers\Admin\FarmPayoutController;
@@ -163,6 +164,9 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('vouchers', VoucherController::class);
         Route::patch('vouchers/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
             ->name('vouchers.toggle-active');
+
+        // ─── Chính sách & điều khoản ──────────────────────────────────────────
+        Route::resource('policies', PolicyController::class)->except(['show']);
 
         // ─── Affiliate Management ─────────────────────────────────────────────
         Route::resource('affiliate-partners', AffiliatePartnerController::class)->except(['create', 'store']);

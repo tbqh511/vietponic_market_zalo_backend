@@ -148,6 +148,9 @@
                                         <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
                                     </li>
                                 @endif
+                                <li class="submenu-item">
+                                    <a href="{{ route('policies.index') }}">{{ __('Chính sách (Mini App)') }}</a>
+                                </li>
                             </ul>
                         </li>
                         {{-- <li class="sidebar-item">
