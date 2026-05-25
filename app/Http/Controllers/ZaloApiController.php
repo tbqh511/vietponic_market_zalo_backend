@@ -358,19 +358,27 @@ class ZaloApiController extends Controller
                 ]);
             }
 
+            // Với đơn "tự đến lấy", resolve tên/ảnh/địa chỉ điểm từ station_id để
+            // lưu snapshot vào delivery (client chỉ gửi station_id). Nếu station bị
+            // xoá sau này, đơn cũ vẫn hiển thị đúng điểm đã chọn lúc đặt.
+            $station = null;
+            if (($delivery['type'] ?? null) === 'pickup' && !empty($delivery['station_id'])) {
+                $station = Station::find($delivery['station_id']);
+            }
+
             // Create delivery (bao gồm VTP IDs để tính phí và hiển thị lại)
             ZaloDelivery::create([
                 'order_id'      => $order->id,
                 'type'          => $delivery['type'],
                 'alias'         => '',
-                'address'       => $delivery['address'],
+                'address'       => $station->address ?? $delivery['address'],
                 'name'          => $delivery['name'],
                 'phone'         => $delivery['phone'] ?? null,
                 'station_id'    => $delivery['station_id'] ?? null,
-                'station_name'  => '',
-                'station_image' => '',
-                'lat'           => null,
-                'lng'           => null,
+                'station_name'  => $station->name ?? '',
+                'station_image' => $station->image ?? '',
+                'lat'           => $station->lat ?? null,
+                'lng'           => $station->lng ?? null,
                 'province_id'   => $delivery['province_id'] ?? null,
                 'district_id'   => $delivery['district_id'] ?? null,
                 'ward_id'       => $delivery['ward_id'] ?? null,
