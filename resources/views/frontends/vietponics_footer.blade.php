@@ -31,12 +31,6 @@
       <div>
         <div class="footer-col-title">Thông Tin</div>
         <div class="footer-links">
-          <a href="#">Về Vietponics</a>
-          <a href="#">Quy trình sản xuất</a>
-          <a href="#">Chứng nhận chất lượng</a>
-          <a href="#">Blog sức khoẻ</a>
-          <a href="#">Tuyển dụng</a>
-          <a href="#">Liên hệ đại lý</a>
           @foreach($footerPolicies as $p)
             <a href="{{ route('policy.show', $p->slug) }}">{{ $p->title }}</a>
           @endforeach
