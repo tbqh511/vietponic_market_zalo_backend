@@ -824,11 +824,19 @@ class ZaloApiController extends Controller
         $request->validate([
             'access_token' => 'required|string',
             'phone_token'  => 'nullable|string',
+            'name'         => 'nullable|string|max:255',
+            'avatar'       => 'nullable|string|max:1000',
         ]);
 
         $accessToken = $request->access_token;
         $phoneToken  = $request->phone_token;
         $secretKey = config('services.zalo.app_secret');
+
+        // Tên/ảnh do frontend gửi (lấy từ SDK getUserInfo sau khi user đồng ý).
+        // Ưu tiên dùng nguồn này vì Graph API me?fields=name chỉ trả tên thật
+        // khi đã cấp scope.userInfo — nhiều user không cấp nên Graph trả rỗng.
+        $clientName   = trim((string) $request->input('name', ''));
+        $clientAvatar = trim((string) $request->input('avatar', ''));
 
         try {
             // Call Zalo Graph API to get user profile (same pattern as /get-location)
@@ -883,28 +891,36 @@ class ZaloApiController extends Controller
             // Find or create customer based on Zalo ID
             $customer = Customer::where('firebase_id', $zaloProfile['id'])->first();
 
-            $zaloName = trim((string) ($zaloProfile['name'] ?? ''));
+            // Tên/ảnh thật: ưu tiên client (SDK getUserInfo), rồi Graph API.
+            $graphName     = trim((string) ($zaloProfile['name'] ?? ''));
+            $graphAvatar   = trim((string) ($zaloProfile['picture']['data']['url'] ?? ''));
+            $resolvedName  = $clientName !== '' ? $clientName : $graphName;
+            $resolvedAvatar = $clientAvatar !== '' ? $clientAvatar : $graphAvatar;
 
             if (!$customer) {
                 $customer = Customer::create([
-                    'name'        => $zaloName !== '' ? $zaloName : 'Zalo User',
+                    'name'        => $resolvedName !== '' ? $resolvedName : 'Zalo User',
                     'email'       => $zaloProfile['id'] . '@zalo.user',
                     'firebase_id' => $zaloProfile['id'],
                     'mobile'      => $phoneNumber,
-                    'profile'     => null,
+                    'profile'     => $resolvedAvatar !== '' ? $resolvedAvatar : null,
                     'address'     => null,
                     'fcm_id'      => null,
                     'logintype'   => 'zalo',
                     'isActive'    => 1,
                 ]);
             } else {
-                // Backfill các trường mà lần auth trước Zalo chưa trả về:
+                // Backfill các trường mà lần auth trước chưa lấy được:
                 //  - name: lần đầu fallback 'Zalo User' khi user chưa cấp scope.userInfo.
-                //    Khi user cấp quyền lại, Zalo trả tên thật — đồng bộ về DB.
+                //    Khi user cấp quyền (client gửi name, hoặc Graph trả tên thật) → đồng bộ.
+                //  - profile (avatar): tương tự, chỉ ghi khi đang trống.
                 //  - mobile: tương tự với phone_token.
                 $updates = [];
-                if ($zaloName !== '' && ($customer->name === null || $customer->name === '' || $customer->name === 'Zalo User')) {
-                    $updates['name'] = $zaloName;
+                if ($resolvedName !== '' && ($customer->name === null || $customer->name === '' || $customer->name === 'Zalo User')) {
+                    $updates['name'] = $resolvedName;
+                }
+                if ($resolvedAvatar !== '' && ($customer->profile === null || $customer->profile === '')) {
+                    $updates['profile'] = $resolvedAvatar;
                 }
                 if ($phoneNumber && !$customer->mobile) {
                     $updates['mobile'] = $phoneNumber;
