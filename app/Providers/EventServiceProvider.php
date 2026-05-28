@@ -6,6 +6,7 @@ use App\Events\OrderPaymentSucceeded;
 use App\Listeners\CreateVtpOrderOnPayment;
 use App\Listeners\DeductStockOnPayment;
 use App\Listeners\RecordAffiliateCommission;
+use App\Listeners\SendOrderNotification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -26,6 +27,7 @@ class EventServiceProvider extends ServiceProvider
             DeductStockOnPayment::class,
             CreateVtpOrderOnPayment::class,
             RecordAffiliateCommission::class,
+            SendOrderNotification::class,
         ],
     ];
 

@@ -133,6 +133,14 @@ return [
             'level'  => 'debug',
             'days'   => 30,
         ],
+
+        // Zalo OA / ZNS notification: token refresh, gửi OA message / ZNS, follow webhook
+        'zalo_notify' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/zalo_notify.log'),
+            'level'  => 'debug',
+            'days'   => 30,
+        ],
     ],
 
 ];

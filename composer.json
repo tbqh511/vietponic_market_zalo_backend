@@ -80,6 +80,9 @@
         "test:shipping": [
             "@php artisan test --env=testing --testsuite=Shipping"
         ],
+        "test:notify": [
+            "@php artisan test --env=testing --testsuite=Notify"
+        ],
         "test:coverage": [
             "@php artisan test --env=testing --coverage --min=80"
         ]

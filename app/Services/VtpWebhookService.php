@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AffiliateCommission;
 use App\Models\VtpTrackingEvent;
 use App\Models\ZaloOrder;
+use App\Support\DispatchesOrderNotifications;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Log;
  */
 class VtpWebhookService
 {
+    use DispatchesOrderNotifications;
+
     private const TERMINAL_VTP_CODES = [101, 107, 201, 501, 503, 504];
 
     public function __construct(
@@ -65,7 +68,10 @@ class VtpWebhookService
             return;
         }
 
-        DB::transaction(function () use ($order, $data, $statusCode, $statusAt) {
+        // Trạng thái mới đã chuyển — set trong transaction, dispatch tin SAU khi commit.
+        $notifyStatus = null;
+
+        DB::transaction(function () use ($order, $data, $statusCode, $statusAt, &$notifyStatus) {
             // 3. Insert event
             VtpTrackingEvent::create([
                 'order_id'         => $order->id,
@@ -107,6 +113,7 @@ class VtpWebhookService
                 }
                 $order->update($updates);
                 $this->handleStatusSideEffects($order, $previousStatus, $newStatus, $statusCode);
+                $notifyStatus = $newStatus;
 
                 Log::channel('viettelpost')->info('[Webhook] Status updated', [
                     'order_id' => $order->id,
@@ -116,6 +123,14 @@ class VtpWebhookService
                 ]);
             }
         });
+
+        // Bắn tin Zalo sau khi transaction commit (tránh gửi nếu rollback).
+        if ($notifyStatus !== null) {
+            $this->dispatchOrderNotification($order->id, 'shipping', [
+                'status'   => $notifyStatus,
+                'vtp_code' => $statusCode,
+            ]);
+        }
     }
 
     /**

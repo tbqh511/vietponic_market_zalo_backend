@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\StockController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\PolicyController;
 use App\Http\Controllers\Admin\ZaloCustomerController;
+use App\Http\Controllers\Admin\NotificationSettingController;
 use App\Http\Controllers\Admin\FarmController;
 use App\Http\Controllers\Admin\FarmPayoutController;
 use Illuminate\Support\Facades\Artisan;
@@ -76,6 +77,10 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('system_version_setting', [SettingController::class, 'system_version_setting']);
         Route::post('settings', [SettingController::class, 'settings']);
         Route::post('set_settings', [SettingController::class, 'system_settings']);
+
+        // Zalo Push Notification (OA / ZNS) — bật/tắt runtime
+        Route::get('admin/notifications', [NotificationSettingController::class, 'index'])->name('admin.notifications.index');
+        Route::post('admin/notifications/toggle', [NotificationSettingController::class, 'toggle'])->name('admin.notifications.toggle');
 
         // Profile & password
         Route::get('change-password', [HomeController::class, 'change_password'])->name('changepassword');

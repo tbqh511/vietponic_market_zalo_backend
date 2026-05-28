@@ -42,6 +42,11 @@
             <file>./tests/Feature/ApplyReferralTest.php</file>
             <file>./tests/Feature/CommissionCreditedOnPaymentTest.php</file>
         </testsuite>
+        <!-- Testsuite cho Zalo OA / ZNS push notification -->
+        <testsuite name="Notify">
+            <file>./tests/Unit/ZaloOaClientTest.php</file>
+            <file>./tests/Feature/ZaloNotificationTest.php</file>
+        </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>
@@ -67,5 +72,13 @@
         <env name="ADMIN_API_SECRET" value="test_admin_secret_for_testing"/>
         <!-- JWT secret – dùng để ký và xác minh Bearer tokens trong OrderListTest -->
         <env name="JWT_SECRET" value="test_jwt_secret_for_testing_orders_list"/>
+        <!-- Zalo OA / ZNS notification – bật cờ + template id giả cho test -->
+        <env name="ZALO_NOTIFY_ENABLED" value="true"/>
+        <env name="ZALO_OA_ID" value="test_oa"/>
+        <env name="ZALO_OA_SECRET_KEY" value="test_oa_secret"/>
+        <env name="ZALO_ZNS_TEMPLATE_PAID" value="tpl_paid"/>
+        <env name="ZALO_ZNS_TEMPLATE_STATUS" value="tpl_status"/>
+        <env name="ZALO_ZNS_TEMPLATE_CANCELLED" value="tpl_cancelled"/>
+        <env name="ZALO_ZNS_TEMPLATE_SHIPPING" value="tpl_shipping"/>
     </php>
 </phpunit>

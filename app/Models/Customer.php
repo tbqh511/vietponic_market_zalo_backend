@@ -42,12 +42,18 @@ class Customer extends Authenticatable implements JWTSubject
         'farm_bank_name',
         'farm_bank_account',
         'farm_bank_holder',
+        // Zalo OA follow state — kênh OA Message chỉ gửi được khi khách đã follow OA.
+        // firebase_id = Zalo user_id là khoá map từ OA follow webhook.
+        'oa_followed',
+        'oa_followed_at',
     ];
 
     protected $casts = [
         'affiliate_approved_at'   => 'datetime',
         'farm_id'                 => 'integer',
         'referred_by_customer_id' => 'integer',
+        'oa_followed'             => 'boolean',
+        'oa_followed_at'          => 'datetime',
     ];
 
     protected $hidden = [

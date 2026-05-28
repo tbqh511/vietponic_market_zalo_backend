@@ -24,9 +24,12 @@ use Illuminate\Support\Facades\Cache;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Support\DispatchesOrderNotifications;
 
 class ZaloApiController extends Controller
 {
+    use DispatchesOrderNotifications;
+
     public function __construct(
         private StockService $stockService,
         private RefundService $refundService,
@@ -546,6 +549,15 @@ class ZaloApiController extends Controller
         }
         $order->update($updates);
 
+        // Bắn tin Zalo khi trạng thái thực sự đổi (huỷ → 'cancelled', còn lại → 'status_changed').
+        if ($newStatus !== $previousStatus) {
+            $this->dispatchOrderNotification(
+                $order->id,
+                $newStatus === 'cancelled' ? 'cancelled' : 'status_changed',
+                ['status' => $newStatus]
+            );
+        }
+
         // Khi đơn bị huỷ: release stock + tính refund theo payment method
         if ($newStatus === 'cancelled' && $previousStatus !== 'cancelled') {
             $order->update([
@@ -701,6 +713,8 @@ class ZaloApiController extends Controller
         // Hủy đơn VTP nếu đã tạo — nếu fail thì admin xử lý sau qua tool riêng,
         // không block flow cancel của customer.
         $this->cancelVtpOrderIfExists($order, 'Khách hủy: ' . ($order->cancellation_reason ?? ''));
+
+        $this->dispatchOrderNotification($order->id, 'cancelled', ['by' => 'customer']);
 
         $order->refresh()->load(['items', 'delivery']);
         return response()->json(['error' => false, 'data' => $order]);

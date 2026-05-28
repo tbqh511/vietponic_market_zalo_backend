@@ -5,6 +5,7 @@ use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\ViettelPostWebhookController;
 use App\Http\Controllers\VoucherApiController;
 use App\Http\Controllers\ZaloApiController;
+use App\Http\Controllers\ZaloOaWebhookController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmHubController;
 use App\Http\Controllers\Farm\FarmStockController;
@@ -31,6 +32,9 @@ Route::post('notify', [ZaloApiController::class, 'notifySDK']);
 
 // ─── ViettelPost webhook (public — verify token + IP whitelist trong controller) ─
 Route::post('viettelpost/webhook', [ViettelPostWebhookController::class, 'handle']);
+
+// ─── Zalo OA follow/unfollow webhook (public — verify MAC bằng oa_secret_key) ─
+Route::post('oa/webhook', [ZaloOaWebhookController::class, 'handle']);
 
 // ─── Zalo Mini App API – Protected (Customer JWT) ────────────────────────────
 
