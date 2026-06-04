@@ -24,8 +24,11 @@ class OrderPackingLog extends Model
     public const ACTION_ASSIGNED        = 'assigned';
     public const ACTION_REASSIGNED      = 'reassigned';
     public const ACTION_UNASSIGNED      = 'unassigned';
+    public const ACTION_CLAIMED         = 'claimed';
     public const ACTION_PACKING_STARTED = 'packing_started';
     public const ACTION_PACKED          = 'packed';
+    public const ACTION_ORDER_CONFIRMED = 'order_confirmed';
+    public const ACTION_HANDED_OFF      = 'handed_off';
     public const ACTION_STATUS_CHANGED  = 'status_changed';
 
     protected $fillable = [

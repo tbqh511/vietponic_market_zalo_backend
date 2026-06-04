@@ -212,8 +212,10 @@ class OrderPackingTest extends TestCase
 
     // ─── B. Phân quyền hiển thị (incoming) ────────────────────────────────────
 
-    public function test_staff_only_sees_orders_assigned_to_them(): void
+    public function test_staff_sees_all_farm_orders_with_is_mine_flag(): void
     {
+        // Mô hình self-claim: staff THẤY mọi đơn của farm (để nhận đơn chưa ai
+        // nhận / thấy đơn người khác đang đóng). is_mine phân biệt đơn của mình.
         [$owner, $farm] = $this->makeFarmPartner();
         $staffA = $this->makeStaff($farm);
         $staffB = $this->makeStaff($farm);
@@ -236,10 +238,66 @@ class OrderPackingTest extends TestCase
             ->getJson('/api/farm/orders/incoming');
 
         $response->assertOk();
-        $orderIds = collect($response->json('data'))->pluck('order_id')->unique()->all();
+        $rows = collect($response->json('data'));
 
+        // Staff A thấy CẢ HAI đơn.
+        $orderIds = $rows->pluck('order_id')->unique()->all();
         $this->assertContains($orderA->id, $orderIds);
-        $this->assertNotContains($orderB->id, $orderIds);
+        $this->assertContains($orderB->id, $orderIds);
+
+        // is_mine đúng: chỉ orderA là của staffA.
+        $this->assertTrue($rows->firstWhere('order_id', $orderA->id)['is_mine']);
+        $this->assertFalse($rows->firstWhere('order_id', $orderB->id)['is_mine']);
+    }
+
+    public function test_staff_can_claim_unassigned_order(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeStaff($farm);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer);
+
+        // Phiếu chưa ai nhận.
+        $this->assignmentFor($order->id, $farm->id);
+
+        $response = $this->withHeaders($this->authHeader($staff))
+            ->postJson("/api/farm/orders/{$order->id}/claim");
+
+        $response->assertOk()
+            ->assertJsonPath('data.assignment_status', 'assigned')
+            ->assertJsonPath('data.assigned_customer_id', $staff->id)
+            ->assertJsonPath('data.is_mine', true);
+
+        $this->assertDatabaseHas('order_farm_assignments', [
+            'order_id'             => $order->id,
+            'assigned_customer_id' => $staff->id,
+            'status'               => 'assigned',
+        ]);
+
+        // Log 'claimed' ghi đúng actor.
+        $log = OrderPackingLog::where('order_id', $order->id)->where('action', 'claimed')->first();
+        $this->assertNotNull($log);
+        $this->assertEquals($staff->id, $log->actor_customer_id);
+    }
+
+    public function test_staff_cannot_claim_order_already_taken(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staffA = $this->makeStaff($farm);
+        $staffB = $this->makeStaff($farm);
+        $buyer  = $this->makeCustomer();
+        $order  = $this->makeOrderForFarm($farm, $buyer);
+
+        // staffA đã nhận.
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staffA->id,
+            'status'               => 'assigned',
+        ]);
+
+        // staffB cố nhận → 422.
+        $this->withHeaders($this->authHeader($staffB))
+            ->postJson("/api/farm/orders/{$order->id}/claim")
+            ->assertStatus(422);
     }
 
     public function test_owner_sees_all_farm_orders(): void
@@ -283,8 +341,10 @@ class OrderPackingTest extends TestCase
 
     // ─── C. Luồng status: confirm-packed → delivering ─────────────────────────
 
-    public function test_confirm_packed_moves_order_to_delivering_when_all_farms_done(): void
+    public function test_confirm_packed_marks_slip_packed_without_auto_delivering(): void
     {
+        // Theo wireframe: confirm-packed chỉ đánh dấu phiếu 'packed', KHÔNG tự
+        // đẩy đơn sang delivering — chủ farm bấm "Bàn giao ship" riêng.
         [$owner, $farm] = $this->makeFarmPartner();
         $staff = $this->makeStaff($farm);
         $buyer = $this->makeCustomer();
@@ -301,19 +361,117 @@ class OrderPackingTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.assignment_status', 'packed');
 
-        // Đơn chỉ có 1 farm → tất cả packed → chuyển 'delivering'.
+        // Phiếu packed nhưng đơn VẪN preparing (chờ owner bàn giao).
         $order->refresh();
-        $this->assertEquals('delivering', $order->status);
-        // delivered_at KHÔNG bị set sớm.
+        $this->assertEquals('preparing', $order->status);
         $this->assertNull($order->delivered_at);
 
-        // Có log status_changed preparing → delivering.
+        // Chưa có log status_changed sang delivering (chưa bàn giao).
+        $this->assertDatabaseMissing('order_packing_logs', [
+            'order_id'  => $order->id,
+            'action'    => 'status_changed',
+            'to_status' => 'delivering',
+        ]);
+    }
+
+    public function test_owner_handoff_ship_moves_packed_order_to_delivering(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeStaff($farm);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, ['status' => 'preparing']);
+
+        // Phiếu đã đóng gói xong.
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staff->id,
+            'status'               => 'packed',
+            'packed_at'            => now(),
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/handoff-ship");
+
+        $response->assertOk()
+            ->assertJsonPath('data.order_status', 'delivering');
+
+        $order->refresh();
+        $this->assertEquals('delivering', $order->status);
+        $this->assertNull($order->delivered_at);
+
+        // Log status_changed preparing → delivering + log handed_off.
         $statusLog = OrderPackingLog::where('order_id', $order->id)
-            ->where('action', 'status_changed')
-            ->first();
+            ->where('action', 'status_changed')->first();
         $this->assertNotNull($statusLog);
         $this->assertEquals('preparing', $statusLog->from_status);
         $this->assertEquals('delivering', $statusLog->to_status);
+        $this->assertDatabaseHas('order_packing_logs', [
+            'order_id' => $order->id,
+            'action'   => 'handed_off',
+        ]);
+    }
+
+    public function test_handoff_ship_blocked_when_a_farm_not_packed_yet(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeStaff($farm);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, ['status' => 'preparing']);
+
+        // Phiếu mới đang đóng dở (packing), chưa packed.
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staff->id,
+            'status'               => 'packing',
+        ]);
+
+        $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/handoff-ship")
+            ->assertStatus(422);
+
+        $order->refresh();
+        $this->assertEquals('preparing', $order->status);
+    }
+
+    public function test_staff_cannot_handoff_or_confirm_order(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeStaff($farm);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, ['status' => 'pending']);
+
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staff->id,
+            'status'               => 'packed',
+            'packed_at'            => now(),
+        ]);
+
+        // Chỉ owner được xác nhận đơn / bàn giao ship.
+        $this->withHeaders($this->authHeader($staff))
+            ->postJson("/api/farm/orders/{$order->id}/confirm-order")
+            ->assertStatus(403);
+        $this->withHeaders($this->authHeader($staff))
+            ->postJson("/api/farm/orders/{$order->id}/handoff-ship")
+            ->assertStatus(403);
+    }
+
+    public function test_owner_confirm_order_moves_pending_to_confirmed(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, ['status' => 'pending']);
+        $this->assignmentFor($order->id, $farm->id);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/confirm-order");
+
+        $response->assertOk()
+            ->assertJsonPath('data.order_status', 'confirmed');
+
+        $order->refresh();
+        $this->assertEquals('confirmed', $order->status);
+        $this->assertDatabaseHas('order_packing_logs', [
+            'order_id' => $order->id,
+            'action'   => 'order_confirmed',
+        ]);
     }
 
     public function test_order_stays_in_preparing_until_all_farms_packed(): void

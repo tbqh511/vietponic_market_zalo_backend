@@ -105,7 +105,11 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     Route::get('orders/{orderId}', [FarmPackingController::class, 'show'])->whereNumber('orderId');
     Route::post('orders/{orderId}/start-packing', [FarmPackingController::class, 'startPacking'])->whereNumber('orderId');
     Route::post('orders/{orderId}/confirm-packed', [FarmPackingController::class, 'confirmPacked'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/claim', [FarmPackingController::class, 'claim'])->whereNumber('orderId');
     Route::post('orders/{orderId}/assign', [FarmPackingController::class, 'assign'])->whereNumber('orderId');
+    // Chỉ owner: xác nhận đơn (pending→confirmed) & bàn giao ship (preparing→delivering).
+    Route::post('orders/{orderId}/confirm-order', [FarmPackingController::class, 'confirmOrder'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/handoff-ship', [FarmPackingController::class, 'handoffShipping'])->whereNumber('orderId');
 
     Route::get('payouts', [FarmHubController::class, 'payouts']);
     Route::get('payouts/{id}', [FarmHubController::class, 'payoutDetail'])->whereNumber('id');

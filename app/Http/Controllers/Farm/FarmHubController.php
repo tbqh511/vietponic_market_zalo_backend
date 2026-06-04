@@ -55,6 +55,7 @@ class FarmHubController extends Controller
                 // chỉ-owner (vd nút "Phân công") và xác định đơn của-mình.
                 'viewer'         => [
                     'customer_id' => (int) $customer->id,
+                    'name'        => $customer->name ?: 'Thành viên',
                     'farm_role'   => $customer->farm_role, // 'owner' | 'staff'
                     'is_owner'    => $customer->isFarmOwner(),
                 ],
@@ -454,6 +455,9 @@ class FarmHubController extends Controller
                 $join->on('a.order_id', '=', 'oi.order_id')
                      ->where('a.farm_id', '=', $farm->id);
             })
+            // Tên người đang đóng gói — để FE hiện "Đang đóng: NV. Tuấn" /
+            // "Đóng bởi: NV. Hà". leftJoin vì phiếu có thể chưa ai nhận.
+            ->leftJoin('customers as pc', 'pc.id', '=', 'a.assigned_customer_id')
             ->where('oi.farm_id', $farm->id)
             ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
             ->orderByDesc('o.created_at')
@@ -471,23 +475,21 @@ class FarmHubController extends Controller
                 d.name AS customer_name,
                 d.phone AS customer_phone,
                 d.address AS delivery_address,
+                d.type AS delivery_type,
+                d.station_name AS station_name,
                 a.status AS assignment_status,
-                a.assigned_customer_id AS assigned_customer_id
+                a.assigned_customer_id AS assigned_customer_id,
+                a.packing_started_at AS packing_started_at,
+                a.packed_at AS packed_at,
+                pc.name AS assigned_customer_name
             ')
             ->get();
 
-        // Phân quyền: staff chỉ thấy phiếu được gán cho chính mình; owner thấy
-        // tất cả của farm. Verify từ DB (không tin claim JWT) — middleware đã
-        // load $customer tươi.
-        $isStaff = $customer->isFarmStaff();
-
+        // Mô hình self-claim: staff THẤY mọi đơn của farm (để nhận đơn chưa ai
+        // nhận / thấy đơn người khác đang đóng bị khoá). FE quyết định nút theo
+        // assignment_status + is_mine; backend KHÔNG lọc theo người gán nữa.
+        // Bảo mật vẫn giữ: thông tin KH che server-side cho mọi vai trò.
         $data = $rows
-            ->filter(function ($r) use ($isStaff, $customer) {
-                if (! $isStaff) {
-                    return true; // owner thấy hết
-                }
-                return (int) $r->assigned_customer_id === (int) $customer->id;
-            })
             ->map(fn ($r) => [
                 'item_id'             => (int) $r->item_id,
                 'order_id'            => (int) $r->order_id,
@@ -498,14 +500,20 @@ class FarmHubController extends Controller
                 'order_status'        => (string) $r->order_status,
                 'order_created_at'    => $r->order_created_at,
                 'order_total'         => (float) $r->order_total,
+                'is_pickup'           => $r->delivery_type === 'pickup',
+                'station_name'        => $r->station_name,
                 // Thông tin KH đã che server-side — staff không bao giờ nhận bản đầy đủ.
                 'customer_name'       => $r->customer_name,
                 'customer_phone'      => \App\Support\ContactMasker::maskPhone($r->customer_phone),
                 'delivery_address'    => \App\Support\ContactMasker::maskAddress($r->delivery_address),
-                // Trạng thái đóng gói + ai được gán.
+                // Trạng thái đóng gói + ai đang/đã đóng + mốc thời gian.
                 'assignment_status'   => $r->assignment_status ?? \App\Models\OrderFarmAssignment::STATUS_UNASSIGNED,
                 'assigned_customer_id'=> $r->assigned_customer_id !== null ? (int) $r->assigned_customer_id : null,
-                'is_mine'             => (int) $r->assigned_customer_id === (int) $customer->id,
+                'assigned_customer_name' => $r->assigned_customer_name,
+                'packing_started_at'  => $r->packing_started_at,
+                'packed_at'           => $r->packed_at,
+                'is_mine'             => $r->assigned_customer_id !== null
+                    && (int) $r->assigned_customer_id === (int) $customer->id,
             ])
             ->values()
             ->all();

@@ -18,11 +18,13 @@ use Illuminate\Support\Facades\DB;
  * Mỗi cặp (order, farm) là một phiếu OrderFarmAssignment. Lifecycle:
  *   unassigned → assigned → packing → packed.
  *
- * Khi TẤT CẢ phiếu của một order đã 'packed', service đẩy order
- * preparing → delivering (bàn giao vận chuyển). KHÔNG nhân bản state-machine
- * guard của ZaloApiController::updateStatus — chỉ chuyển status + bắn thông
- * báo (giống đúng những gì admin web làm khi set 'delivering'). delivered_at
- * vẫn chỉ set ở bước delivered, không bị đụng ở đây.
+ * Nhân viên (staff) có thể TỰ NHẬN (claim) phiếu chưa ai nhận; chủ farm gán
+ * trực tiếp. Khi TẤT CẢ phiếu của một order đã 'packed', đơn KHÔNG tự sang
+ * delivering nữa — chủ farm bấm "Bàn giao ship" (handoffShipping) để chuyển
+ * preparing → delivering. Tách bước này theo wireframe để owner kiểm soát thời
+ * điểm gọi vận chuyển. KHÔNG nhân bản state-machine guard của
+ * ZaloApiController::updateStatus — chỉ chuyển status + bắn thông báo (giống
+ * đúng những gì admin web làm). delivered_at vẫn chỉ set ở bước delivered.
  *
  * Mọi thao tác đều ghi OrderPackingLog để truy vết sự cố.
  *
@@ -80,6 +82,49 @@ class PackingService
                     'packer_name'          => $packer->name,
                     'previous_packer_id'   => $previousPackerId,
                 ]
+            );
+
+            return $assignment;
+        });
+    }
+
+    /**
+     * Nhân viên TỰ NHẬN một phiếu chưa ai nhận (self-claim). Người nhận phải
+     * thuộc đúng farm của phiếu. Khác assign() ở chỗ actor == packer và chỉ cho
+     * nhận phiếu đang 'unassigned' (không cướp phiếu người khác đang đóng).
+     */
+    public function claim(OrderFarmAssignment $assignment, Customer $packer): OrderFarmAssignment
+    {
+        if ((int) $packer->farm_id !== (int) $assignment->farm_id) {
+            throw new \DomainException('Bạn không thuộc farm của đơn này.');
+        }
+
+        return DB::transaction(function () use ($assignment, $packer) {
+            $assignment = OrderFarmAssignment::lockForUpdate()->findOrFail($assignment->id);
+
+            // Đã có người nhận (kể cả chính mình) → không cho nhận lại. FE chặn
+            // trước nhưng vẫn guard ở đây tránh race 2 nhân viên cùng bấm.
+            if (! is_null($assignment->assigned_customer_id)) {
+                if ((int) $assignment->assigned_customer_id === (int) $packer->id) {
+                    return $assignment; // mình đã nhận rồi — idempotent
+                }
+                throw new \DomainException('Đơn đã có người nhận đóng gói.');
+            }
+
+            $assignment->assigned_customer_id    = $packer->id;
+            $assignment->assigned_by_customer_id = $packer->id; // tự nhận
+            $assignment->assigned_at             = now();
+            $assignment->status                  = OrderFarmAssignment::STATUS_ASSIGNED;
+            $assignment->save();
+
+            OrderPackingLog::record(
+                $assignment->order_id,
+                $assignment->farm_id,
+                $packer,
+                OrderPackingLog::ACTION_CLAIMED,
+                null,
+                null,
+                ['packer_customer_id' => $packer->id, 'packer_name' => $packer->name]
             );
 
             return $assignment;
@@ -160,8 +205,9 @@ class PackingService
     }
 
     /**
-     * Xác nhận đã đóng gói xong phiếu này. Khi TẤT CẢ phiếu của order đã packed
-     * → đẩy order sang 'delivering'.
+     * Xác nhận đã đóng gói xong phiếu này (status → packed). KHÔNG tự đẩy đơn
+     * sang 'delivering' — chủ farm chủ động bấm "Bàn giao ship" (handoffShipping)
+     * theo wireframe. Đây chỉ đánh dấu phần-của-farm đã gói xong.
      *
      * @param  Customer|User|null  $actor
      */
@@ -189,16 +235,80 @@ class PackingService
                 OrderPackingLog::ACTION_PACKED
             );
 
-            // Mọi phiếu của đơn đã đóng xong? → bàn giao vận chuyển (delivering).
-            $remaining = OrderFarmAssignment::where('order_id', $assignment->order_id)
-                ->where('status', '!=', OrderFarmAssignment::STATUS_PACKED)
-                ->count();
+            return $assignment;
+        });
+    }
 
-            if ($remaining === 0) {
-                $this->advanceOrderTo($assignment->order_id, 'delivering', $actor, $assignment->farm_id);
+    /**
+     * Chủ farm/Admin xác nhận đơn (pending → confirmed) — bước trước đóng gói,
+     * khớp nút "Xác nhận đơn" trên wireframe (#112). Chỉ tiến từ 'pending';
+     * idempotent nếu đã ≥ confirmed.
+     *
+     * @param  Customer|User|null  $actor
+     */
+    public function confirmOrder(int $orderId, ?int $farmId, $actor): ZaloOrder
+    {
+        return DB::transaction(function () use ($orderId, $farmId, $actor) {
+            $order = ZaloOrder::lockForUpdate()->findOrFail($orderId);
+
+            if ($order->status === 'pending') {
+                $previous = $order->status;
+                $order->update(['status' => 'confirmed']);
+
+                $this->dispatchOrderNotification($order->id, 'status_changed', ['status' => 'confirmed']);
+
+                OrderPackingLog::record(
+                    $order->id,
+                    $farmId,
+                    $actor,
+                    OrderPackingLog::ACTION_ORDER_CONFIRMED,
+                    $previous,
+                    'confirmed'
+                );
             }
 
-            return $assignment;
+            return $order;
+        });
+    }
+
+    /**
+     * Chủ farm/Admin "Bàn giao ship": đẩy đơn preparing → delivering, khớp nút
+     * trên wireframe (#105). Chỉ cho phép khi TẤT CẢ phiếu của đơn đã 'packed'
+     * (mọi phần farm đã gói xong). Idempotent nếu đơn đã ≥ delivering.
+     *
+     * @param  Customer|User|null  $actor
+     */
+    public function handoffShipping(int $orderId, ?int $farmId, $actor): ZaloOrder
+    {
+        return DB::transaction(function () use ($orderId, $farmId, $actor) {
+            $order = ZaloOrder::lockForUpdate()->findOrFail($orderId);
+
+            // Đã giao/đang giao/huỷ → không làm gì (idempotent với delivering+).
+            if (in_array($order->status, ['delivering', 'delivered', 'cancelled'], true)) {
+                return $order;
+            }
+
+            // Chặn bàn giao khi còn phần farm chưa đóng gói xong.
+            $remaining = OrderFarmAssignment::where('order_id', $orderId)
+                ->where('status', '!=', OrderFarmAssignment::STATUS_PACKED)
+                ->count();
+            if ($remaining > 0) {
+                throw new \DomainException('Còn phần đơn chưa đóng gói xong — chưa thể bàn giao vận chuyển.');
+            }
+
+            // advanceOrderTo tự ghi log status_changed + bắn thông báo.
+            $this->advanceOrderTo($orderId, 'delivering', $actor, $farmId);
+
+            OrderPackingLog::record(
+                $orderId,
+                $farmId,
+                $actor,
+                OrderPackingLog::ACTION_HANDED_OFF,
+                null,
+                'delivering'
+            );
+
+            return $order->refresh();
         });
     }
 

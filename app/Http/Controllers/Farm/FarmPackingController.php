@@ -116,6 +116,89 @@ class FarmPackingController extends Controller
     }
 
     /**
+     * POST /farm/orders/{orderId}/claim — nhân viên TỰ NHẬN phiếu chưa ai nhận.
+     * Khác assign (owner gán): người gọi tự nhận cho mình, chỉ nhận được phiếu
+     * 'unassigned'. Owner cũng có thể tự nhận để tự đóng.
+     */
+    public function claim(Request $request, int $orderId): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+        /** @var Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
+
+        $assignment = $this->findAssignment($farm, $orderId);
+        if (! $assignment) {
+            return response()->json(['error' => true, 'message' => 'Không tìm thấy đơn của farm này'], 404);
+        }
+
+        try {
+            $assignment = $this->packing->claim($assignment, $customer);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['error' => false, 'data' => $this->assignmentPayload($assignment, $customer)]);
+    }
+
+    /**
+     * POST /farm/orders/{orderId}/confirm-order — CHỈ owner: xác nhận đơn
+     * (pending → confirmed), bước trước đóng gói. Khớp nút "Xác nhận đơn".
+     */
+    public function confirmOrder(Request $request, int $orderId): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+        /** @var Customer $owner */
+        $owner = $request->attributes->get('zalo_customer');
+
+        if (! $owner->isFarmOwner()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ farm được xác nhận đơn'], 403);
+        }
+
+        // Đảm bảo farm thực sự có phần trong đơn này.
+        if (! $this->findAssignment($farm, $orderId)) {
+            return response()->json(['error' => true, 'message' => 'Không tìm thấy đơn của farm này'], 404);
+        }
+
+        try {
+            $order = $this->packing->confirmOrder($orderId, $farm->id, $owner);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['error' => false, 'data' => ['order_id' => (int) $order->id, 'order_status' => $order->status]]);
+    }
+
+    /**
+     * POST /farm/orders/{orderId}/handoff-ship — CHỈ owner: bàn giao vận chuyển
+     * (preparing → delivering). Chỉ được khi mọi phần farm của đơn đã đóng xong.
+     */
+    public function handoffShipping(Request $request, int $orderId): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+        /** @var Customer $owner */
+        $owner = $request->attributes->get('zalo_customer');
+
+        if (! $owner->isFarmOwner()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ farm được bàn giao vận chuyển'], 403);
+        }
+
+        if (! $this->findAssignment($farm, $orderId)) {
+            return response()->json(['error' => true, 'message' => 'Không tìm thấy đơn của farm này'], 404);
+        }
+
+        try {
+            $order = $this->packing->handoffShipping($orderId, $farm->id, $owner);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['error' => false, 'data' => ['order_id' => (int) $order->id, 'order_status' => $order->status]]);
+    }
+
+    /**
      * POST /farm/orders/{orderId}/assign — CHỈ owner: gán/đổi packer cho phiếu
      * của farm mình. Body: { packer_customer_id }.
      */
