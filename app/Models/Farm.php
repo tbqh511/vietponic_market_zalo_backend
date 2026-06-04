@@ -130,6 +130,15 @@ class Farm extends Model
     }
 
     /**
+     * Phiếu đóng gói (order, farm) thuộc farm này — nguồn dữ liệu cho khâu
+     * phân công & đóng gói đơn.
+     */
+    public function assignments()
+    {
+        return $this->hasMany(OrderFarmAssignment::class, 'farm_id');
+    }
+
+    /**
      * Farm "đang hoạt động" = đã được admin duyệt và đang bật.
      * Dùng scope này ở mọi nơi cần lọc farm public (frontend, allocation).
      */

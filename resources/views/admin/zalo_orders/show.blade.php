@@ -73,6 +73,108 @@
         </div>
     </div>
 
+    {{-- ─── Phân công đóng gói (per-farm) ──────────────────────────────────────── --}}
+    @if($order->assignments->isNotEmpty())
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Đóng gói theo farm</h5>
+                <a href="{{ route('order-packing.index', ['q' => $order->id]) }}" class="btn btn-sm btn-secondary">Phân công</a>
+            </div>
+            <div class="card-body">
+                <table class="table mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Farm</th>
+                            <th>Trạng thái</th>
+                            <th>Nhân viên phụ trách</th>
+                            <th>Mốc thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($order->assignments as $a)
+                            @php
+                                $badge = match($a->status) {
+                                    'packed'   => 'success',
+                                    'packing'  => 'primary',
+                                    'assigned' => 'info',
+                                    default    => 'secondary',
+                                };
+                                $statusLabels = [
+                                    'unassigned' => 'Chưa gán',
+                                    'assigned'   => 'Đã gán',
+                                    'packing'    => 'Đang đóng gói',
+                                    'packed'     => 'Đã đóng gói',
+                                ];
+                            @endphp
+                            <tr>
+                                <td>{{ optional($a->farm)->name ?? ('#'.$a->farm_id) }}</td>
+                                <td><span class="badge bg-{{ $badge }}">{{ $statusLabels[$a->status] ?? $a->status }}</span></td>
+                                <td>
+                                    @if($a->assignedCustomer)
+                                        {{ $a->assignedCustomer->name }}
+                                        <span class="small text-muted">({{ $a->assignedCustomer->farm_role === 'owner' ? 'chủ farm' : 'nhân viên' }})</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td class="small text-muted">
+                                    @if($a->packed_at)
+                                        Xong: {{ $a->packed_at->format('d/m H:i') }}
+                                    @elseif($a->packing_started_at)
+                                        Bắt đầu: {{ $a->packing_started_at->format('d/m H:i') }}
+                                    @elseif($a->assigned_at)
+                                        Gán: {{ $a->assigned_at->format('d/m H:i') }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Nhật ký đóng gói (audit trail truy vết sự cố) ──────────────────────── --}}
+    @if($order->packingLogs->isNotEmpty())
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Nhật ký đóng gói ({{ $order->packingLogs->count() }})</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0" style="border-left: 2px solid #dee2e6; padding-left: 20px;">
+                    @php
+                        $actionLabels = [
+                            'assigned'        => 'Phân công',
+                            'reassigned'      => 'Đổi người phụ trách',
+                            'unassigned'      => 'Gỡ phân công',
+                            'packing_started' => 'Bắt đầu đóng gói',
+                            'packed'          => 'Hoàn tất đóng gói',
+                            'status_changed'  => 'Đổi trạng thái đơn',
+                        ];
+                    @endphp
+                    @foreach($order->packingLogs as $log)
+                        <li class="mb-3" style="position: relative;">
+                            <span style="position:absolute;left:-27px;top:4px;width:12px;height:12px;background:#0d6efd;border-radius:50%;border:2px solid white;box-shadow:0 0 0 2px #dee2e6;"></span>
+                            <div>
+                                <strong>{{ optional($log->created_at)->format('d/m/Y H:i') }}</strong>
+                                — {{ $actionLabels[$log->action] ?? $log->action }}
+                                @if($log->from_status || $log->to_status)
+                                    <span class="badge bg-light text-dark">{{ $log->from_status }} → {{ $log->to_status }}</span>
+                                @endif
+                            </div>
+                            <div class="text-muted small">👤 {{ $log->actor_label ?? 'Hệ thống' }}</div>
+                            @if(!empty($log->meta['packer_name']))
+                                <div class="text-muted small">→ {{ $log->meta['packer_name'] }}</div>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+    @endif
+
     {{-- ─── ViettelPost tracking section ───────────────────────────────────────── --}}
     @if($order->delivery && $order->delivery->type === 'shipping')
         <div class="card mt-3">

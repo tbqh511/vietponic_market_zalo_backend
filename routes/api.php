@@ -8,6 +8,7 @@ use App\Http\Controllers\ZaloApiController;
 use App\Http\Controllers\ZaloOaWebhookController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmHubController;
+use App\Http\Controllers\Farm\FarmPackingController;
 use App\Http\Controllers\Farm\FarmStockController;
 use Illuminate\Support\Facades\Route;
 
@@ -96,6 +97,16 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     Route::get('analytics', [FarmHubController::class, 'analytics']);
     Route::get('products/today', [FarmHubController::class, 'productsToday']);
     Route::get('orders/incoming', [FarmHubController::class, 'incomingOrders']);
+
+    // ─── Đóng gói đơn (Packing Station) ──────────────────────────────────────
+    // Chi tiết phần-của-farm + thao tác đóng gói. Phân quyền chi tiết (owner vs
+    // staff được gán) xử lý trong FarmPackingController.
+    Route::get('staff', [FarmHubController::class, 'staff']);
+    Route::get('orders/{orderId}', [FarmPackingController::class, 'show'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/start-packing', [FarmPackingController::class, 'startPacking'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/confirm-packed', [FarmPackingController::class, 'confirmPacked'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/assign', [FarmPackingController::class, 'assign'])->whereNumber('orderId');
+
     Route::get('payouts', [FarmHubController::class, 'payouts']);
     Route::get('payouts/{id}', [FarmHubController::class, 'payoutDetail'])->whereNumber('id');
     // Alias write: /farm/stock-in trỏ thẳng FarmStockController@import.

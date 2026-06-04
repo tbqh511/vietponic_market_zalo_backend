@@ -83,7 +83,16 @@ class ZaloOrderController extends Controller
 
     public function show($id)
     {
-        $order = ZaloOrder::with(['items', 'delivery', 'trackingEvents'])->findOrFail($id);
+        $order = ZaloOrder::with([
+            'items',
+            'delivery',
+            'trackingEvents',
+            // Phân công đóng gói per-farm + audit log để admin truy vết sự cố.
+            'assignments.farm',
+            'assignments.assignedCustomer',
+            'packingLogs',
+        ])->findOrFail($id);
+
         return view('admin.zalo_orders.show', compact('order'));
     }
 

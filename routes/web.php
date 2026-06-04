@@ -112,6 +112,10 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('zalo-orders', ZaloOrderController::class);
         Route::post('zalo-orders/{order}/vtp-retry', [ZaloOrderController::class, 'retryVtp'])->name('zalo-orders.vtp-retry');
 
+        // ─── Phân công đóng gói đơn (Packing Station) ─────────────────────────
+        Route::get('order-packing', [\App\Http\Controllers\Admin\OrderPackingController::class, 'index'])->name('order-packing.index');
+        Route::post('order-packing/{assignment}/assign', [\App\Http\Controllers\Admin\OrderPackingController::class, 'assign'])->name('order-packing.assign');
+
         // ─── Refund Pending Manual (BANK/MOMO/ZaloPay-fallback) ───────────────
         // Dashboard cho kế toán xử lý các refund chờ chuyển tiền thủ công.
         Route::get('refunds/pending', [RefundController::class, 'index'])->name('refunds.pending');

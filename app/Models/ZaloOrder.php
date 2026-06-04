@@ -60,4 +60,18 @@ class ZaloOrder extends Model
     {
         return $this->belongsTo(Voucher::class, 'voucher_id');
     }
+
+    /**
+     * Phiếu đóng gói per-farm của đơn. Một đơn có thể có nhiều phiếu nếu item
+     * thuộc nhiều farm (FEFO split).
+     */
+    public function assignments()
+    {
+        return $this->hasMany(OrderFarmAssignment::class, 'order_id');
+    }
+
+    public function packingLogs()
+    {
+        return $this->hasMany(OrderPackingLog::class, 'order_id')->orderByDesc('created_at');
+    }
 }

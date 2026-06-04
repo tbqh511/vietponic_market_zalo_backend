@@ -32,6 +32,8 @@ class FarmHubController extends Controller
     {
         /** @var Farm $farm */
         $farm = $request->attributes->get('farm');
+        /** @var \App\Models\Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
 
         return response()->json([
             'error' => false,
@@ -49,6 +51,13 @@ class FarmHubController extends Controller
                 // thị dòng "Phí Vietponics (x%)" trong breakdown payout.
                 'commission_rate' => (float) $farm->commission_rate,
                 'approved_at'    => optional($farm->approved_at)->toIso8601String(),
+                // Vai trò người đang đăng nhập trong farm — FE dùng để bật/tắt UI
+                // chỉ-owner (vd nút "Phân công") và xác định đơn của-mình.
+                'viewer'         => [
+                    'customer_id' => (int) $customer->id,
+                    'farm_role'   => $customer->farm_role, // 'owner' | 'staff'
+                    'is_owner'    => $customer->isFarmOwner(),
+                ],
             ],
         ]);
     }
@@ -431,14 +440,24 @@ class FarmHubController extends Controller
     {
         /** @var Farm $farm */
         $farm = $request->attributes->get('farm');
+        /** @var \App\Models\Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
+
+        // Đảm bảo mỗi cặp (order, farm) đang xử lý đều có phiếu đóng gói — đơn
+        // tạo sau backfill migration chưa có row, lazily tạo ở đây (unassigned).
+        $this->ensureAssignmentsExist($farm->id);
 
         $rows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
             ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
             ->leftJoin('zalo_deliveries as d', 'd.order_id', '=', 'o.id')
+            ->leftJoin('order_farm_assignments as a', function ($join) use ($farm) {
+                $join->on('a.order_id', '=', 'oi.order_id')
+                     ->where('a.farm_id', '=', $farm->id);
+            })
             ->where('oi.farm_id', $farm->id)
             ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
             ->orderByDesc('o.created_at')
-            ->limit(50)
+            ->limit(200)
             ->selectRaw('
                 oi.id AS item_id,
                 oi.order_id AS order_id,
@@ -450,25 +469,109 @@ class FarmHubController extends Controller
                 o.created_at AS order_created_at,
                 o.total AS order_total,
                 d.name AS customer_name,
-                d.address AS delivery_address
+                d.phone AS customer_phone,
+                d.address AS delivery_address,
+                a.status AS assignment_status,
+                a.assigned_customer_id AS assigned_customer_id
             ')
             ->get();
 
-        $data = $rows->map(fn ($r) => [
-            'item_id'          => (int) $r->item_id,
-            'order_id'         => (int) $r->order_id,
-            'product_id'       => (int) $r->product_id,
-            'product_name'     => (string) $r->product_name,
-            'quantity'         => (float) $r->quantity,
-            'price'            => (float) $r->price,
-            'order_status'     => (string) $r->order_status,
-            'order_created_at' => $r->order_created_at,
-            'order_total'      => (float) $r->order_total,
-            'customer_name'    => $r->customer_name,
-            'delivery_address' => $r->delivery_address,
+        // Phân quyền: staff chỉ thấy phiếu được gán cho chính mình; owner thấy
+        // tất cả của farm. Verify từ DB (không tin claim JWT) — middleware đã
+        // load $customer tươi.
+        $isStaff = $customer->isFarmStaff();
+
+        $data = $rows
+            ->filter(function ($r) use ($isStaff, $customer) {
+                if (! $isStaff) {
+                    return true; // owner thấy hết
+                }
+                return (int) $r->assigned_customer_id === (int) $customer->id;
+            })
+            ->map(fn ($r) => [
+                'item_id'             => (int) $r->item_id,
+                'order_id'            => (int) $r->order_id,
+                'product_id'          => (int) $r->product_id,
+                'product_name'        => (string) $r->product_name,
+                'quantity'            => (float) $r->quantity,
+                'price'               => (float) $r->price,
+                'order_status'        => (string) $r->order_status,
+                'order_created_at'    => $r->order_created_at,
+                'order_total'         => (float) $r->order_total,
+                // Thông tin KH đã che server-side — staff không bao giờ nhận bản đầy đủ.
+                'customer_name'       => $r->customer_name,
+                'customer_phone'      => \App\Support\ContactMasker::maskPhone($r->customer_phone),
+                'delivery_address'    => \App\Support\ContactMasker::maskAddress($r->delivery_address),
+                // Trạng thái đóng gói + ai được gán.
+                'assignment_status'   => $r->assignment_status ?? \App\Models\OrderFarmAssignment::STATUS_UNASSIGNED,
+                'assigned_customer_id'=> $r->assigned_customer_id !== null ? (int) $r->assigned_customer_id : null,
+                'is_mine'             => (int) $r->assigned_customer_id === (int) $customer->id,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    /**
+     * GET /farm/staff — danh sách thành viên farm có thể được gán đóng gói
+     * (owner + staff). Dùng cho picker "Phân công" của chủ farm trên Mini App.
+     * Chỉ owner mới cần danh sách này; staff gọi vẫn trả nhưng FE không dùng.
+     */
+    public function staff(Request $request): JsonResponse
+    {
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        $members = \App\Models\Customer::where('farm_id', $farm->id)
+            ->where('isActive', 1)
+            ->orderByRaw("CASE WHEN farm_role = 'owner' THEN 0 ELSE 1 END")
+            ->orderBy('name')
+            ->get(['id', 'name', 'farm_role']);
+
+        $data = $members->map(fn ($m) => [
+            'id'        => (int) $m->id,
+            'name'      => $m->name ?: 'Thành viên',
+            'farm_role' => $m->farm_role,
         ])->all();
 
         return response()->json(['error' => false, 'data' => $data]);
+    }
+
+    /**
+     * Tạo phiếu đóng gói 'unassigned' cho mọi cặp (order, farm) đang xử lý mà
+     * chưa có phiếu. Idempotent — chạy mỗi lần load incoming để bắt kịp đơn mới.
+     */
+    private function ensureAssignmentsExist(int $farmId): void
+    {
+        $missing = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
+            ->leftJoin('order_farm_assignments as a', function ($join) use ($farmId) {
+                $join->on('a.order_id', '=', 'oi.order_id')
+                     ->where('a.farm_id', '=', $farmId);
+            })
+            ->where('oi.farm_id', $farmId)
+            ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
+            ->whereNull('a.id')
+            ->select('oi.order_id')
+            ->distinct()
+            ->pluck('order_id');
+
+        if ($missing->isEmpty()) {
+            return;
+        }
+
+        $now  = now();
+        $rows = $missing->map(fn ($orderId) => [
+            'order_id'   => $orderId,
+            'farm_id'    => $farmId,
+            'status'     => \App\Models\OrderFarmAssignment::STATUS_UNASSIGNED,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        // insertOrIgnore tránh race khi 2 request cùng tạo (unique order_id+farm_id).
+        \Illuminate\Support\Facades\DB::table('order_farm_assignments')->insertOrIgnore($rows);
     }
 
     /**
