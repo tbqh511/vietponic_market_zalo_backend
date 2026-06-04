@@ -938,7 +938,8 @@ class ZaloApiController extends Controller
                 //  - profile (avatar): tương tự, chỉ ghi khi đang trống.
                 //  - mobile: tương tự với phone_token.
                 $updates = [];
-                if ($resolvedName !== '' && ($customer->name === null || $customer->name === '' || $customer->name === 'Zalo User')) {
+                $placeholderNames = ['', 'Zalo User', 'Khách Zalo', 'Người dùng Zalo'];
+                if ($resolvedName !== '' && in_array((string) $customer->name, $placeholderNames, true)) {
                     $updates['name'] = $resolvedName;
                 }
                 if ($resolvedAvatar !== '' && ($customer->profile === null || $customer->profile === '')) {
