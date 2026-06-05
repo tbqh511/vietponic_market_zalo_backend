@@ -314,6 +314,27 @@ class FarmController extends Controller
             ->with('success', 'Đã kích hoạt lại Farm.');
     }
 
+    /**
+     * Bật/tắt cờ "bộ phận đóng gói" (Package Hub) cho farm. Chỉ farm là hub mới
+     * được vào khâu xử lý/đóng gói đơn trên Mini App. Cho phép nhiều hub — đơn
+     * vị đóng gói chọn hub id nhỏ nhất (Farm::primaryPackingHub()).
+     *
+     * Lưu ý: phiếu đóng gói của đơn đang xử lý chỉ được sinh lại theo hub khi
+     * load incoming (FarmHubController::ensureAssignmentsExist) — bật hub mới
+     * sẽ tự gắn phiếu cho đơn mới mà không cần thao tác thêm.
+     */
+    public function togglePackingHub(Farm $farm)
+    {
+        $farm->is_packing_hub = ! $farm->is_packing_hub;
+        $farm->save();
+
+        $msg = $farm->is_packing_hub
+            ? "Đã đặt \"{$farm->name}\" làm bộ phận đóng gói (Package Hub)."
+            : "Đã gỡ \"{$farm->name}\" khỏi bộ phận đóng gói.";
+
+        return redirect()->back()->with('success', $msg);
+    }
+
     public function destroy(int $id)
     {
         $farm = Farm::findOrFail($id);

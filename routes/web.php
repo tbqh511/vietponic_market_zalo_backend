@@ -147,6 +147,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::resource('farms', FarmController::class)->except(['create', 'store']);
         Route::patch('farms/{farm}/suspend', [FarmController::class, 'suspend'])->name('farms.suspend');
         Route::patch('farms/{farm}/reactivate', [FarmController::class, 'reactivate'])->name('farms.reactivate');
+        Route::patch('farms/{farm}/toggle-packing-hub', [FarmController::class, 'togglePackingHub'])->name('farms.toggle-packing-hub');
         Route::patch('farms/{farm}/transfer-ownership', [FarmController::class, 'transferOwnership'])->name('farms.transfer-ownership');
         // Tab "Cấu hình Sản phẩm"
         Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');

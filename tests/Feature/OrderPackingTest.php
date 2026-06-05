@@ -47,8 +47,12 @@ class OrderPackingTest extends TestCase
         ], $attrs));
     }
 
-    /** Tạo farm + owner. */
-    private function makeFarmPartner(): array
+    /**
+     * Tạo farm + owner. $isPackingHub mặc định true vì hầu hết test đóng gói
+     * cần farm là Package Hub (chỉ hub mới thao tác đơn). Test farm thường
+     * truyền false.
+     */
+    private function makeFarmPartner(bool $isPackingHub = true): array
     {
         $owner = $this->makeCustomer([
             'role'                => 'farm_partner',
@@ -63,6 +67,7 @@ class OrderPackingTest extends TestCase
             'commission_rate'   => 0.1000,
             'payment_cycle'     => 'monthly',
             'is_active'         => true,
+            'is_packing_hub'    => $isPackingHub,
             'approved_at'       => now(),
         ]);
 
@@ -474,39 +479,58 @@ class OrderPackingTest extends TestCase
         ]);
     }
 
-    public function test_order_stays_in_preparing_until_all_farms_packed(): void
+    public function test_hub_owner_packs_entire_multi_farm_order(): void
     {
-        [$owner, $farm1] = $this->makeFarmPartner();
-        $staff1 = $this->makeStaff($farm1);
-        [, $farm2]       = $this->makeFarmPartner();
+        // Mô hình Package Hub: đơn nhiều farm chỉ có 1 phiếu thuộc HUB. Hub đóng
+        // gói TOÀN BỘ đơn (cả phần hàng farm khác) trong 1 phiếu, rồi bàn giao.
+        [$hubOwner, $hub] = $this->makeFarmPartner(true);
+        $hubStaff = $this->makeStaff($hub);
+        [, $otherFarm]    = $this->makeFarmPartner(false);
         $buyer = $this->makeCustomer();
 
-        // Đơn chứa item của 2 farm.
+        // Đơn chứa item của hub + 1 farm khác.
         $product2 = $this->makeProduct();
-        $order = $this->makeOrderForFarm($farm1, $buyer, ['status' => 'preparing']);
+        $order = $this->makeOrderForFarm($hub, $buyer, ['status' => 'preparing']);
         ZaloOrderItem::create([
             'order_id'   => $order->id,
             'product_id' => $product2->id,
-            'farm_id'    => $farm2->id,
+            'farm_id'    => $otherFarm->id,
             'name'       => $product2->name,
             'price'      => '20000',
             'quantity'   => 3,
         ]);
 
-        $this->assignmentFor($order->id, $farm1->id)->update([
-            'assigned_customer_id' => $staff1->id,
+        // 1 phiếu hub duy nhất, gán cho nhân viên hub.
+        $this->assignmentFor($order->id, $hub->id)->update([
+            'assigned_customer_id' => $hubStaff->id,
             'status'               => 'assigned',
         ]);
-        // farm2 chưa đóng gói.
-        $this->assignmentFor($order->id, $farm2->id);
 
-        $this->withHeaders($this->authHeader($staff1))
+        // Nhân viên hub đóng gói xong cả đơn.
+        $this->withHeaders($this->authHeader($hubStaff))
             ->postJson("/api/farm/orders/{$order->id}/confirm-packed")
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('data.assignment_status', 'packed');
 
-        // Còn farm2 chưa packed → đơn vẫn 'preparing'.
+        // Reset token JWTAuth facade giữ giữa 2 request (test harness — đổi
+        // người gọi từ staff sang owner). Production không cần (mỗi request 1 process).
+        JWTAuth::unsetToken();
+
+        // Chủ hub bàn giao ship → đơn sang delivering (chỉ 1 phiếu, đã packed).
+        $this->withHeaders($this->authHeader($hubOwner))
+            ->postJson("/api/farm/orders/{$order->id}/handoff-ship")
+            ->assertOk()
+            ->assertJsonPath('data.order_status', 'delivering');
+
         $order->refresh();
-        $this->assertEquals('preparing', $order->status);
+        $this->assertEquals('delivering', $order->status);
+
+        // Chỉ đúng 1 phiếu cho đơn (thuộc hub) — không có phiếu per-farm.
+        $this->assertDatabaseCount('order_farm_assignments', 1);
+        $this->assertDatabaseHas('order_farm_assignments', [
+            'order_id' => $order->id,
+            'farm_id'  => $hub->id,
+        ]);
     }
 
     public function test_start_packing_advances_order_to_preparing(): void
@@ -553,6 +577,80 @@ class OrderPackingTest extends TestCase
         $this->assertStringNotContainsString('Lê Lợi', $row['delivery_address']);
         $this->assertStringNotContainsString('12 ', $row['delivery_address']);
         $this->assertEquals('Q.1, TP.HCM', $row['delivery_address']);
+    }
+
+    // ─── F. Package Hub: phân quyền hub vs farm thường ────────────────────────
+
+    public function test_non_hub_farm_cannot_perform_packing_actions(): void
+    {
+        // Farm thường (không phải hub) → mọi action thao tác trả 403, kể cả owner.
+        [$owner, $farm] = $this->makeFarmPartner(false);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, ['status' => 'pending']);
+
+        $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/confirm-order")
+            ->assertStatus(403);
+        $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/claim")
+            ->assertStatus(403);
+        $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/start-packing")
+            ->assertStatus(403);
+        $this->withHeaders($this->authHeader($owner))
+            ->postJson("/api/farm/orders/{$order->id}/handoff-ship")
+            ->assertStatus(403);
+    }
+
+    public function test_non_hub_farm_sees_orders_read_only(): void
+    {
+        // Farm thường thấy đơn CÓ HÀNG của mình, kèm read_only=true.
+        [$owner, $farm] = $this->makeFarmPartner(false);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->getJson('/api/farm/orders/incoming');
+
+        $response->assertOk();
+        $row = collect($response->json('data'))->firstWhere('order_id', $order->id);
+        $this->assertNotNull($row);
+        $this->assertTrue($row['read_only']);
+        $this->assertFalse($row['is_mine']);
+    }
+
+    public function test_hub_sees_all_orders_even_without_own_items(): void
+    {
+        // Hub đóng gói TOÀN BỘ đơn → thấy cả đơn KHÔNG chứa hàng của hub.
+        [$hubOwner, $hub] = $this->makeFarmPartner(true);
+        [, $otherFarm]    = $this->makeFarmPartner(false);
+        $buyer = $this->makeCustomer();
+
+        // Đơn chỉ chứa hàng của farm khác (không có item nào của hub).
+        $order = $this->makeOrderForFarm($otherFarm, $buyer);
+
+        $response = $this->withHeaders($this->authHeader($hubOwner))
+            ->getJson('/api/farm/orders/incoming');
+
+        $response->assertOk();
+        $orderIds = collect($response->json('data'))->pluck('order_id')->unique()->all();
+        $this->assertContains($order->id, $orderIds);
+    }
+
+    public function test_staff_picker_lists_hub_members_only(): void
+    {
+        // GET /farm/staff trả thành viên của HUB (người đóng gói), không phải
+        // farm đang đăng nhập.
+        [$hubOwner, $hub] = $this->makeFarmPartner(true);
+        $hubStaff = $this->makeStaff($hub);
+
+        $response = $this->withHeaders($this->authHeader($hubOwner))
+            ->getJson('/api/farm/staff');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($hubOwner->id, $ids);
+        $this->assertContains($hubStaff->id, $ids);
     }
 
     // ─── E. ContactMasker (unit) ──────────────────────────────────────────────

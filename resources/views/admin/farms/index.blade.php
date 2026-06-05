@@ -70,8 +70,20 @@
                                     @else
                                         <span class="badge bg-secondary">Chưa duyệt</span>
                                     @endif
+                                    @if($f->is_packing_hub)
+                                        <span class="badge bg-info" title="Bộ phận đóng gói Vietponics">📦 Hub đóng gói</span>
+                                    @endif
                                 </td>
                                 <td class="text-end">
+                                    <form action="{{ route('farms.toggle-packing-hub', $f->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit"
+                                                class="btn btn-sm {{ $f->is_packing_hub ? 'btn-info' : 'btn-outline-info' }}"
+                                                title="{{ $f->is_packing_hub ? 'Gỡ khỏi bộ phận đóng gói' : 'Đặt làm bộ phận đóng gói (Package Hub)' }}">
+                                            <i class="bi bi-box-seam"></i>
+                                        </button>
+                                    </form>
                                     @if($f->is_active && $f->owner_customer_id)
                                         <a href="{{ route('farms.show', $f->id) }}?action=transfer"
                                            class="btn btn-outline-warning btn-sm"

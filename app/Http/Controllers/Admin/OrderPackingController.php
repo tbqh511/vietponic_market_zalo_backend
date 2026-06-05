@@ -97,33 +97,41 @@ class OrderPackingController extends Controller
     }
 
     /**
-     * Tạo phiếu 'unassigned' cho mọi cặp (order, farm) đang xử lý còn thiếu.
-     * Idempotent — giống ensureAssignmentsExist của FarmHubController nhưng
-     * quét toàn hệ thống (mọi farm).
+     * Tạo phiếu hub 'unassigned' cho mọi đơn đang xử lý còn thiếu (1 phiếu/đơn
+     * thuộc Package Hub). Idempotent — giống ensureAssignmentsExist của
+     * FarmHubController. No-op nếu chưa cấu hình hub.
      */
     private function ensureAssignmentsExist(): void
     {
-        $missing = DB::table('zalo_order_items as oi')
-            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
-            ->leftJoin('order_farm_assignments as a', function ($join) {
-                $join->on('a.order_id', '=', 'oi.order_id')
-                     ->on('a.farm_id', '=', 'oi.farm_id');
+        $hub = Farm::primaryPackingHub();
+        if (! $hub) {
+            return;
+        }
+
+        $missing = DB::table('zalo_orders as o')
+            ->leftJoin('order_farm_assignments as a', function ($join) use ($hub) {
+                $join->on('a.order_id', '=', 'o.id')
+                     ->where('a.farm_id', '=', $hub->id);
             })
-            ->whereNotNull('oi.farm_id')
             ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('zalo_order_items as oi')
+                  ->whereColumn('oi.order_id', 'o.id');
+            })
             ->whereNull('a.id')
-            ->select('oi.order_id', 'oi.farm_id')
+            ->select('o.id')
             ->distinct()
-            ->get();
+            ->pluck('id');
 
         if ($missing->isEmpty()) {
             return;
         }
 
         $now  = now();
-        $rows = $missing->map(fn ($p) => [
-            'order_id'   => $p->order_id,
-            'farm_id'    => $p->farm_id,
+        $rows = $missing->map(fn ($orderId) => [
+            'order_id'   => $orderId,
+            'farm_id'    => $hub->id,
             'status'     => OrderFarmAssignment::STATUS_UNASSIGNED,
             'created_at' => $now,
             'updated_at' => $now,

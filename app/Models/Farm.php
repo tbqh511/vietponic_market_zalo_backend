@@ -35,12 +35,14 @@ class Farm extends Model
         'commission_rate',
         'payment_cycle',
         'is_active',
+        'is_packing_hub',
         'approved_at',
         'approved_by',
     ];
 
     protected $casts = [
         'is_active'         => 'boolean',
+        'is_packing_hub'    => 'boolean',
         'approved_at'       => 'datetime',
         'lat'               => 'decimal:7',
         'lng'               => 'decimal:7',
@@ -146,5 +148,27 @@ class Farm extends Model
     {
         return $query->where('is_active', true)
             ->whereNotNull('approved_at');
+    }
+
+    /**
+     * Scope farm là "bộ phận đóng gói" (Package Hub) đang hoạt động.
+     */
+    public function scopePackingHub($query)
+    {
+        return $query->active()->where('is_packing_hub', true);
+    }
+
+    /**
+     * Package Hub "chính" — single source of truth khi cần CHỌN 1 hub để gán
+     * phiếu đóng gói. Cho phép nhiều hub (is_packing_hub=true), nhưng đơn vị
+     * đóng gói cần 1 hub xác định → chọn id nhỏ nhất (deterministic).
+     *
+     * Trả null nếu chưa có hub nào → khâu đóng gói coi như "tắt" (không tạo
+     * phiếu, incoming rỗng cho mọi farm). Mọi nơi sinh phiếu phải dùng helper
+     * này để không lệch logic chọn hub.
+     */
+    public static function primaryPackingHub(): ?self
+    {
+        return static::query()->packingHub()->orderBy('id')->first();
     }
 }

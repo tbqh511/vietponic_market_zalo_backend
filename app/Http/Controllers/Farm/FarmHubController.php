@@ -51,13 +51,18 @@ class FarmHubController extends Controller
                 // thị dòng "Phí Vietponics (x%)" trong breakdown payout.
                 'commission_rate' => (float) $farm->commission_rate,
                 'approved_at'    => optional($farm->approved_at)->toIso8601String(),
+                // Cờ farm hiện tại là "bộ phận đóng gói" (Package Hub) — FE dùng để
+                // bật/tắt toàn bộ UI thao tác đơn. Farm thường → chỉ xem chỉ-đọc.
+                'is_packing_hub' => (bool) $farm->is_packing_hub,
                 // Vai trò người đang đăng nhập trong farm — FE dùng để bật/tắt UI
                 // chỉ-owner (vd nút "Phân công") và xác định đơn của-mình.
                 'viewer'         => [
-                    'customer_id' => (int) $customer->id,
-                    'name'        => $customer->name ?: 'Thành viên',
-                    'farm_role'   => $customer->farm_role, // 'owner' | 'staff'
-                    'is_owner'    => $customer->isFarmOwner(),
+                    'customer_id'    => (int) $customer->id,
+                    'name'           => $customer->name ?: 'Thành viên',
+                    'farm_role'      => $customer->farm_role, // 'owner' | 'staff'
+                    'is_owner'       => $customer->isFarmOwner(),
+                    // Lặp lại ở cấp viewer để FE đọc gọn cùng chỗ với is_owner.
+                    'is_packing_hub' => (bool) $farm->is_packing_hub,
                 ],
             ],
         ]);
@@ -429,13 +434,22 @@ class FarmHubController extends Controller
     }
 
     /**
-     * GET /farm/orders/incoming — order_items thuộc farm đang chờ giao.
+     * GET /farm/orders/incoming — đơn đang chờ giao, theo MÔ HÌNH PACKAGE HUB.
      *
-     * Lấy đơn ở trạng thái pending/confirmed/preparing/delivering (chưa
-     * delivered hoặc cancelled). Mỗi row 1 order_item — đơn có nhiều item
-     * cùng farm sẽ xuất hiện nhiều lần (FE group theo order_id nếu cần).
+     * Hai chế độ tuỳ farm đang đăng nhập có phải Package Hub không:
      *
-     * Limit 50 row mới nhất, sort theo zalo_orders.created_at desc.
+     *   - Hub: thấy MỌI đơn đang xử lý (mọi item của mọi farm), đính phiếu đóng
+     *     gói của hub (1 phiếu/đơn). Hub đóng gói cả đơn → có quyền thao tác.
+     *
+     *   - Farm thường: chỉ thấy đơn CÓ HÀNG của mình (item farm_id = farm này),
+     *     trả kèm read_only=true và assignment để hiển thị tham khảo. KHÔNG có
+     *     quyền thao tác — FE ẩn mọi nút.
+     *
+     * Mỗi row là một order_item; đơn nhiều item xuất hiện nhiều row (FE group
+     * theo order_id). Thông tin KH che server-side cho mọi vai trò.
+     *
+     * Lấy đơn ở pending/confirmed/preparing/delivering (chưa delivered/cancelled).
+     * Limit 200 row mới nhất, sort theo zalo_orders.created_at desc.
      */
     public function incomingOrders(Request $request): JsonResponse
     {
@@ -444,22 +458,44 @@ class FarmHubController extends Controller
         /** @var \App\Models\Customer $customer */
         $customer = $request->attributes->get('zalo_customer');
 
-        // Đảm bảo mỗi cặp (order, farm) đang xử lý đều có phiếu đóng gói — đơn
-        // tạo sau backfill migration chưa có row, lazily tạo ở đây (unassigned).
-        $this->ensureAssignmentsExist($farm->id);
+        $isHub = (bool) $farm->is_packing_hub;
 
-        $rows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+        // Phiếu đóng gói luôn thuộc Package Hub. Đảm bảo mọi đơn đang xử lý có
+        // đúng 1 phiếu hub (sinh lazily nếu chưa có). No-op khi chưa cấu hình hub.
+        $this->ensureAssignmentsExist();
+        $hub = Farm::primaryPackingHub();
+
+        $query = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
             ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
             ->leftJoin('zalo_deliveries as d', 'd.order_id', '=', 'o.id')
-            ->leftJoin('order_farm_assignments as a', function ($join) use ($farm) {
-                $join->on('a.order_id', '=', 'oi.order_id')
-                     ->where('a.farm_id', '=', $farm->id);
+            // Phiếu đóng gói gắn theo HUB (1 phiếu/đơn), không theo farm sở hữu hàng.
+            ->leftJoin('order_farm_assignments as a', function ($join) use ($hub) {
+                $join->on('a.order_id', '=', 'oi.order_id');
+                if ($hub) {
+                    $join->where('a.farm_id', '=', $hub->id);
+                } else {
+                    // Chưa có hub → không khớp phiếu nào (assignment toàn null).
+                    $join->whereRaw('1 = 0');
+                }
             })
-            // Tên người đang đóng gói — để FE hiện "Đang đóng: NV. Tuấn" /
-            // "Đóng bởi: NV. Hà". leftJoin vì phiếu có thể chưa ai nhận.
+            // Tên người đang đóng gói — để FE hiện "Đang đóng: NV. Tuấn".
             ->leftJoin('customers as pc', 'pc.id', '=', 'a.assigned_customer_id')
-            ->where('oi.farm_id', $farm->id)
-            ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
+            ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering']);
+
+        // Farm thường: chỉ đơn CÓ ÍT NHẤT 1 item của farm này. Hub: mọi đơn.
+        if (! $isHub) {
+            $query->whereExists(function ($q) use ($farm) {
+                $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                  ->from('zalo_order_items as mine')
+                  ->whereColumn('mine.order_id', 'oi.order_id')
+                  ->where('mine.farm_id', $farm->id);
+            });
+            // Farm thường chỉ NHÌN phần hàng của mình trong đơn — không thấy item
+            // farm khác (giữ ranh giới dữ liệu giữa các farm).
+            $query->where('oi.farm_id', $farm->id);
+        }
+
+        $rows = $query
             ->orderByDesc('o.created_at')
             ->limit(200)
             ->selectRaw('
@@ -485,10 +521,9 @@ class FarmHubController extends Controller
             ')
             ->get();
 
-        // Mô hình self-claim: staff THẤY mọi đơn của farm (để nhận đơn chưa ai
-        // nhận / thấy đơn người khác đang đóng bị khoá). FE quyết định nút theo
-        // assignment_status + is_mine; backend KHÔNG lọc theo người gán nữa.
-        // Bảo mật vẫn giữ: thông tin KH che server-side cho mọi vai trò.
+        // FE quyết định nút theo assignment_status + is_mine (chỉ hub mới thao
+        // tác). read_only=true cho farm thường → FE ẩn mọi nút. Thông tin KH che
+        // server-side cho mọi vai trò.
         $data = $rows
             ->map(fn ($r) => [
                 'item_id'             => (int) $r->item_id,
@@ -502,18 +537,21 @@ class FarmHubController extends Controller
                 'order_total'         => (float) $r->order_total,
                 'is_pickup'           => $r->delivery_type === 'pickup',
                 'station_name'        => $r->station_name,
-                // Thông tin KH đã che server-side — staff không bao giờ nhận bản đầy đủ.
+                // Thông tin KH đã che server-side — không vai trò nào nhận bản đầy đủ.
                 'customer_name'       => $r->customer_name,
                 'customer_phone'      => \App\Support\ContactMasker::maskPhone($r->customer_phone),
                 'delivery_address'    => \App\Support\ContactMasker::maskAddress($r->delivery_address),
-                // Trạng thái đóng gói + ai đang/đã đóng + mốc thời gian.
+                // Trạng thái đóng gói + ai đang/đã đóng + mốc thời gian (của phiếu hub).
                 'assignment_status'   => $r->assignment_status ?? \App\Models\OrderFarmAssignment::STATUS_UNASSIGNED,
                 'assigned_customer_id'=> $r->assigned_customer_id !== null ? (int) $r->assigned_customer_id : null,
                 'assigned_customer_name' => $r->assigned_customer_name,
                 'packing_started_at'  => $r->packing_started_at,
                 'packed_at'           => $r->packed_at,
-                'is_mine'             => $r->assigned_customer_id !== null
+                // is_mine chỉ có nghĩa cho hub (người đóng gói); farm thường luôn false.
+                'is_mine'             => $isHub && $r->assigned_customer_id !== null
                     && (int) $r->assigned_customer_id === (int) $customer->id,
+                // Farm thường = xem chỉ-đọc, không có quyền thao tác đơn.
+                'read_only'           => ! $isHub,
             ])
             ->values()
             ->all();
@@ -522,16 +560,19 @@ class FarmHubController extends Controller
     }
 
     /**
-     * GET /farm/staff — danh sách thành viên farm có thể được gán đóng gói
-     * (owner + staff). Dùng cho picker "Phân công" của chủ farm trên Mini App.
-     * Chỉ owner mới cần danh sách này; staff gọi vẫn trả nhưng FE không dùng.
+     * GET /farm/staff — danh sách thành viên Package Hub có thể được gán đóng
+     * gói (owner + staff của HUB). Dùng cho picker "Phân công" của chủ hub trên
+     * Mini App. Người đóng gói luôn thuộc hub, nên list lấy theo hub farm chứ
+     * không theo farm đang đăng nhập. Trả rỗng nếu chưa cấu hình hub.
      */
     public function staff(Request $request): JsonResponse
     {
-        /** @var Farm $farm */
-        $farm = $request->attributes->get('farm');
+        $hub = Farm::primaryPackingHub();
+        if (! $hub) {
+            return response()->json(['error' => false, 'data' => []]);
+        }
 
-        $members = \App\Models\Customer::where('farm_id', $farm->id)
+        $members = \App\Models\Customer::where('farm_id', $hub->id)
             ->where('isActive', 1)
             ->orderByRaw("CASE WHEN farm_role = 'owner' THEN 0 ELSE 1 END")
             ->orderBy('name')
@@ -547,23 +588,35 @@ class FarmHubController extends Controller
     }
 
     /**
-     * Tạo phiếu đóng gói 'unassigned' cho mọi cặp (order, farm) đang xử lý mà
-     * chưa có phiếu. Idempotent — chạy mỗi lần load incoming để bắt kịp đơn mới.
+     * Tạo phiếu đóng gói 'unassigned' (gắn Package Hub) cho mọi đơn đang xử lý
+     * mà chưa có phiếu hub. Idempotent — chạy mỗi lần load incoming để bắt kịp
+     * đơn mới. No-op nếu chưa cấu hình Package Hub nào (khâu đóng gói "tắt").
+     *
+     * Đơn vị phiếu = (order, hub) — 1 phiếu/đơn, KHÔNG theo farm sở hữu hàng.
      */
-    private function ensureAssignmentsExist(int $farmId): void
+    private function ensureAssignmentsExist(): void
     {
-        $missing = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
-            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
-            ->leftJoin('order_farm_assignments as a', function ($join) use ($farmId) {
-                $join->on('a.order_id', '=', 'oi.order_id')
-                     ->where('a.farm_id', '=', $farmId);
+        $hub = Farm::primaryPackingHub();
+        if (! $hub) {
+            return; // Chưa có hub → không sinh phiếu.
+        }
+
+        $missing = \Illuminate\Support\Facades\DB::table('zalo_orders as o')
+            ->leftJoin('order_farm_assignments as a', function ($join) use ($hub) {
+                $join->on('a.order_id', '=', 'o.id')
+                     ->where('a.farm_id', '=', $hub->id);
             })
-            ->where('oi.farm_id', $farmId)
             ->whereIn('o.status', ['pending', 'confirmed', 'preparing', 'delivering'])
+            // Chỉ đơn thực sự có hàng (có order_item) — tránh tạo phiếu rác.
+            ->whereExists(function ($q) {
+                $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                  ->from('zalo_order_items as oi')
+                  ->whereColumn('oi.order_id', 'o.id');
+            })
             ->whereNull('a.id')
-            ->select('oi.order_id')
+            ->select('o.id')
             ->distinct()
-            ->pluck('order_id');
+            ->pluck('id');
 
         if ($missing->isEmpty()) {
             return;
@@ -572,7 +625,7 @@ class FarmHubController extends Controller
         $now  = now();
         $rows = $missing->map(fn ($orderId) => [
             'order_id'   => $orderId,
-            'farm_id'    => $farmId,
+            'farm_id'    => $hub->id,
             'status'     => \App\Models\OrderFarmAssignment::STATUS_UNASSIGNED,
             'created_at' => $now,
             'updated_at' => $now,

@@ -12,19 +12,20 @@ use App\Support\DispatchesOrderNotifications;
 use Illuminate\Support\Facades\DB;
 
 /**
- * PackingService — điều phối khâu đóng gói đơn cho cả Mini App (farm) và admin
- * web, gom logic vào một chỗ để 2 entry point không lệch dữ liệu.
+ * PackingService — điều phối khâu đóng gói đơn cho cả Mini App và admin web,
+ * gom logic vào một chỗ để 2 entry point không lệch dữ liệu.
  *
- * Mỗi cặp (order, farm) là một phiếu OrderFarmAssignment. Lifecycle:
- *   unassigned → assigned → packing → packed.
+ * MÔ HÌNH PACKAGE HUB: khâu đóng gói tập trung tại Package Hub
+ * (farms.is_packing_hub). Mỗi đơn có ĐÚNG 1 phiếu OrderFarmAssignment thuộc hub
+ * (order, hub) — KHÔNG còn 1 phiếu/farm sở hữu hàng. Hub đóng gói toàn bộ đơn.
+ * Lifecycle: unassigned → assigned → packing → packed.
  *
- * Nhân viên (staff) có thể TỰ NHẬN (claim) phiếu chưa ai nhận; chủ farm gán
- * trực tiếp. Khi TẤT CẢ phiếu của một order đã 'packed', đơn KHÔNG tự sang
- * delivering nữa — chủ farm bấm "Bàn giao ship" (handoffShipping) để chuyển
- * preparing → delivering. Tách bước này theo wireframe để owner kiểm soát thời
- * điểm gọi vận chuyển. KHÔNG nhân bản state-machine guard của
- * ZaloApiController::updateStatus — chỉ chuyển status + bắn thông báo (giống
- * đúng những gì admin web làm). delivered_at vẫn chỉ set ở bước delivered.
+ * Nhân viên hub (staff) có thể TỰ NHẬN (claim) phiếu chưa ai nhận; chủ hub gán
+ * trực tiếp. Khi phiếu hub đã 'packed', đơn KHÔNG tự sang delivering — chủ hub
+ * bấm "Bàn giao ship" (handoffShipping) để chuyển preparing → delivering. Tách
+ * bước này theo wireframe để owner kiểm soát thời điểm gọi vận chuyển. KHÔNG
+ * nhân bản state-machine guard của ZaloApiController::updateStatus — chỉ chuyển
+ * status + bắn thông báo (giống admin web). delivered_at vẫn chỉ set ở delivered.
  *
  * Mọi thao tác đều ghi OrderPackingLog để truy vết sự cố.
  *
@@ -35,15 +36,16 @@ class PackingService
     use DispatchesOrderNotifications;
 
     /**
-     * Gán (hoặc đổi) packer cho phiếu (order, farm). Packer phải thuộc đúng
-     * farm này. $actor là người thực hiện gán (admin User hoặc chủ farm Customer).
+     * Gán (hoặc đổi) packer cho phiếu đóng gói (order, hub). Packer phải là
+     * thành viên của HUB (assignment.farm_id = hub). $actor là người thực hiện
+     * gán (admin User hoặc chủ hub Customer).
      *
      * @param  Customer|User|null  $actor
      */
     public function assign(OrderFarmAssignment $assignment, Customer $packer, $actor): OrderFarmAssignment
     {
         if ((int) $packer->farm_id !== (int) $assignment->farm_id) {
-            throw new \DomainException('Nhân viên được chọn không thuộc farm của đơn này.');
+            throw new \DomainException('Nhân viên được chọn không thuộc bộ phận đóng gói (hub).');
         }
         if (! $packer->isFarmPartner()) {
             throw new \DomainException('Người được gán không phải thành viên farm hợp lệ.');
@@ -272,9 +274,9 @@ class PackingService
     }
 
     /**
-     * Chủ farm/Admin "Bàn giao ship": đẩy đơn preparing → delivering, khớp nút
-     * trên wireframe (#105). Chỉ cho phép khi TẤT CẢ phiếu của đơn đã 'packed'
-     * (mọi phần farm đã gói xong). Idempotent nếu đơn đã ≥ delivering.
+     * Chủ hub/Admin "Bàn giao ship": đẩy đơn preparing → delivering, khớp nút
+     * trên wireframe (#105). Chỉ cho phép khi phiếu hub của đơn đã 'packed'
+     * (đơn đã gói xong). Idempotent nếu đơn đã ≥ delivering.
      *
      * @param  Customer|User|null  $actor
      */
@@ -288,12 +290,14 @@ class PackingService
                 return $order;
             }
 
-            // Chặn bàn giao khi còn phần farm chưa đóng gói xong.
+            // Chặn bàn giao khi phiếu đóng gói của đơn chưa 'packed'. Mô hình hub
+            // chỉ có 1 phiếu/đơn, nhưng query này vẫn an toàn nếu (legacy) còn
+            // nhiều phiếu — yêu cầu mọi phiếu của đơn đã packed.
             $remaining = OrderFarmAssignment::where('order_id', $orderId)
                 ->where('status', '!=', OrderFarmAssignment::STATUS_PACKED)
                 ->count();
             if ($remaining > 0) {
-                throw new \DomainException('Còn phần đơn chưa đóng gói xong — chưa thể bàn giao vận chuyển.');
+                throw new \DomainException('Đơn chưa đóng gói xong — chưa thể bàn giao vận chuyển.');
             }
 
             // advanceOrderTo tự ghi log status_changed + bắn thông báo.
