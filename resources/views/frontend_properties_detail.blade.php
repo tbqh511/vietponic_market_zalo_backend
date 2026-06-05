@@ -605,7 +605,7 @@
                                 </div> --}}
                                 <div class="profile-widget-card">
                                     <div class="profile-widget-image">
-                                        <img src="{{$property->agent ? ($property->agent->profile ? $property->agent->profile : 'https://dalatbds.com/images/users/1693209486.1303.png'):'https://dalatbds.com/images/users/1693209486.1303.png'}}" alt="Green Allies">
+                                        <img src="{{$property->agent ? ($property->agent->profile ? $property->agent->profile : asset('images/logo-vietponics.png')):asset('images/logo-vietponics.png')}}" alt="Vietponics">
                                     </div>
                                     <div class="profile-widget-header-title">
                                         @if(isset($property->added_by))

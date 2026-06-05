@@ -7,7 +7,7 @@
                 <div class="col-md-6">
                     <div class="subscribe-header">
                         <h4>Liên hệ</h4>
-                        <h3>Hãy đăng ký để được Green Allies tư vấn </h3>
+                        <h3>Hãy đăng ký để được Vietponics tư vấn </h3>
                     </div>
                 </div>
                 <div class="col-md-1"></div>

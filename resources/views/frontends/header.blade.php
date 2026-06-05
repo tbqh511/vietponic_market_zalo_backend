@@ -1,7 +1,7 @@
 <header class="main-header">
     <!--  logo  -->
-    <div class="logo-holder"><a href="{{ route('index')}}"><img src="{{asset('images/logo.svg')}}"
-                alt="Đà Lạt Bất Động Sản"></a></div>
+    <div class="logo-holder"><a href="{{ route('index')}}"><img src="{{asset('images/logo-vietponics.png')}}"
+                alt="Vietponics"></a></div>
     <!-- logo end  -->
     <!-- nav-button-wrap-->
     <div class="nav-button-wrap color-bg nvminit">
@@ -92,7 +92,7 @@
                 <li>
                     <a href="{{ route('agents.index') }}">Đối tác</a>
                 </li> --}}
-                <li><a href="{{ url('/gioi-thieu') }}">Green Allies</a></li>
+                <li><a href="{{ url('/gioi-thieu') }}">Giới thiệu</a></li>
                 <li><a href="{{ url('/lien-he') }}">Liên hệ</a></li>
             </ul>
         </nav>

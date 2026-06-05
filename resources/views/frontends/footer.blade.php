@@ -6,12 +6,12 @@
                 <div class="col-md-3">
                     <div class="footer-widget fl-wrap">
                         <div class="footer-widget-logo fl-wrap">
-                            <img src="{{asset('images/logo.svg')}}" alt="">
+                            <img src="{{asset('images/logo-vietponics.png')}}" alt="Vietponics">
                         </div>
-                        <p>Mạng lưới thổ địa duy nhất ở Đà Lạt</p>
+                        <p>Rau sạch thủy canh tươi ngon từ Đà Lạt</p>
                         <div class="fw_hours fl-wrap">
-                            <span>Thứ 2 - thứ 7:<strong> 8am - 6pm</strong></span>
-                            <span>Chủ nhật:<strong> 9am - 3pm</strong></span>
+                            <span>Thứ 2 - Thứ 6:<strong> 6:00 - 21:00</strong></span>
+                            <span>Thứ 7 - CN:<strong> 7:00 - 20:00</strong></span>
                         </div>
                     </div>
                 </div>
@@ -23,11 +23,7 @@
                             <h4>Liên kết hữu ích</h4>
                         </div>
                         <ul class="footer-list fl-wrap">
-                            {{-- <li><a href="about.html">Đà Lạt BĐS</a></li>
-                            <li><a href="blog.html">Tin tức</a></li>
-                            <li><a href="contacts.html">Liên hệ</a></li> --}}
-                            <li><a href="/gioi-thieu">Đà Lạt BĐS</a></li>
-                            <li><a href="/tin-tuc">Tin tức</a></li>
+                            <li><a href="/gioi-thieu">Giới thiệu</a></li>
                             <li><a href="/lien-he">Liên hệ</a></li>
                         </ul>
                     </div>
@@ -40,10 +36,10 @@
                             <h4>Thông tin liên hệ</h4>
                         </div>
                         <ul class="footer-contacts fl-wrap">
-                            <li><span><i class="fal fa-envelope"></i> Mail :</span><a href="#"
+                            <li><span><i class="fal fa-envelope"></i> Mail :</span><a href="mailto:tbqh0511@gmail.com"
                                     target="_blank">tbqh0511@gmail.com</a></li>
-                            <li> <span><i class="fal fa-map-marker"></i> Adress :</span><a href="#" target="_blank">27 Yersin, TP Đà Lạt</a></li>
-                            <li><span><i class="fal fa-phone"></i> Phone :</span><a href="#">0918.96.38.78</a></li>
+                            <li> <span><i class="fal fa-map-marker"></i> Adress :</span><a href="#" target="_blank">9C Lữ Gia, Phường Lâm Viên - Đà Lạt, Lâm Đồng</a></li>
+                            <li><span><i class="fal fa-phone"></i> Phone :</span><a href="tel:0908041047">0908041047</a></li>
                         </ul>
                         <div class="footer-social fl-wrap">
                             <ul>
@@ -60,12 +56,11 @@
                 <div class="col-md-3">
                     <div class="footer-widget fl-wrap">
                         <div class="footer-widget-title fl-wrap">
-                            <h4>Tải ứng dụng DalatBDS</h4>
+                            <h4>Mua hàng trên Zalo Mini App</h4>
                         </div>
-                        <p>Bắt đầu làm việc với Green Allies, nền tảng có thể cung cấp mọi thứ bạn cần. </p>
+                        <p>Đặt rau sạch thủy canh Vietponics ngay trên Zalo, giao tận nhà nhanh chóng. </p>
                         <div class="api-links fl-wrap">
-                            <a href="#" class="api-btn color-bg"><i class="fab fa-apple"></i> App Store</a>
-                            <a href="https://play.google.com/store/search?q=dalat%20bds&c=apps" class="api-btn color-bg"><i class="fab fa-google-play"></i> Play Market</a>
+                            <a href="https://zalo.me/s/2984181565024919663" target="_blank" rel="noopener" class="api-btn color-bg"><i class="fas fa-store"></i> Mở Mini App</a>
                         </div>
                     </div>
                 </div>
@@ -76,12 +71,10 @@
     <!--sub-footer-->
     <div class="sub-footer gray-bg fl-wrap">
         <div class="container">
-            <div class="copyright"> Copyright © 2023 wwww.dalatbds.com</div>
+            <div class="copyright"> Copyright © {{ date('Y') }} HTX Dịch vụ nông nghiệp thủy canh Việt - Vietponics</div>
             <div class="subfooter-nav">
                 <ul class="no-list-style">
-                    {{-- <li><a href="#">Terms of use</a></li>
-                    <li><a href="#">Privacy Policy</a></li> --}}
-                    <li><a href="/tin-tuc">Tin tức</a></li>
+                    <li><a href="/lien-he">Liên hệ</a></li>
                 </ul>
             </div>
         </div>

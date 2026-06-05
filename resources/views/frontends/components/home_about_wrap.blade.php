@@ -5,7 +5,7 @@
             <div class="row">
                 <div class="col-md-5">
                     <div class="about-title ab-hero fl-wrap">
-                        <h2>Tại sao là Green Allies </h2>
+                        <h2>Tại sao là Vietponics </h2>
                         <h4>Mạng lưới thổ địa Đà Lạt duy nhất!</h4>
                     </div>
                     <div class="services-opions fl-wrap">
@@ -31,7 +31,7 @@
                 <div class="col-md-1"></div>
                 <div class="col-md-6">
                     <div class="about-img fl-wrap">
-                        <img src="/images/bg/about.jpg" class="respimg" alt="Green Allies">
+                        <img src="/images/bg/about.jpg" class="respimg" alt="Vietponics">
                         <div class="about-img-hotifer color-bg">
                             <p>Bất động sản không chỉ là nơi để đặt chân mà còn là nơi để đặt trái tim.</p>
                             <h4>John Andrew Holmes</h4>

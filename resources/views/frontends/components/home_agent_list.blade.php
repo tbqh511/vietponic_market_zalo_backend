@@ -2,7 +2,7 @@
     <div class="container">
         <!-- section-title -->
         <div class="section-title st-center fl-wrap">
-            <h4>Mạng lưới thổ địa Green Allies</h4>
+            <h4>Mạng lưới đối tác Vietponics</h4>
             <h2>Đối Tác Xuất Sắc</h2>
         </div>
         <!-- section-title end -->

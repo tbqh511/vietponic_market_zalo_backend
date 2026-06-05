@@ -4,7 +4,7 @@
 <head>
     <!-- basic   -->
     <meta charset="UTF-8">
-    <title>Green Allies - Mạng lưới thổ địa Đà Lạt</title>
+    <title>Vietponics - Rau sạch thủy canh Đà Lạt</title>
     <meta name="robots" content="index, follow" />
     <meta name="keywords" content="" />
     <meta name="description" content="" />

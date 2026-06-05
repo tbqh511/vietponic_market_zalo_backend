@@ -54,9 +54,9 @@
             </div>
             <div class="geodir-category-footer fl-wrap">
                 <a href="{{ route('agent.showid', ['id' => $productCard->added_by]) }}" class="gcf-company">
-                        <img src="{{$productCard->agent ? ($productCard->agent->profile ? $productCard->agent->profile : 'https://dalatbds.com/images/users/1693209486.1303.png'):'https://dalatbds.com/images/users/1693209486.1303.png'}}" alt="Green Allies">
+                        <img src="{{$productCard->agent ? ($productCard->agent->profile ? $productCard->agent->profile : asset('images/logo-vietponics.png')):asset('images/logo-vietponics.png')}}" alt="Vietponics">
 
-                        <span>{{ $productCard->agent ? ($productCard->agent->name ?: 'Green Allies') : 'Green Allies' }}</span>
+                        <span>{{ $productCard->agent ? ($productCard->agent->name ?: 'Vietponics') : 'Vietponics' }}</span>
                     </a>
                 <div class="listing-rating card-popup-rainingvis tolt" data-microtip-position="top" data-tooltip="Good"
                     data-starrating2="5"></div>

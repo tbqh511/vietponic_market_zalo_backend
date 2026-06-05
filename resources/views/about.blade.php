@@ -1,224 +1,101 @@
-@extends('frontends.master')
+@extends('frontends.vietponics_master')
+
+@section('title', 'Giới thiệu - Vietponics')
+@section('description', 'Vietponics - Rau sạch thủy canh trồng tại Đà Lạt, giao tận nhà. Cam kết sạch, tươi và bền vững.')
+
+@push('styles')
+<style>
+  .ab-hero {
+    background: linear-gradient(135deg, var(--primary-pale), var(--cream2));
+    border-bottom: 1px solid var(--border);
+    padding: clamp(2.5rem, 6vw, 5rem) clamp(1rem, 4vw, 2rem);
+    text-align: center;
+  }
+  .ab-hero-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--primary-dark); margin-bottom: 10px; }
+  .ab-hero h1 { font-family: 'Lora', Georgia, serif; font-size: clamp(28px, 5vw, 44px); font-weight: 700; color: var(--dark); line-height: 1.2; margin-bottom: 12px; }
+  .ab-hero p { font-size: 16px; color: var(--text-muted); max-width: 640px; margin: 0 auto; line-height: 1.7; }
+
+  .ab-section { max-width: 1100px; margin: 0 auto; padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1rem, 4vw, 2rem); }
+
+  .ab-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .ab-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 28px 24px; box-shadow: var(--shadow); }
+  .ab-card-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--primary-pale); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
+  .ab-card h3 { font-size: 17px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+  .ab-card p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+
+  .ab-story { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .ab-story-title { font-family: 'Lora', Georgia, serif; font-size: clamp(24px, 3.5vw, 34px); font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+  .ab-story-sub { font-size: 16px; color: var(--primary-dark); font-weight: 600; margin-bottom: 18px; }
+  .ab-story p { font-size: 15px; color: var(--text-muted); line-height: 1.85; margin-bottom: 14px; }
+  .ab-story-img { width: 100%; height: 100%; min-height: 320px; border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-lg); }
+  .ab-story-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .ab-stats { background: var(--dark); border-radius: var(--r); padding: clamp(2rem, 4vw, 3rem); display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .ab-stat { text-align: center; }
+  .ab-stat-value { font-family: 'Lora', Georgia, serif; font-size: clamp(28px, 4vw, 40px); font-weight: 700; color: var(--gold-light); line-height: 1; }
+  .ab-stat-label { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 8px; }
+
+  @media (max-width: 1023.98px) {
+    .ab-features { grid-template-columns: repeat(2, 1fr); }
+    .ab-story { grid-template-columns: 1fr; gap: 28px; }
+    .ab-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 575.98px) {
+    .ab-features { grid-template-columns: 1fr; }
+  }
+</style>
+@endpush
+
 @section('content')
-<div class="content">
-    <!--  section  -->
-    <section class="hidden-section single-par2  " data-scrollax-parent="true">
-        <div class="bg-wrap bg-parallax-wrap-gradien">
-            <div class="bg par-elem " data-bg="images/bg/1.jpg" data-scrollax="properties: { translateY: '30%' }"></div>
-        </div>
-        <div class="container">
-            <div class="section-title center-align big-title">
-                <h2><span>Green Allies</span></h2>
-                <h4>Điểm đến tin cậy cho mọi nhu cầu bất động sản tại Đà Lạt.</h4>
-            </div>
-            <div class="scroll-down-wrap">
-                <div class="mousey">
-                    <div class="scroller"></div>
-                </div>
-                <span>Kéo xuống để khám phá</span>
-            </div>
-        </div>
-    </section>
-    <!--  section  end-->
-    <!-- breadcrumbs-->
-    <div class="breadcrumbs fw-breadcrumbs sp-brd fl-wrap">
-        <div class="container">
-            <div class="breadcrumbs-list">
-                <a href="/">Trang chủ</a> <span>Green Allies</span>
-            </div>
-            <div class="share-holder hid-share">
-                <a href="#" class="share-btn showshare sfcs"> <i class="fas fa-share-alt"></i> Chia sẻ </a>
-                <div class="share-container  isShare"></div>
-            </div>
-        </div>
+<section class="ab-hero">
+  <div class="ab-hero-eyebrow">HTX Dịch vụ nông nghiệp thủy canh Việt</div>
+  <h1>Vietponics</h1>
+  <p>Mang rau sạch thủy canh tươi ngon từ vùng cao nguyên Đà Lạt đến mọi bàn ăn Việt Nam. Cam kết sạch, tươi và bền vững.</p>
+</section>
+
+<section class="ab-section">
+  <div class="ab-features">
+    <div class="ab-card">
+      <div class="ab-card-icon">🌱</div>
+      <h3>Trồng thủy canh sạch</h3>
+      <p>Rau được trồng bằng phương pháp thủy canh hiện đại, không thuốc trừ sâu, kiểm soát dinh dưỡng chặt chẽ.</p>
     </div>
-    <!-- breadcrumbs end -->
-    <!-- section -->
-    <section class="gray-bg small-padding">
-        <div class="container">
-            <div class="row">
-                <!-- services-item -->
-                <div class="col-md-4">
-                    <div class="services-item fl-wrap">
-                        <i class="fal fa-phone-laptop"></i>
-                        <h4>Công nghệ tiên tiến <span>02</span></h4>
-                        <p>Ứng dụng công nghệ hiện đại, mang đến trải nghiệm tìm kiếm, giao dịch bất động sản nhanh chóng, thuận tiện và an toàn.</p>
-                        {{-- <a href="#" class="serv-link">Read more</a> --}}
-                    </div>
-                </div>
-                <!-- services-item  end-->
-                <!-- services-item -->
-                <div class="col-md-4">
-                    <div class="services-item fl-wrap">
-                        <i class="fal fa-headset"></i>
-                        <h4>Thông tin minh bạch <span>01</span></h4>
-                        <p>Cung cấp thông tin thị trường bất động sản Đà Lạt chính xác, đáng tin cậy, giúp bạn đưa ra quyết định đầu tư sáng suốt.</p>
-                        {{-- <a href="#" class="serv-link">Read more</a> --}}
-                    </div>
-                </div>
-                <!-- services-item  end-->
-                <!-- services-item -->
-                <div class="col-md-4">
-                    <div class="services-item fl-wrap">
-                        <i class="fal fa-users-cog"></i>
-                        <h4>Đồng hành tin cậy <span>03</span></h4>
-                        <p>Đội ngũ chuyên gia giàu kinh nghiệm luôn sẵn sàng hỗ trợ, tư vấn và đồng hành cùng bạn trong suốt quá trình giao dịch.</p>
-                        {{-- <a href="#" class="serv-link">Read more</a> --}}
-                    </div>
-                </div>
-                <!-- services-item  end-->
-            </div>
-        </div>
-    </section>
-    <!-- section end-->
-    <!-- section -->
-    <section>
-        <div class="container">
-            <!--about-wrap -->
-            <div class="about-wrap">
-                <div class="row">
-                    <div class="col-md-5">
-                        <div class="about-title fl-wrap">
-                            <h2>Hành trình  <span>Dalatbds</span></h2>
-                            <h4>Nâng tầm giá trị bất động sản Đà Lạt.</h4>
-                        </div>
-                        <p>Dalatbds không chỉ đơn thuần là một nền tảng công nghệ, mà còn là minh chứng cho sự nỗ lực không ngừng nghỉ trong việc kiến tạo một thị trường bất động sản minh bạch, hiệu quả và bền vững tại Đà Lạt.</p>
-                        <p>Chúng tôi hiểu rằng, mỗi giao dịch bất động sản đều chứa đựng những kỳ vọng và giá trị to lớn. Chính vì vậy, Dalatbds ra đời với sứ mệnh đồng hành cùng quý khách hàng, từ chủ sở hữu bất động sản đến các chuyên gia môi giới, trên mọi chặng đường từ đăng tin, định giá, kết nối đối tác đến hỗ trợ pháp lý chuyên sâu.</p>
-                        <p>Với nền tảng công nghệ tiên tiến, kết hợp cùng đội ngũ chuyên gia giàu kinh nghiệm và am hiểu thị trường, Dalatbds không ngừng cải tiến để mang đến những trải nghiệm vượt trội, đáp ứng tối đa nhu cầu của quý khách hàng. Mỗi tính năng trên nền tảng đều được phát triển dựa trên sự thấu hiểu sâu sắc về thị trường và mong muốn của quý khách.</p>
-                        {{-- <a href="#" class="btn small-btn float-btn color-bg">Read More</a> --}}
-                    </div>
-                    <div class="col-md-1"></div>
-                    <div class="col-md-6">
-                        <div class="about-img fl-wrap">
-                            <img src="/images/bg/about.jpg" class="respimg" alt="Green Allies">
-                            <div class="about-img-hotifer color-bg">
-                                <p>Green Allies - Hợp tác để kiến tạo thị trường bất động sản Đà Lạt minh bạch, bền vững và thịnh vượng.</p>
-                                <h4>Tâm Võ</h4>
-                                <h5>Green Allies CEO</h5>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- about-wrap end  -->
-        </div>
-    </section>
-    <!-- section end-->
-    <!-- section -->
-    @include('frontends.components.home_report_info',['infos' => $infos])
-    <!-- section end-->
-    <!-- section -->
-    <section>
-        <div class="container">
-            <!-- section-title -->
-            <div class="section-title st-center fl-wrap">
-                <h4>Đội ngũ</h4>
-                <h2>Đội ngũ tuyệt vời của chúng tôi</h2>
-            </div>
-            <!-- section-title end -->
-            <div class="clearfix"></div>
-            <div class="row">
-                <!-- team-item -->
-                <div class="col-md-4">
-                    <div class="team-item fl-wrap">
-                        <div class="team-img fl-wrap">
-                            <img src="images/agency/agent/2.jpg" class="respimg" alt="">
-                        </div>
-                        <div class="team-content fl-wrap">
-                            <h4>Huy Thái</h4>
-                            <h5>CEO / Developer </h5>
-                            <p>
-                                "Đam mê công nghệ và khát khao đổi mới là động lực để chúng tôi kiến tạo những giải pháp vượt trội, góp phần xây dựng một tương lai tốt đẹp hơn."
-                            </p>
-                        </div>
-                        <div class="team-footer fl-wrap">
-                            <ul class="team-social">
-                                <li><a href="https://www.facebook.com/tbqh511/" target="_blank"><i class="fab fa-facebook-f"></i></a></li>
-                                {{-- <li><a href="#" target="_blank"><i class="fab fa-twitter"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-instagram"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-vk"></i></a></li> --}}
-                            </ul>
-                            <a href="mailto:yourmail@email.com" class="tolt tf-btn" data-microtip-position="top-right"
-                                data-tooltip="Write Message"><i class="fal fa-envelope"></i></a>
-                        </div>
-                    </div>
-                </div>
-                <!-- team-item end -->
-                <!-- team-item -->
-                <div class="col-md-4">
-                    <div class="team-item fl-wrap">
-                        <div class="team-img fl-wrap">
-                            <img src="images/agency/agent/2.jpg" class="respimg" alt="">
-                        </div>
-                        <div class="team-content fl-wrap">
-                            <h4>Huy Thái</h4>
-                            <h5>CEO / Developer </h5>
-                            <p>
-                                "Đam mê công nghệ và khát khao đổi mới là động lực để chúng tôi kiến tạo những giải pháp vượt trội, góp phần xây dựng một tương lai tốt đẹp hơn."
-                            </p>
-                        </div>
-                        <div class="team-footer fl-wrap">
-                            <ul class="team-social">
-                                <li><a href="https://www.facebook.com/tbqh511/" target="_blank"><i class="fab fa-facebook-f"></i></a></li>
-                                {{-- <li><a href="#" target="_blank"><i class="fab fa-twitter"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-instagram"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-vk"></i></a></li> --}}
-                            </ul>
-                            <a href="mailto:tbqh0511@gmail.com" class="tolt tf-btn" data-microtip-position="top-right"
-                                data-tooltip="Write Message"><i class="fal fa-envelope"></i></a>
-                        </div>
-                    </div>
-                </div>
-                <!-- team-item end -->
-                <!-- team-item -->
-                <div class="col-md-4">
-                    <div class="team-item fl-wrap">
-                        <div class="team-img fl-wrap">
-                            <img src="images/agency/agent/2.jpg" class="respimg" alt="">
-                        </div>
-                        <div class="team-content fl-wrap">
-                            <h4>Huy Thái</h4>
-                            <h5>CEO / Developer </h5>
-                            <p>
-                                "Đam mê công nghệ và khát khao đổi mới là động lực để chúng tôi kiến tạo những giải pháp vượt trội, góp phần xây dựng một tương lai tốt đẹp hơn."
-                            </p>
-                        </div>
-                        <div class="team-footer fl-wrap">
-                            <ul class="team-social">
-                                <li><a href="https://www.facebook.com/tbqh511/" target="_blank"><i class="fab fa-facebook-f"></i></a></li>
-                                {{-- <li><a href="#" target="_blank"><i class="fab fa-twitter"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-instagram"></i></a></li>
-                                <li><a href="#" target="_blank"><i class="fab fa-vk"></i></a></li> --}}
-                            </ul>
-                            <a href="mailto:yourmail@email.com" class="tolt tf-btn" data-microtip-position="top-right"
-                                data-tooltip="Write Message"><i class="fal fa-envelope"></i></a>
-                        </div>
-                    </div>
-                </div>
-                <!-- team-item end -->
-            </div>
-        </div>
-    </section>
-    <!-- section end-->
-    <!--section  -->
-    <section class="parallax-section ps-bg video-section" data-scrollax-parent="true" id="sec2">
-        <div class="bg-wrap">
-            <div class="bg par-elem " data-bg="images/bg/1.jpg" data-scrollax="properties: { translateY: '30%' }"></div>
-        </div>
-        <div class="overlay"></div>
-        <!--container-->
-        <div class="container">
-            <div class="video_section-title fl-wrap">
-                <h2>Video Câu Chuyện Của Chúng Tôi</h2>
-                <h4>Dalatbds - Đồng hành cùng bạn trên mọi chặng đường, kiến tạo thị trường bất động sản minh bạch và bền vững."</h4>
-            </div>
-            <a href="https://vimeo.com/158059890" class="promo-link big_prom color-bg   image-popup"><i
-                    class="fas fa-play"></i></a>
-        </div>
-    </section>
-    <!--section end-->
-    <!-- section -->
-    @include('frontends.components.home_client_say')
-    <!-- section end-->
-</div>
+    <div class="ab-card">
+      <div class="ab-card-icon">🚚</div>
+      <h3>Giao tươi tận nhà</h3>
+      <p>Thu hoạch và giao trong ngày, giữ trọn độ tươi ngon và dưỡng chất cho từng bữa ăn của gia đình bạn.</p>
+    </div>
+    <div class="ab-card">
+      <div class="ab-card-icon">✅</div>
+      <h3>Nguồn gốc minh bạch</h3>
+      <p>Truy xuất nguồn gốc rõ ràng từ nông trại Đà Lạt, cam kết chất lượng và an toàn cho sức khỏe.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ab-section" style="padding-top:0">
+  <div class="ab-story">
+    <div>
+      <div class="ab-story-title">Hành trình Vietponics</div>
+      <div class="ab-story-sub">Nâng tầm bữa ăn sạch của người Việt.</div>
+      <p>Vietponics ra đời với sứ mệnh đưa rau sạch thủy canh chất lượng cao từ cao nguyên Đà Lạt đến với mọi gia đình Việt Nam một cách thuận tiện và minh bạch nhất.</p>
+      <p>Chúng tôi hiểu rằng mỗi bữa ăn đều quan trọng. Vì vậy, từ khâu gieo trồng, chăm sóc đến thu hoạch và giao hàng, Vietponics luôn đặt sự an toàn và độ tươi ngon của sản phẩm lên hàng đầu.</p>
+      <p>Với mô hình hợp tác xã và công nghệ canh tác hiện đại, Vietponics không ngừng cải tiến để mang đến những sản phẩm sạch, bền vững và xứng đáng với niềm tin của khách hàng.</p>
+    </div>
+    <div class="ab-story-img">
+      <img src="{{ asset('images/logo-vietponics.png') }}" alt="Vietponics" style="object-fit:contain;background:var(--primary-pale);padding:40px">
+    </div>
+  </div>
+</section>
+
+<section class="ab-section" style="padding-top:0">
+  <div class="ab-stats">
+    @foreach($infos as $info)
+      <div class="ab-stat">
+        <div class="ab-stat-value">{{ $info['value'] }}</div>
+        <div class="ab-stat-label">{{ $info['title'] }}</div>
+      </div>
+    @endforeach
+  </div>
+</section>
 @endsection

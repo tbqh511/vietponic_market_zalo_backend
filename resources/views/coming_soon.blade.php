@@ -4,7 +4,7 @@
 <head>
     <!--=============== basic  ===============-->
     <meta charset="UTF-8">
-    <title>Homeradar - Real Estate Listing Template</title>
+    <title>Vietponics - Rau sạch thủy canh Đà Lạt</title>
     <meta name="robots" content="index, follow" />
     <meta name="keywords" content="" />
     <meta name="description" content="" />
@@ -112,9 +112,9 @@
             <!-- cs-contacts -->
             <div class="cs-contacts">
                 <ul>
-                    <li><span>Call :</span><a href="#">0918963878</a></li>
-                    <li><span>Write :</span><a href="#">tbqh0511@gmail.com</a></li>
-                    <li><span>Find us : </span><a href="#">27/6 Yersin, phường 10, TP Đà Lạt, Tỉnh Lâm Đồng</a></li>
+                    <li><span>Call :</span><a href="tel:0908041047">0908041047</a></li>
+                    <li><span>Write :</span><a href="mailto:tbqh0511@gmail.com">tbqh0511@gmail.com</a></li>
+                    <li><span>Find us : </span><a href="#">9C Lữ Gia, Phường Lâm Viên - Đà Lạt, Tỉnh Lâm Đồng</a></li>
                 </ul>
             </div>
             <!-- cs-contacts end -->
