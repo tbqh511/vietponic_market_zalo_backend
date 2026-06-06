@@ -932,19 +932,30 @@ class ZaloApiController extends Controller
                     'isActive'    => 1,
                 ]);
             } else {
-                // Backfill các trường mà lần auth trước chưa lấy được:
-                //  - name: lần đầu fallback 'Zalo User' khi user chưa cấp scope.userInfo.
-                //    Khi user cấp quyền (client gửi name, hoặc Graph trả tên thật) → đồng bộ.
-                //  - profile (avatar): tương tự, chỉ ghi khi đang trống.
-                //  - mobile: tương tự với phone_token.
+                // Đồng bộ tên/ảnh Zalo (live) xuống DB. Nguồn live = client gửi
+                // (SDK getUserInfo, chỉ có khi user đã cấp scope.userInfo) hoặc
+                // Graph API trả tên/ảnh thật. Quy ước: Zalo là nguồn-sự-thật cho
+                // name/avatar → ghi đè DB mỗi lần có giá trị live, kể cả khi DB đã
+                // có sẵn (vd avatar cũ chỉnh tay) để tránh hiển thị ảnh lệch.
+                //  - mobile: chỉ backfill khi đang trống (số do user chủ động cấp).
                 $updates = [];
                 $placeholderNames = ['', 'Zalo User', 'Khách Zalo', 'Người dùng Zalo'];
-                if ($resolvedName !== '' && in_array((string) $customer->name, $placeholderNames, true)) {
+
+                // name: chỉ ghi đè khi có tên live THẬT (khác placeholder) và khác
+                // giá trị hiện tại. Không cho placeholder che tên đã có trong DB.
+                if (
+                    $resolvedName !== ''
+                    && !in_array($resolvedName, $placeholderNames, true)
+                    && $resolvedName !== (string) $customer->name
+                ) {
                     $updates['name'] = $resolvedName;
                 }
-                if ($resolvedAvatar !== '' && ($customer->profile === null || $customer->profile === '')) {
+
+                // avatar: ưu tiên Zalo live. Ghi đè khi có URL live và khác DB.
+                if ($resolvedAvatar !== '' && $resolvedAvatar !== (string) $customer->profile) {
                     $updates['profile'] = $resolvedAvatar;
                 }
+
                 if ($phoneNumber && !$customer->mobile) {
                     $updates['mobile'] = $phoneNumber;
                 }
