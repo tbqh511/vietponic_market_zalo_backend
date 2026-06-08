@@ -52,9 +52,10 @@ class ZaloJwtMiddleware
 
             if ($customer->isActive == 0) {
                 return response()->json([
-                    'error' => true,
-                    'message' => 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ admin'
-                ], 401);
+                    'error'   => true,
+                    'message' => 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ admin',
+                    'code'    => 'ACCOUNT_DISABLED',
+                ], 403);
             }
 
             // Gắn customer_id vào request để controller sử dụng

@@ -932,6 +932,14 @@ class ZaloApiController extends Controller
                     'isActive'    => 1,
                 ]);
             } else {
+                // Kiểm tra trước khi sync profile — tránh cấp JWT cho tài khoản bị vô hiệu hoá
+                if ($customer->isActive == 0) {
+                    return response()->json([
+                        'error'   => true,
+                        'message' => 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ admin',
+                        'code'    => 'ACCOUNT_DISABLED',
+                    ], 403);
+                }
                 // Đồng bộ tên/ảnh Zalo (live) xuống DB. Nguồn live = client gửi
                 // (SDK getUserInfo, chỉ có khi user đã cấp scope.userInfo) hoặc
                 // Graph API trả tên/ảnh thật. Quy ước: Zalo là nguồn-sự-thật cho
