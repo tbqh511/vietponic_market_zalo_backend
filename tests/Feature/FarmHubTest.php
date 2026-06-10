@@ -69,6 +69,22 @@ class FarmHubTest extends TestCase
         return [$customer, $farm];
     }
 
+    /**
+     * Nhân viên (staff) của một farm: cũng là farm_partner đã duyệt, có farm_id
+     * trỏ tới farm đang active → PASS EnsureFarmPartner. Khác owner ở farm_role,
+     * nên bị chặn ở gate chỉ-owner (payout).
+     */
+    private function makeFarmStaff(Farm $farm): Customer
+    {
+        $customer = $this->makeCustomer([
+            'role'                => 'farm_partner',
+            'farm_partner_status' => 'approved',
+        ]);
+        $customer->forceFill(['farm_id' => $farm->id, 'farm_role' => 'staff'])->save();
+
+        return $customer;
+    }
+
     private function makeProduct(?int $id = null): ZaloProduct
     {
         static $seq = 0;
@@ -970,5 +986,123 @@ class FarmHubTest extends TestCase
             ->getJson("/api/farm/payouts/{$otherPayout->id}");
 
         $response->assertStatus(404)->assertJson(['error' => true]);
+    }
+
+    // ─── ROLE-04: phân quyền payout (chỉ owner) ────────────────────────────────
+
+    /**
+     * Owner xem được danh sách payout (chống regression sau khi thêm gate owner).
+     */
+    public function test_owner_can_access_payouts(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+
+        FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 100,
+            'gross_revenue' => 1_000_000,
+            'adjustment'    => 0,
+            'net_payout'    => 1_000_000,
+            'status'        => 'draft',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->getJson('/api/farm/payouts');
+
+        $response->assertOk()->assertJsonPath('error', false);
+    }
+
+    /**
+     * Staff KHÔNG xem được danh sách payout → 403 (dữ liệu tài chính chỉ owner).
+     */
+    public function test_staff_cannot_access_payouts_list(): void
+    {
+        [, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeFarmStaff($farm);
+
+        // Có payout của chính farm → nếu chưa gate, staff sẽ nhận 200 + data.
+        FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 100,
+            'gross_revenue' => 1_000_000,
+            'adjustment'    => 0,
+            'net_payout'    => 1_000_000,
+            'status'        => 'draft',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($staff))
+            ->getJson('/api/farm/payouts');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error'   => true,
+                'message' => 'Bạn không có quyền xem mục này',
+            ]);
+    }
+
+    /**
+     * Staff KHÔNG xem được chi tiết payout của farm mình → 403.
+     */
+    public function test_staff_cannot_access_payout_detail(): void
+    {
+        [, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeFarmStaff($farm);
+
+        $payout = FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 100,
+            'gross_revenue' => 1_000_000,
+            'adjustment'    => 0,
+            'net_payout'    => 1_000_000,
+            'status'        => 'draft',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($staff))
+            ->getJson("/api/farm/payouts/{$payout->id}");
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error'   => true,
+                'message' => 'Bạn không có quyền xem mục này',
+            ]);
+    }
+
+    /**
+     * Staff của Farm B gọi payout detail của Farm A → 403 (gate owner chạy TRƯỚC
+     * scope farm, nên trả 403 chứ không phải 404 — không leak cả sự tồn tại).
+     */
+    public function test_staff_of_other_farm_cannot_access_payout_detail(): void
+    {
+        // Farm A + payout của A.
+        [, $farmA] = $this->makeFarmPartner();
+        $payoutA = FarmPayout::create([
+            'farm_id'       => $farmA->id,
+            'period_start'  => '2026-05-13',
+            'period_end'    => '2026-05-19',
+            'total_sold'    => 100,
+            'gross_revenue' => 1_000_000,
+            'adjustment'    => 0,
+            'net_payout'    => 1_000_000,
+            'status'        => 'draft',
+        ]);
+
+        // Farm B + staff của B.
+        [, $farmB] = $this->makeFarmPartner();
+        $staffB = $this->makeFarmStaff($farmB);
+
+        $response = $this->withHeaders($this->authHeader($staffB))
+            ->getJson("/api/farm/payouts/{$payoutA->id}");
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error'   => true,
+                'message' => 'Bạn không có quyền xem mục này',
+            ]);
     }
 }

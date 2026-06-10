@@ -636,6 +636,30 @@ class FarmHubController extends Controller
     }
 
     /**
+     * Gate chỉ-owner cho mục tài chính (payout). Trả JsonResponse 403 nếu người
+     * gọi không phải owner của farm; null nếu hợp lệ. zalo_customer đã được
+     * EnsureFarmPartner load từ DB và gắn vào request — không tra DB lại.
+     *
+     * Đặt ở ĐẦU method payout (trước validate / truy vấn) để staff bị chặn sớm,
+     * không leak cả sự tồn tại của payout (staff farm khác cũng nhận 403, không
+     * phải 404). Khác với scope-theo-farm (404) áp cho owner farm khác.
+     */
+    private function ensureOwner(Request $request): ?JsonResponse
+    {
+        /** @var \App\Models\Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
+
+        if (! $customer->isFarmOwner()) {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Bạn không có quyền xem mục này',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
      * GET /farm/payouts — danh sách đợt thanh toán của farm.
      *
      * Sort theo period_end desc (đợt mới nhất trên cùng). Trả mọi status
@@ -643,9 +667,15 @@ class FarmHubController extends Controller
      * tại (draft, do cron snapshot daily tích lũy).
      *
      * Limit mặc định 20, optional ?status=draft|pending|paid|cancelled để filter.
+     *
+     * Chỉ owner — staff không xem dữ liệu tài chính (gross/phí/net).
      */
     public function payouts(Request $request): JsonResponse
     {
+        if ($resp = $this->ensureOwner($request)) {
+            return $resp;
+        }
+
         /** @var Farm $farm */
         $farm = $request->attributes->get('farm');
 
@@ -682,6 +712,10 @@ class FarmHubController extends Controller
      */
     public function payoutDetail(Request $request, int $id): JsonResponse
     {
+        if ($resp = $this->ensureOwner($request)) {
+            return $resp;
+        }
+
         /** @var Farm $farm */
         $farm = $request->attributes->get('farm');
 
