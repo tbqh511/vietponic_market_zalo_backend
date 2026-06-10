@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Concerns\InteractsWithAccountStatus;
 use App\Models\Customer;
 use App\Models\Farm;
 use Closure;
@@ -28,13 +29,16 @@ use Tymon\JWTAuth\Facades\JWTAuth;
  *                        Controller chỉ cần $request->attributes->get('farm').
  *
  * Lifecycle lỗi:
- *   401 — thiếu/sai JWT, customer không tồn tại, customer bị vô hiệu hoá.
- *   403 — customer hợp lệ nhưng chưa phải farm partner (role/status), hoặc
+ *   401 — thiếu/sai JWT, customer không tồn tại.
+ *   403 — customer bị vô hiệu hoá (code ACCOUNT_DISABLED), hoặc customer hợp lệ
+ *         nhưng chưa phải farm partner (role/status), hoặc
  *         là farm partner nhưng chưa được gán farm (record Farm chưa tạo
  *         hoặc bị deactive). Cả hai đều coi là "không đủ quyền".
  */
 class EnsureFarmPartner
 {
+    use InteractsWithAccountStatus;
+
     public function handle(Request $request, Closure $next)
     {
         try {
@@ -69,10 +73,7 @@ class EnsureFarmPartner
             }
 
             if ((int) $customer->isActive === 0) {
-                return response()->json([
-                    'error'   => true,
-                    'message' => 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ admin',
-                ], 401);
+                return $this->accountDisabledResponse();
             }
 
             // Verify role='farm_partner' AND farm_partner_status='approved'.

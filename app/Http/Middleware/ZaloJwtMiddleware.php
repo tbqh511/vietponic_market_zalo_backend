@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Concerns\InteractsWithAccountStatus;
 use App\Models\Customer;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ use Tymon\JWTAuth\Facades\JWTAuth;
  */
 class ZaloJwtMiddleware
 {
+    use InteractsWithAccountStatus;
+
     public function handle(Request $request, Closure $next)
     {
         try {
@@ -51,11 +54,7 @@ class ZaloJwtMiddleware
             }
 
             if ($customer->isActive == 0) {
-                return response()->json([
-                    'error'   => true,
-                    'message' => 'Tài khoản đã bị vô hiệu hoá, vui lòng liên hệ admin',
-                    'code'    => 'ACCOUNT_DISABLED',
-                ], 403);
+                return $this->accountDisabledResponse();
             }
 
             // Gắn customer_id vào request để controller sử dụng

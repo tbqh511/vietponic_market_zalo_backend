@@ -136,6 +136,44 @@ class FarmHubTest extends TestCase
     }
 
     /**
+     * Farm partner hợp lệ nhưng bị admin vô hiệu hoá (isActive=0) → 403 + code
+     * ACCOUNT_DISABLED. Trước đây EnsureFarmPartner trả nhầm 401 không kèm code,
+     * khiến frontend tưởng token hết hạn và re-auth lặp thay vì báo "vô hiệu hoá".
+     */
+    public function test_disabled_farm_partner_gets_403_account_disabled(): void
+    {
+        [$customer] = $this->makeFarmPartner();
+        $customer->forceFill(['isActive' => 0])->save();
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/me');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error' => true,
+                'code'  => 'ACCOUNT_DISABLED',
+            ]);
+    }
+
+    /**
+     * Customer thường bị vô hiệu hoá gọi route cần JWT (zalo.jwt) → 403 + code
+     * ACCOUNT_DISABLED (ZaloJwtMiddleware). Cùng hợp đồng với chốt farm ở trên.
+     */
+    public function test_disabled_customer_gets_403_account_disabled_on_jwt_route(): void
+    {
+        $customer = $this->makeCustomer(['isActive' => 0]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/orders');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error' => true,
+                'code'  => 'ACCOUNT_DISABLED',
+            ]);
+    }
+
+    /**
      * Farm partner đã duyệt + có farm active → 200 với profile farm.
      */
     public function test_approved_farm_partner_can_access_farm_me(): void
