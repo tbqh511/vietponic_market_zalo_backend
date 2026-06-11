@@ -77,28 +77,61 @@ class EnsureFarmPartner
             }
 
             // Verify role='farm_partner' AND farm_partner_status='approved'.
-            // requested / suspended / none → 403.
+            // requested / suspended / none → 403. isFarmPartner() trả false cho
+            // CẢ 'requested' lẫn 'suspended', nên branch theo status để chọn đúng
+            // message + code (discriminator máy-đọc cho FE, không bắt FE parse
+            // chuỗi tiếng Việt):
+            //   - suspended → message "tạm dừng" THỐNG NHẤT (chung với farm
+            //     is_active=false bên dưới) + code FARM_SUSPENDED.
+            //   - còn lại (none/requested/role≠farm_partner) → message GIỮ NGUYÊN
+            //     nguyên văn (hợp đồng ROLE-02) + code FARM_PARTNER_REQUIRED;
+            //     FE đọc farm_partner_status (từ /authenticate) để hiện màn
+            //     "Đang chờ duyệt" cho 'requested'.
             if (!$customer->isFarmPartner()) {
+                if ($customer->farm_partner_status === 'suspended') {
+                    return response()->json([
+                        'error'   => true,
+                        'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
+                        'code'    => 'FARM_SUSPENDED',
+                    ], 403);
+                }
+
                 return response()->json([
                     'error'   => true,
                     'message' => 'Bạn không có quyền truy cập chức năng Farm Partner',
+                    'code'    => 'FARM_PARTNER_REQUIRED',
                 ], 403);
             }
 
-            // Verify customer có farm đang active. scopeActive yêu cầu
-            // is_active=true AND approved_at NOT NULL.
-            // Lookup theo customers.farm_id (cover cả owner và staff). Trước
-            // task Farm Staff, middleware tìm theo farms.owner_customer_id,
-            // nay đã chuyển sang farm_id để 1 farm có thể có nhiều người
-            // thao tác (owner + staff). Xem migration 2026_05_19_100000.
-            $farm = $customer->farm_id
-                ? Farm::active()->find($customer->farm_id)
-                : null;
+            // Verify customer có farm đang active. Lookup theo customers.farm_id
+            // (cover cả owner và staff). Trước task Farm Staff, middleware tìm
+            // theo farms.owner_customer_id, nay đã chuyển sang farm_id để 1 farm
+            // có thể có nhiều người thao tác (owner + staff). Xem migration
+            // 2026_05_19_100000.
+            //
+            // KHÔNG dùng scopeActive() trực tiếp: scopeActive (is_active=true AND
+            // approved_at NOT NULL) gộp "farm bị tắt" với "chưa có row / chưa
+            // duyệt" thành cùng null → không phân biệt được message. Thay vào đó
+            // tra row KHÔNG scope rồi branch (ROLE-05):
+            //   - row tồn tại nhưng is_active=false (từng active rồi admin tắt)
+            //     → "tạm dừng" + FARM_SUSPENDED (thống nhất với suspend partner).
+            //   - không có row HOẶC approved_at=null (đang onboarding, chưa duyệt
+            //     lần đầu) → "chưa được gán" + FARM_NOT_ASSIGNED.
+            $farm = $customer->farm_id ? Farm::find($customer->farm_id) : null;
 
-            if (!$farm) {
+            if ($farm && $farm->is_active === false) {
+                return response()->json([
+                    'error'   => true,
+                    'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
+                    'code'    => 'FARM_SUSPENDED',
+                ], 403);
+            }
+
+            if (!$farm || $farm->approved_at === null) {
                 return response()->json([
                     'error'   => true,
                     'message' => 'Tài khoản farm partner chưa được gán farm hoặc farm đã bị vô hiệu hoá',
+                    'code'    => 'FARM_NOT_ASSIGNED',
                 ], 403);
             }
 

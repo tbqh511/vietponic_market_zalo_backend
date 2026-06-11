@@ -632,9 +632,13 @@ class ZaloApiController extends Controller
      */
     public function cancelByCustomer(Request $request, $id)
     {
+        // ORDPRO-11: khi khách chọn "Lý do khác" (reason_code='other') thì reason
+        // BẮT BUỘC ≥5 ký tự (đồng bộ ràng buộc FE cancel-modal). Với reason_code
+        // khác (lý do preset), reason vắng mặt vẫn hợp lệ — required_if không kích
+        // hoạt, min/max bỏ qua giá trị absent/null.
         $request->validate([
             'reason_code' => 'nullable|string|max:64',
-            'reason'      => 'nullable|string|max:500',
+            'reason'      => 'required_if:reason_code,other|min:5|max:500',
         ]);
 
         $customerId = $request->attributes->get('zalo_customer_id');
@@ -1000,6 +1004,11 @@ class ZaloApiController extends Controller
                         'profile'         => $customer->profile,
                         'mobile'          => $customer->mobile,
                         'is_farm_partner' => $customer->isFarmPartner(),
+                        // Trạng thái đối tác farm thô (approved/requested/suspended/
+                        // none/null) — FE đọc để phân biệt màn chặn (ROLE-02 "đang
+                        // chờ duyệt" vs ROLE-05 "tạm dừng") ở guard client-side,
+                        // không phải gọi thêm /farm/*.
+                        'farm_partner_status' => $customer->farm_partner_status,
                     ]
                 ]
             ]);

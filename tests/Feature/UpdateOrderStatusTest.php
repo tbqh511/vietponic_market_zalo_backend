@@ -53,6 +53,11 @@ class UpdateOrderStatusTest extends TestCase
             ->patchJson("/api/orders/{$order->id}/status", ['status' => 'pending']);
 
         $res->assertStatus(422);
+        // ORDPRO-04: message đúng mẫu "Không thể chuyển đơn từ "…" về "…".".
+        $this->assertStringContainsString(
+            'Không thể chuyển đơn từ "delivering" về "pending".',
+            (string) $res->json('message')
+        );
         $this->assertSame('delivering', $order->fresh()->status);
     }
 
@@ -64,6 +69,11 @@ class UpdateOrderStatusTest extends TestCase
             ->patchJson("/api/orders/{$order->id}/status", ['status' => 'cancelled']);
 
         $res->assertStatus(422);
+        // ORDPRO-05: chứa cụm "Không thể hủy đơn hàng đã giao thành công".
+        $this->assertStringContainsString(
+            'Không thể hủy đơn hàng đã giao thành công',
+            (string) $res->json('message')
+        );
         $this->assertSame('delivered', $order->fresh()->status);
     }
 

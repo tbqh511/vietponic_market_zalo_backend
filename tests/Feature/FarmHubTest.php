@@ -121,6 +121,8 @@ class FarmHubTest extends TestCase
 
     /**
      * Customer thường (role=customer) → 403 không đủ quyền Farm Partner.
+     * Discriminator code=FARM_PARTNER_REQUIRED + message GIỮ NGUYÊN nguyên văn
+     * (hợp đồng ROLE-02: FE/test khác dựa vào đúng chuỗi này).
      */
     public function test_regular_customer_gets_403_on_farm_endpoint(): void
     {
@@ -130,11 +132,14 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/me');
 
         $response->assertStatus(403)
-            ->assertJson(['error' => true]);
+            ->assertJson(['error' => true])
+            ->assertJsonPath('code', 'FARM_PARTNER_REQUIRED')
+            ->assertJsonPath('message', 'Bạn không có quyền truy cập chức năng Farm Partner');
     }
 
     /**
-     * Customer có role=farm_partner nhưng chưa được gán Farm (hoặc farm inactive) → 403.
+     * Customer có role=farm_partner nhưng chưa được gán Farm (không có row) → 403
+     * code=FARM_NOT_ASSIGNED. Phân biệt với farm bị suspend (FARM_SUSPENDED).
      */
     public function test_farm_partner_without_farm_record_gets_403(): void
     {
@@ -148,7 +153,76 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/me');
 
         $response->assertStatus(403)
-            ->assertJson(['error' => true]);
+            ->assertJson(['error' => true])
+            ->assertJsonPath('code', 'FARM_NOT_ASSIGNED');
+    }
+
+    /**
+     * ROLE-05 — partner bị admin suspend (farm_partner_status='suspended') → 403
+     * với message "tạm dừng" THỐNG NHẤT (chung với farm is_active=false) + code
+     * FARM_SUSPENDED. isFarmPartner() trả false cho cả 'suspended' lẫn 'requested',
+     * nên middleware phải branch theo status để chọn đúng message.
+     */
+    public function test_suspended_farm_partner_gets_403_paused(): void
+    {
+        $customer = $this->makeCustomer([
+            'role'                => 'farm_partner',
+            'farm_partner_status' => 'suspended',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/me');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error'   => true,
+                'code'    => 'FARM_SUSPENDED',
+                'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
+            ]);
+    }
+
+    /**
+     * ROLE-05 — farm record TỒN TẠI nhưng is_active=false (từng active rồi tắt) →
+     * cùng message "tạm dừng" + code FARM_SUSPENDED. Chứng minh middleware lookup
+     * KHÔNG dùng scopeActive (vốn gộp inactive với no-record thành null) mà branch
+     * theo is_active để phân biệt với "chưa được gán".
+     */
+    public function test_farm_partner_with_inactive_farm_gets_403_paused(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $farm->forceFill(['is_active' => false])->save();
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/me');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'error'   => true,
+                'code'    => 'FARM_SUSPENDED',
+                'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
+            ]);
+    }
+
+    /**
+     * ROLE-02 — partner đã đăng ký, CHỜ DUYỆT (farm_partner_status='requested') →
+     * 403 PHÂN BIỆT ĐƯỢC với suspended qua code FARM_PARTNER_REQUIRED, message giữ
+     * nguyên văn. FE đọc code/farm_partner_status để hiện màn "Đang chờ duyệt" thay
+     * vì đẩy lại form đăng ký.
+     */
+    public function test_requested_farm_partner_gets_403_distinguishable(): void
+    {
+        $customer = $this->makeCustomer([
+            'role'                => 'farm_partner',
+            'farm_partner_status' => 'requested',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/me');
+
+        $response->assertStatus(403)
+            ->assertJson(['error' => true])
+            ->assertJsonPath('code', 'FARM_PARTNER_REQUIRED')
+            ->assertJsonPath('message', 'Bạn không có quyền truy cập chức năng Farm Partner');
     }
 
     /**

@@ -108,6 +108,34 @@ class AuthenticateTest extends TestCase
         $this->assertSame('Trần Thị B', Customer::where('firebase_id', 'zalo_upd')->first()->name);
     }
 
+    /**
+     * Case 6 (B8/ROLE-02) — response trả farm_partner_status để FE phân biệt
+     * trạng thái đối tác (approved/requested/suspended/none) mà không phải gọi
+     * thêm API farm. Field này drive màn "Đang chờ duyệt" ở guard FE (chạy
+     * client-side TRƯỚC khi gọi bất kỳ /farm/* nào).
+     */
+    public function test_authenticate_returns_farm_partner_status(): void
+    {
+        $this->fakeGraphProfile('zalo_req', name: 'Người Chờ Duyệt');
+
+        Customer::create([
+            'name'                => 'Người Chờ Duyệt',
+            'email'               => 'zalo_req@zalo.user',
+            'firebase_id'         => 'zalo_req',
+            'logintype'           => 'zalo',
+            'isActive'            => 1,
+            'role'                => 'farm_partner',
+            'farm_partner_status' => 'requested',
+        ]);
+
+        $res = $this->authenticate(['access_token' => 'tok_req', 'name' => 'Người Chờ Duyệt']);
+
+        $res->assertOk()
+            ->assertJsonPath('data.user.farm_partner_status', 'requested')
+            // requested → CHƯA phải partner đã duyệt.
+            ->assertJsonPath('data.user.is_farm_partner', false);
+    }
+
     /** Case 5 — guard: name placeholder/rỗng KHÔNG che tên thật đã có trong DB. */
     public function test_placeholder_does_not_overwrite_existing_real_name(): void
     {

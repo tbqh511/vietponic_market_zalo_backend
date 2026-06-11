@@ -7,8 +7,10 @@ use App\Models\ZaloProduct;
 use App\Models\ZaloCategory;
 use App\Models\ZaloUnit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ZaloProductController extends Controller
 {
@@ -33,13 +35,13 @@ class ZaloProductController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'category_id'      => 'nullable|exists:zalo_categories,id',
+            'category_id'      => 'required|exists:zalo_categories,id',
             'name'             => 'required|string|max:255',
             'price'            => 'nullable|numeric|min:0',
             'original_price'   => 'nullable|numeric|min:0',
-            'image'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image'            => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
             'detail'           => 'nullable|string',
-            'unit_id'          => 'nullable|exists:zalo_units,id',
+            'unit_id'          => 'required|exists:zalo_units,id',
             'system_unit'      => 'required|in:g,ml,piece',
             'conversion_factor'=> 'required|numeric|min:0.001',
             'weight'           => 'nullable|integer|min:1|max:50000',
@@ -50,20 +52,31 @@ class ZaloProductController extends Controller
 
         $this->assertUnitConsistency($data);
 
-        // Handle image upload
+        // Handle image upload — bọc xử lý ảnh để lỗi processImage() trả về
+        // validation error tiếng Việt thay vì Exception thô gây 500.
         if ($request->hasFile('image')) {
-            $tempPath = $request->file('image')->getRealPath();
-            $imagePath = $this->processImage($tempPath);
-            $data['image'] = $imagePath;
+            try {
+                $tempPath = $request->file('image')->getRealPath();
+                $data['image'] = $this->processImage($tempPath);
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    'image' => 'Hình ảnh không hợp lệ hoặc không thể xử lý.',
+                ]);
+            }
         }
 
-        $max = ZaloProduct::max('id');
-        $id = ($max ? $max : 0) + 1;
-        $data['id'] = $id;
         $data['price'] = $data['price'] ?? 0;
 
-        ZaloProduct::create($data);
-        return redirect()->route('zalo-products.index')->with('success', 'Product created');
+        // Cấp id thủ công (cột id không auto-increment vì mock product dùng id cố
+        // định) nhưng atomic: lockForUpdate trong transaction chống race khi 2
+        // admin tạo đồng thời trùng id.
+        DB::transaction(function () use ($data) {
+            $max = ZaloProduct::lockForUpdate()->max('id');
+            $data['id'] = ((int) $max) + 1;
+            ZaloProduct::create($data);
+        });
+
+        return redirect()->route('zalo-products.index')->with('success', 'Đã tạo sản phẩm');
     }
 
     public function edit($id)
