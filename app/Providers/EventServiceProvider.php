@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Events\OrderDelivered;
 use App\Events\OrderPaymentSucceeded;
 use App\Listeners\CreateVtpOrderOnPayment;
 use App\Listeners\DeductStockOnPayment;
@@ -26,8 +27,12 @@ class EventServiceProvider extends ServiceProvider
         OrderPaymentSucceeded::class => [
             DeductStockOnPayment::class,
             CreateVtpOrderOnPayment::class,
-            RecordAffiliateCommission::class,
             SendOrderNotification::class,
+        ],
+        // AFF-03 (B2): hoa hồng CTV tính theo đơn GIAO THÀNH CÔNG, không theo
+        // thanh toán → RecordAffiliateCommission nghe OrderDelivered (gồm cả COD).
+        OrderDelivered::class => [
+            RecordAffiliateCommission::class,
         ],
     ];
 

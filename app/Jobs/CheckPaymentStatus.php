@@ -34,7 +34,10 @@ class CheckPaymentStatus implements ShouldQueue
     public function handle()
     {
         $order = ZaloOrder::find($this->orderId);
-        if (!$order || $order->payment_status !== 'pending') {
+        // Bail nếu: không tìm thấy / đã có kết quả (success|failed|cod) / đã bị HUỶ.
+        // Guard status='cancelled' (ORDER-06): job poll đang xếp hàng KHÔNG được hồi
+        // sinh đơn đã auto-cancel — kể cả khi payment_status vẫn 'pending'.
+        if (!$order || $order->payment_status !== 'pending' || $order->status === 'cancelled') {
             return;
         }
 

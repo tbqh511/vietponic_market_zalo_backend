@@ -176,6 +176,16 @@ class ZaloOrderController extends Controller
             $order->save();
         });
 
+        // AFF-03 (B2): đơn giao thành công qua admin web → fire OrderDelivered (sau
+        // commit) để ghi hoa hồng CTV (gồm cả COD). Idempotent nhờ firstOrCreate.
+        if (
+            isset($data['status'])
+            && $data['status'] === 'delivered'
+            && $previousStatus !== 'delivered'
+        ) {
+            event(new \App\Events\OrderDelivered($order->id));
+        }
+
         // Khi admin web chuyển sang cancelled: release stock + trigger refund flow.
         // Trước đây admin web không gọi 2 thứ này → stock bị orphan, không có refund.
         if (

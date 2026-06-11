@@ -2,7 +2,7 @@
 
 namespace App\Listeners;
 
-use App\Events\OrderPaymentSucceeded;
+use App\Events\OrderDelivered;
 use App\Models\AffiliateCommission;
 use App\Models\Customer;
 use App\Models\Setting;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class RecordAffiliateCommission
 {
-    public function handle(OrderPaymentSucceeded $event): void
+    public function handle(OrderDelivered $event): void
     {
         $order = ZaloOrder::find($event->orderId);
         if (!$order || !$order->customer_id) {

@@ -17,6 +17,7 @@
             <file>./tests/Feature/PrepareOrderTest.php</file>
             <file>./tests/Feature/ZaloNotifyTest.php</file>
             <file>./tests/Feature/CheckPaymentStatusJobTest.php</file>
+            <file>./tests/Feature/CancelUnpaidOrderTest.php</file>
             <file>./tests/Feature/UpdateOrderStatusTest.php</file>
             <file>./tests/Feature/OrderListTest.php</file>
         </testsuite>
@@ -41,6 +42,8 @@
             <file>./tests/Feature/AffiliateRegistrationTest.php</file>
             <file>./tests/Feature/ApplyReferralTest.php</file>
             <file>./tests/Feature/CommissionCreditedOnPaymentTest.php</file>
+            <file>./tests/Feature/CommissionOnDeliveryTest.php</file>
+            <file>./tests/Feature/CommissionClawbackOnCancelTest.php</file>
         </testsuite>
         <!-- Testsuite cho Zalo OA / ZNS push notification -->
         <testsuite name="Notify">
