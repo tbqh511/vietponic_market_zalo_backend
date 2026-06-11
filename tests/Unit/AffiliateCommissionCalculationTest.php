@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Events\OrderPaymentSucceeded;
+use App\Events\OrderDelivered;
 use App\Listeners\RecordAffiliateCommission;
 use App\Models\AffiliateCommission;
 use App\Models\Customer;
@@ -35,7 +35,7 @@ class AffiliateCommissionCalculationTest extends TestCase
 
         $order = $this->makeOrder($referred->id, 123_456);
 
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
 
         $row = AffiliateCommission::where('order_id', $order->id)->firstOrFail();
         // 5% of 123_456 = 6172.8 → round to 6173
@@ -49,7 +49,7 @@ class AffiliateCommissionCalculationTest extends TestCase
         $referred = $this->makeReferred($referrer->id);
         $order = $this->makeOrder($referred->id, 0);
 
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
 
         $this->assertEquals(0, AffiliateCommission::count());
     }
@@ -61,7 +61,7 @@ class AffiliateCommissionCalculationTest extends TestCase
         ]));
         $order = $this->makeOrder($referred->id, 100_000);
 
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
 
         $this->assertEquals(0, AffiliateCommission::count());
     }
@@ -78,7 +78,7 @@ class AffiliateCommissionCalculationTest extends TestCase
         ]));
         $order = $this->makeOrder($referred->id, 100_000);
 
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
 
         $this->assertEquals(0, AffiliateCommission::count());
     }
@@ -90,8 +90,8 @@ class AffiliateCommissionCalculationTest extends TestCase
         Setting::updateOrCreate(['type' => 'affiliate_commission_rate'], ['data' => '5']);
         $order = $this->makeOrder($referred->id, 200_000);
 
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
-        (new RecordAffiliateCommission())->handle(new OrderPaymentSucceeded($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
+        (new RecordAffiliateCommission())->handle(new OrderDelivered($order->id));
 
         $this->assertEquals(1, AffiliateCommission::where('order_id', $order->id)->count());
     }

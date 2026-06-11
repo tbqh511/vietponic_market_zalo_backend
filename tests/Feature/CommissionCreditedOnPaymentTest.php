@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Events\OrderPaymentSucceeded;
+use App\Events\OrderDelivered;
 use App\Jobs\CheckPaymentStatus;
 use App\Models\AffiliateCommission;
 use App\Models\Customer;
@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Http;
 use Tests\AffiliateCustomerFactory;
 use Tests\TestCase;
 
+/**
+ * AFF-03 (B2): Mốc ghi hoa hồng đã dời từ thanh toán (OrderPaymentSucceeded)
+ * sang giao thành công (OrderDelivered). File này verify rằng các đường THANH
+ * TOÁN (webhook /notify, job poll) chỉ set payment_status=success và KHÔNG còn
+ * sinh hoa hồng; hoa hồng chỉ phát sinh khi OrderDelivered fire.
+ *
+ * Việc sinh hoa hồng ở mốc delivered (qua API/admin/VTP) được phủ ở
+ * CommissionOnDeliveryTest.
+ */
 class CommissionCreditedOnPaymentTest extends TestCase
 {
     use RefreshDatabase, AffiliateCustomerFactory;
@@ -30,7 +39,7 @@ class CommissionCreditedOnPaymentTest extends TestCase
         $this->referred = $this->makeCustomer(['referred_by_customer_id' => $this->referrer->id]);
     }
 
-    public function test_webhook_notify_credits_commission(): void
+    public function test_webhook_notify_marks_paid_but_does_not_credit_commission(): void
     {
         $secret = env('ZALO_CHECK_OUT_SECRET');
         $sdkOrderId = 'sdk-order-001';
@@ -59,10 +68,10 @@ class CommissionCreditedOnPaymentTest extends TestCase
         ]);
         $response->assertOk()->assertJson(['returnCode' => 1]);
 
-        $this->assertEquals(1, AffiliateCommission::where('order_id', $order->id)->count());
-        $row = AffiliateCommission::where('order_id', $order->id)->first();
-        $this->assertEquals(5000, $row->commission_amount);
-        $this->assertEquals('confirmed', $row->status);
+        $order->refresh();
+        $this->assertEquals('success', $order->payment_status);
+        // Mốc đã dời sang delivered — thanh toán KHÔNG còn sinh hoa hồng.
+        $this->assertEquals(0, AffiliateCommission::where('order_id', $order->id)->count());
     }
 
     public function test_webhook_notify_cod_keeps_status_and_skips_commission(): void
@@ -101,7 +110,7 @@ class CommissionCreditedOnPaymentTest extends TestCase
         $this->assertEquals(0, AffiliateCommission::where('order_id', $order->id)->count());
     }
 
-    public function test_job_polling_path_credits_commission(): void
+    public function test_job_polling_path_marks_paid_but_does_not_credit_commission(): void
     {
         $sdkOrderId = 'sdk-order-002';
         $miniAppId = '1234567890';
@@ -123,24 +132,24 @@ class CommissionCreditedOnPaymentTest extends TestCase
 
         (new CheckPaymentStatus($order->id, $sdkOrderId, $miniAppId))->handle();
 
-        $this->assertEquals(1, AffiliateCommission::where('order_id', $order->id)->count());
-        $row = AffiliateCommission::where('order_id', $order->id)->first();
-        $this->assertEquals(10000, $row->commission_amount);
+        $order->refresh();
+        $this->assertEquals('success', $order->payment_status);
+        $this->assertEquals(0, AffiliateCommission::where('order_id', $order->id)->count());
     }
 
-    public function test_double_fire_webhook_then_job_creates_exactly_one_row(): void
+    public function test_double_fire_delivered_creates_exactly_one_row(): void
     {
         $order = ZaloOrder::create([
             'customer_id' => $this->referred->id,
-            'status' => 'pending',
-            'payment_status' => 'pending',
+            'status' => 'delivered',
+            'payment_status' => 'success',
             'total' => 50000,
             'checkout_sdk_order_id' => 'sdk-order-003',
             'created_at' => now(),
         ]);
 
-        event(new OrderPaymentSucceeded($order->id));
-        event(new OrderPaymentSucceeded($order->id));
+        event(new OrderDelivered($order->id));
+        event(new OrderDelivered($order->id));
 
         $this->assertEquals(1, AffiliateCommission::where('order_id', $order->id)->count());
     }
@@ -150,13 +159,13 @@ class CommissionCreditedOnPaymentTest extends TestCase
         $standalone = $this->makeCustomer();
         $order = ZaloOrder::create([
             'customer_id' => $standalone->id,
-            'status' => 'pending',
+            'status' => 'delivered',
             'payment_status' => 'success',
             'total' => 100000,
             'created_at' => now(),
         ]);
 
-        event(new OrderPaymentSucceeded($order->id));
+        event(new OrderDelivered($order->id));
         $this->assertEquals(0, AffiliateCommission::where('order_id', $order->id)->count());
     }
 }

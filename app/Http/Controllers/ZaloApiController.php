@@ -559,6 +559,13 @@ class ZaloApiController extends Controller
         }
         $order->update($updates);
 
+        // AFF-03 (B2): đơn giao thành công → fire OrderDelivered để ghi hoa hồng CTV
+        // (gồm cả COD). Chỉ fire khi VỪA chuyển sang delivered. Idempotent nhờ
+        // firstOrCreate(['order_id']) trong RecordAffiliateCommission.
+        if ($newStatus === 'delivered' && $previousStatus !== 'delivered') {
+            event(new \App\Events\OrderDelivered($order->id));
+        }
+
         // Bắn tin Zalo khi trạng thái thực sự đổi (huỷ → 'cancelled', còn lại → 'status_changed').
         if ($newStatus !== $previousStatus) {
             $this->dispatchOrderNotification(

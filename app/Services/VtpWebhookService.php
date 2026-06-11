@@ -70,8 +70,11 @@ class VtpWebhookService
 
         // Trạng thái mới đã chuyển — set trong transaction, dispatch tin SAU khi commit.
         $notifyStatus = null;
+        // AFF-03 (B2): đánh dấu nếu webhook vừa chuyển đơn sang 'delivered' để fire
+        // OrderDelivered (ghi hoa hồng CTV) SAU khi commit, ngoài transaction.
+        $justDelivered = false;
 
-        DB::transaction(function () use ($order, $data, $statusCode, $statusAt, &$notifyStatus) {
+        DB::transaction(function () use ($order, $data, $statusCode, $statusAt, &$notifyStatus, &$justDelivered) {
             // 3. Insert event
             VtpTrackingEvent::create([
                 'order_id'         => $order->id,
@@ -114,6 +117,9 @@ class VtpWebhookService
                 $order->update($updates);
                 $this->handleStatusSideEffects($order, $previousStatus, $newStatus, $statusCode);
                 $notifyStatus = $newStatus;
+                if ($newStatus === 'delivered' && $previousStatus !== 'delivered') {
+                    $justDelivered = true;
+                }
 
                 Log::channel('viettelpost')->info('[Webhook] Status updated', [
                     'order_id' => $order->id,
@@ -130,6 +136,12 @@ class VtpWebhookService
                 'status'   => $notifyStatus,
                 'vtp_code' => $statusCode,
             ]);
+        }
+
+        // AFF-03 (B2): VTP báo giao thành công (code 501 → delivered) → fire
+        // OrderDelivered SAU commit để ghi hoa hồng CTV. Idempotent nhờ firstOrCreate.
+        if ($justDelivered) {
+            event(new \App\Events\OrderDelivered($order->id));
         }
     }
 

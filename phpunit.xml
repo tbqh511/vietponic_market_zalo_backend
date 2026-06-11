@@ -42,6 +42,8 @@
             <file>./tests/Feature/AffiliateRegistrationTest.php</file>
             <file>./tests/Feature/ApplyReferralTest.php</file>
             <file>./tests/Feature/CommissionCreditedOnPaymentTest.php</file>
+            <file>./tests/Feature/CommissionOnDeliveryTest.php</file>
+            <file>./tests/Feature/CommissionClawbackOnCancelTest.php</file>
         </testsuite>
         <!-- Testsuite cho Zalo OA / ZNS push notification -->
         <testsuite name="Notify">
