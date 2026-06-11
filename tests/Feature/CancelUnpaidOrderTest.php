@@ -116,6 +116,26 @@ class CancelUnpaidOrderTest extends TestCase
         $this->assertEquals('0.00', $batch->fresh()->quantity_sold);
     }
 
+    public function test_auto_cancel_reverts_depleted_batch_to_active(): void
+    {
+        // Mua sạch lô (10/10) → batch depleted sau reserve.
+        [$order, $batch] = $this->makeReservedOrder([
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+            'payment_method' => 'BANK_SANDBOX',
+        ], orderQty: 10, batchQty: 10);
+        $this->assertSame('depleted', $batch->fresh()->status);
+
+        (new CancelUnpaidOrder($order->id))->handle();
+
+        $this->assertSame('cancelled', $order->fresh()->status);
+        // Job hoàn kho → lô bán tiếp được.
+        $fresh = $batch->fresh();
+        $this->assertEquals('0.00', $fresh->quantity_sold);
+        $this->assertEquals('10.00', $fresh->quantity_remaining);
+        $this->assertSame('active', $fresh->status);
+    }
+
     public function test_idempotent_on_already_cancelled_order(): void
     {
         [$order, $batch] = $this->makeReservedOrder([

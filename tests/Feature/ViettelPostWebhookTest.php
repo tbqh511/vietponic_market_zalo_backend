@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Farm;
+use App\Models\FarmStockBatch;
 use App\Models\VtpTrackingEvent;
 use App\Models\ZaloCategory;
 use App\Models\ZaloDelivery;
 use App\Models\ZaloOrder;
+use App\Models\ZaloOrderItem;
 use App\Models\ZaloProduct;
+use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -201,10 +205,44 @@ class ViettelPostWebhookTest extends TestCase
 
     public function test_status_504_returns_cancels_order_and_releases_stock(): void
     {
-        // Setup cũ touch zalo_products.stock_reserved + stock_movements đã bị
-        // remove khi chuyển sang FEFO batch model. releaseReservation() giờ
-        // là no-op nếu order không có item gắn farm_stock_batch_id, nên đủ
-        // để kiểm tra side-effects: status, cancelled_by, reason.
+        // Dựng kho FEFO cho đơn: 1 batch active vừa đủ → reserve làm lô depleted.
+        // (STOCK-06) Khi VTP huỷ 504, releaseReservation phải hoàn kho thật:
+        // quantity_sold về 0, quantity_remaining hoàn đủ, lô depleted→active.
+        $farm = Farm::create([
+            'code'              => 'VTP' . uniqid(),
+            'name'              => 'VTP Webhook Farm',
+            'owner_customer_id' => $this->order->customer_id,
+            'address'           => 'Đà Lạt',
+            'commission_rate'   => 0.1000,
+            'payment_cycle'     => 'monthly',
+            'is_active'         => true,
+            'approved_at'       => now(),
+        ]);
+        $batch = FarmStockBatch::create([
+            'farm_id'            => $farm->id,
+            'product_id'         => 1,
+            'batch_date'         => now()->toDateString(),
+            'quantity_in'        => 4,
+            'quantity_sold'      => 0,
+            'quantity_remaining' => 4, // SQLite fallback
+            'cost_price'         => 8000,
+            'expire_date'        => now()->addDays(10)->toDateString(),
+            'status'             => 'active',
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $this->order->id,
+            'product_id' => 1,
+            'name'       => 'SP',
+            'price'      => '10000',
+            'quantity'   => 4,
+        ]);
+        app(StockService::class)->reserveItems($this->order->id, [
+            ['product_id' => 1, 'quantity' => 4],
+        ]);
+        // Sau reserve: lô bị trừ hết → depleted.
+        $this->assertEquals('4.00', $batch->fresh()->quantity_sold);
+        $this->assertSame('depleted', $batch->fresh()->status);
+
         $this->postJson('/api/viettelpost/webhook', $this->payload(504))
             ->assertStatus(200);
 
@@ -213,6 +251,12 @@ class ViettelPostWebhookTest extends TestCase
         $this->assertSame('system', $fresh->cancelled_by);
         $this->assertStringContainsString('hoàn người gửi', (string) $fresh->cancellation_reason);
         $this->assertNotNull($fresh->cancelled_at);
+
+        // Kho được hoàn đúng số đã trừ + lô depleted→active để bán tiếp.
+        $freshBatch = $batch->fresh();
+        $this->assertEquals('0.00', $freshBatch->quantity_sold);
+        $this->assertEquals('4.00', $freshBatch->quantity_remaining);
+        $this->assertSame('active', $freshBatch->status);
     }
 
     // ── Date parsing edge case (VTP doc có "11: 07: 16" với space dư) ────────
