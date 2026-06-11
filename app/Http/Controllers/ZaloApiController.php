@@ -447,6 +447,14 @@ class ZaloApiController extends Controller
         // Lưu idempotency key để chặn request trùng trong 90s tiếp theo.
         Cache::put($idempotencyKey, $order->id, now()->addSeconds(90));
 
+        // ORDER-06: hẹn giờ tự huỷ đơn ONLINE chưa thanh toán + hoàn kho. Dispatch
+        // tại checkout (không phải link) để phủ cả trường hợp khách ĐÓNG CỔNG trước
+        // khi /link được gọi (đơn vẫn pending + đã giữ kho). COD không cần.
+        if (!$isCodOrder) {
+            \App\Jobs\CancelUnpaidOrder::dispatch($order->id)
+                ->delay(now()->addMinutes(\App\Jobs\CancelUnpaidOrder::timeoutMinutes()));
+        }
+
         return response()->json([
             'message' => 'Đã tạo đơn hàng thành công!',
             'orderId' => $order->id,
@@ -1216,6 +1224,25 @@ class ZaloApiController extends Controller
                 ]);
             }
 
+            // Race guard (ORDER-06): đơn đã bị HUỶ (auto-cancel quá hạn / khách / admin)
+            // thì KHÔNG được hồi sinh thành 'paid'. Đơn huỷ bởi khách vẫn giữ
+            // payment_status='pending' nên idempotency guard bên dưới KHÔNG bắt được —
+            // phải chặn ở đây. Nếu khách đã thực sự bị trừ tiền → hoàn tiền THỦ CÔNG,
+            // log để kế toán đối soát.
+            if ($order->status === 'cancelled') {
+                Log::warning('notifySDK: notify thanh toán cho đơn ĐÃ HUỶ — bỏ qua (refund thủ công nếu đã thu tiền)', [
+                    'orderId'        => $orderId,
+                    'order_id'       => $order->id,
+                    'method'         => $method,
+                    'payment_status' => $order->payment_status,
+                    'resultCode'     => $data['resultCode'] ?? null,
+                ]);
+                return response()->json([
+                    'returnCode'    => 1,
+                    'returnMessage' => 'Order cancelled',
+                ]);
+            }
+
             // Idempotency guard — Zalo có thể retry /notify nhiều lần. Nếu đã có
             // kết quả thanh toán cuối (success/failed) thì trả về luôn, không re-fire
             // OrderPaymentSucceeded (tránh duplicate VTP order, trừ kho lần 2, commission lần 2).
@@ -1231,14 +1258,11 @@ class ZaloApiController extends Controller
                 ]);
             }
 
-            // resultCode=1 thành công, -1 thất bại; nếu thiếu coi như success vì Zalo chỉ gọi /notify khi xong.
-            $resultCode = $data['resultCode'] ?? 1;
-            $paymentStatus = ((int) $resultCode === 1) ? 'success' : 'failed';
-
             // COD chưa thu tiền thật — tiền chỉ thu khi giao hàng. Webhook /notify
             // của Zalo SDK vẫn được gọi sau khi khách chọn COD, nhưng không được
             // chuyển payment_status sang 'success' (sẽ sai dữ liệu kế toán và
             // trigger trừ kho / ghi commission sai thời điểm). Chỉ lưu method.
+            // COD không mang resultCode online → xử lý TRƯỚC khi validate resultCode.
             $isCodMethod = str_starts_with(strtoupper($method), 'COD');
             if ($isCodMethod) {
                 $order->update(['payment_method' => $method]);
@@ -1247,6 +1271,26 @@ class ZaloApiController extends Controller
                     'returnMessage' => 'Success',
                 ]);
             }
+
+            // ONLINE: resultCode BẮT BUỘC có + đúng kiểu số. KHÔNG mặc định success
+            // (ORDER-06) — thiếu/sai shape → KHÔNG đánh dấu paid, giữ 'pending' để
+            // /notify hợp lệ sau hoặc job CheckPaymentStatus xử lý đúng. Trước đây
+            // `$data['resultCode'] ?? 1` đánh dấu success khi thiếu field → sai kế toán.
+            if (!array_key_exists('resultCode', $data) || !is_numeric($data['resultCode'])) {
+                Log::warning('notifySDK: online notify thiếu/không hợp lệ resultCode — KHÔNG đánh dấu paid', [
+                    'orderId'  => $orderId,
+                    'order_id' => $order->id,
+                    'method'   => $method,
+                    'dataKeys' => array_keys($data),
+                ]);
+                return response()->json([
+                    'returnCode'    => 0,
+                    'returnMessage' => 'Missing or invalid resultCode',
+                ]);
+            }
+
+            $resultCode    = (int) $data['resultCode'];
+            $paymentStatus = $resultCode === 1 ? 'success' : 'failed';
 
             $order->update([
                 'payment_method' => $method,
