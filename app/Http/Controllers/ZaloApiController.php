@@ -938,7 +938,7 @@ class ZaloApiController extends Controller
 
             if (!$customer) {
                 $customer = Customer::create([
-                    'name'        => $resolvedName !== '' ? $resolvedName : 'Zalo User',
+                    'name'        => $resolvedName !== '' ? $resolvedName : 'Khách Zalo',
                     'email'       => $zaloProfile['id'] . '@zalo.user',
                     'firebase_id' => $zaloProfile['id'],
                     'mobile'      => $phoneNumber,

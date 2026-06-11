@@ -14,6 +14,7 @@
         <!-- Testsuite riêng cho toàn bộ luồng Zalo Checkout SDK -->
         <testsuite name="Zalo">
             <file>./tests/Unit/ZaloMacCalculationTest.php</file>
+            <file>./tests/Feature/AuthenticateTest.php</file>
             <file>./tests/Feature/PrepareOrderTest.php</file>
             <file>./tests/Feature/ZaloNotifyTest.php</file>
             <file>./tests/Feature/CheckPaymentStatusJobTest.php</file>
