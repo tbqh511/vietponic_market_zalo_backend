@@ -49,11 +49,49 @@ class FarmDashboardService
     {
         [$start, $end] = $this->resolveRange($range, $from, $to);
 
-        // Aggregate doanh thu + cost trên zalo_order_items (đã join sang zalo_orders
-        // để áp filter status='delivered' + delivered_at). Dùng SUM(price*qty) thay
-        // vì lấy từ zalo_orders.total vì 1 order có thể được split nhiều farm,
-        // mỗi farm chỉ lấy doanh thu phần items của mình.
-        $agg = $this->itemsBaseQuery($farm, $start, $end)
+        // HUB-01: hai chỉ số tách basis, mỗi cái tự nhất quán (card + list cùng nguồn):
+        //   - delivered = đơn ĐÃ GIAO (status='delivered', lọc delivered_at) — basis
+        //     doanh thu lịch sử, dùng chung cho analytics/timeseries/payout.
+        //   - placed    = đơn ĐÃ ĐẶT (mọi status trừ 'cancelled', lọc created_at) —
+        //     phản ánh đơn farm nhận trong ngày, gồm cả đơn chưa giao.
+        $delivered = $this->aggregateMetrics($this->itemsBaseQuery($farm, $start, $end));
+        $placed    = $this->aggregateMetrics($this->placedBaseQuery($farm, $start, $end));
+
+        // Lấy top 1 product (basis "đã giao") để hiển thị card "bán chạy nhất".
+        $top = $this->getTopProducts($farm, $range, 1, $from, $to);
+
+        // Field cũ ở top-level GIỮ NGUYÊN (= basis "đã giao") cho backward-compat
+        // với caller khác (analytics). Hai khối placed/delivered bổ sung cho FE
+        // dashboard đọc gọn theo từng tab.
+        return [
+            'range' => [
+                'from' => $start->toIso8601String(),
+                'to'   => $end->toIso8601String(),
+                'key'  => $range,
+            ],
+            'revenue'         => $delivered['revenue'],
+            'cost'            => $delivered['cost'],
+            'profit'          => $delivered['profit'],
+            'orders_count'    => $delivered['orders_count'],
+            'items_sold'      => $delivered['items_sold'],
+            'avg_order_value' => $delivered['avg_order_value'],
+            'top_product'     => $top[0] ?? null,
+            'placed'          => $placed,
+            'delivered'       => $delivered,
+        ];
+    }
+
+    /**
+     * Aggregate doanh thu/cost/đơn/sản lượng trên 1 base query (delivered|placed).
+     * Tách ra để 2 basis HUB-01 dùng chung, tránh lặp SQL.
+     *
+     * @return array{revenue: float, cost: float, profit: float, orders_count: int, items_sold: float, avg_order_value: float}
+     */
+    protected function aggregateMetrics($baseQuery): array
+    {
+        // Dùng SUM(price*qty) thay vì zalo_orders.total vì 1 order có thể split
+        // nhiều farm — mỗi farm chỉ lấy doanh thu phần items của mình.
+        $agg = $baseQuery
             ->selectRaw('
                 COALESCE(SUM(zalo_order_items.price * zalo_order_items.quantity), 0) AS revenue,
                 COALESCE(SUM(COALESCE(zalo_order_items.cost_price_snapshot, 0) * zalo_order_items.quantity), 0) AS cost,
@@ -67,26 +105,14 @@ class FarmDashboardService
         $ordersCount = (int) ($agg->orders_count ?? 0);
         $itemsSold   = (float) ($agg->items_sold ?? 0);
 
-        // Avg order value chỉ có nghĩa khi có đơn. Tránh chia 0.
-        $avgOrderValue = $ordersCount > 0 ? round($revenue / $ordersCount, 2) : 0.0;
-
-        // Lấy top 1 product để hiển thị card "bán chạy nhất". getTopProducts()
-        // tổng quát hơn nhưng cần limit=1 ở đây để tránh tốn query nặng.
-        $top = $this->getTopProducts($farm, $range, 1, $from, $to);
-
         return [
-            'range' => [
-                'from' => $start->toIso8601String(),
-                'to'   => $end->toIso8601String(),
-                'key'  => $range,
-            ],
             'revenue'         => round($revenue, 2),
             'cost'            => round($cost, 2),
             'profit'          => round($revenue - $cost, 2),
             'orders_count'    => $ordersCount,
             'items_sold'      => round($itemsSold, 2),
-            'avg_order_value' => $avgOrderValue,
-            'top_product'     => $top[0] ?? null,
+            // Avg order value chỉ có nghĩa khi có đơn. Tránh chia 0.
+            'avg_order_value' => $ordersCount > 0 ? round($revenue / $ordersCount, 2) : 0.0,
         ];
     }
 
@@ -339,6 +365,28 @@ class FarmDashboardService
             ->where('zalo_orders.status', 'delivered')
             ->whereNotNull('zalo_orders.delivered_at')
             ->whereBetween('zalo_orders.delivered_at', [$startUtc, $endUtc]);
+    }
+
+    /**
+     * Query builder cho chỉ số "ĐÃ ĐẶT" (HUB-01):
+     *   - JOIN zalo_orders, WHERE farm_id = farm hiện tại
+     *   - status != 'cancelled' (mọi đơn còn hiệu lực)
+     *   - lọc theo created_at (thời điểm đặt) trong range
+     *
+     * Khác deliveredBaseQuery ở: KHÔNG lọc status='delivered', dùng created_at
+     * thay delivered_at → gồm cả đơn vừa đặt chưa giao. Convert tz y hệt để
+     * optimizer dùng được index và để 2 basis nhất quán cách so sánh thời gian.
+     */
+    protected function placedBaseQuery(Farm $farm, Carbon $start, Carbon $end)
+    {
+        $startUtc = $start->copy()->setTimezone('UTC');
+        $endUtc   = $end->copy()->setTimezone('UTC');
+
+        return ZaloOrderItem::query()
+            ->join('zalo_orders', 'zalo_orders.id', '=', 'zalo_order_items.order_id')
+            ->where('zalo_order_items.farm_id', $farm->id)
+            ->where('zalo_orders.status', '!=', 'cancelled')
+            ->whereBetween('zalo_orders.created_at', [$startUtc, $endUtc]);
     }
 
     /**

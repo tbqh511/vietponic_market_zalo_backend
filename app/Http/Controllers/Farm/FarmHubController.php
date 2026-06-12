@@ -275,6 +275,7 @@ class FarmHubController extends Controller
         $todayEndUtc   = $vnNow->copy()->endOfDay()->setTimezone('UTC');
 
         // 1. Stocked hôm nay (batches có batch_date = today). Group by product.
+        // Dùng chung cho cả 2 nhóm (đặt/giao) — "nhập hôm nay" không phụ thuộc basis.
         $stockedToday = \Illuminate\Support\Facades\DB::table('farm_stock_batches')
             ->where('farm_id', $farm->id)
             ->whereDate('batch_date', $today)
@@ -282,35 +283,9 @@ class FarmHubController extends Controller
             ->groupBy('product_id')
             ->pluck('stocked', 'product_id');
 
-        // 2. Sold hôm nay: dùng created_at thay vì delivered_at vì dashboard
-        // hiện tại muốn "đang bán hôm nay" (gồm cả đơn chưa delivered).
-        // Lấy đơn ở trạng thái đã/đang giao (delivering+delivered) — KHÔNG
-        // tính pending/confirmed/preparing vì có thể huỷ.
-        // So sánh UTC range thay vì CONVERT_TZ để tương thích SQLite (test env).
-        $soldRows = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
-            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
-            ->where('oi.farm_id', $farm->id)
-            ->whereIn('o.status', ['delivering', 'delivered'])
-            ->whereBetween('o.created_at', [$todayStartUtc, $todayEndUtc])
-            ->selectRaw('
-                oi.product_id AS product_id,
-                COALESCE(SUM(oi.quantity), 0) AS sold,
-                COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
-            ')
-            ->groupBy('oi.product_id')
-            ->get();
-
-        $soldByProduct = [];
-        foreach ($soldRows as $r) {
-            $soldByProduct[(int) $r->product_id] = [
-                'sold'    => (float) $r->sold,
-                'revenue' => (float) $r->revenue,
-            ];
-        }
-
-        // 3. Remaining: tổng quantity_remaining của tất cả active batch (không
+        // 2. Remaining: tổng quantity_remaining của tất cả active batch (không
         // giới hạn ngày). Đây là "còn bao nhiêu để bán tiếp" — không phải tồn
-        // riêng của batch hôm nay.
+        // riêng của batch hôm nay. Dùng chung cho cả 2 nhóm.
         $remainingRows = \Illuminate\Support\Facades\DB::table('farm_stock_batches')
             ->where('farm_id', $farm->id)
             ->where('status', 'active')
@@ -319,20 +294,103 @@ class FarmHubController extends Controller
             ->groupBy('product_id')
             ->pluck('remaining', 'product_id');
 
-        // 4. Gộp danh sách product cần hiển thị = union(stockedToday, soldToday).
+        // 3. HUB-01: hai nhóm bán hôm nay theo 2 basis tách bạch, mỗi nhóm tự
+        // nhất quán với card overview cùng tab.
+        //   - placed:    đơn ĐÃ ĐẶT (mọi status trừ 'cancelled', lọc created_at).
+        //   - delivered: đơn ĐÃ GIAO (status='delivered', lọc delivered_at).
+        $soldPlaced = $this->soldByProductForBasis(
+            $farm->id,
+            fn ($q) => $q->where('o.status', '!=', 'cancelled')
+                        ->whereBetween('o.created_at', [$todayStartUtc, $todayEndUtc]),
+        );
+        $soldDelivered = $this->soldByProductForBasis(
+            $farm->id,
+            fn ($q) => $q->where('o.status', 'delivered')
+                        ->whereNotNull('o.delivered_at')
+                        ->whereBetween('o.delivered_at', [$todayStartUtc, $todayEndUtc]),
+        );
+
+        // 4. Tên sản phẩm: 1 query cho union mọi product xuất hiện ở cả 2 nhóm.
+        $allProductIds = array_unique(array_merge(
+            array_keys($stockedToday->toArray()),
+            array_keys($soldPlaced),
+            array_keys($soldDelivered),
+        ));
+        $names = empty($allProductIds)
+            ? collect()
+            : \Illuminate\Support\Facades\DB::table('zalo_products')
+                ->whereIn('id', $allProductIds)
+                ->pluck('name', 'id');
+
+        // 5. Build rows cho từng nhóm. stocked/remaining dùng chung; sold/revenue
+        // theo basis. Union product mỗi nhóm = stockedToday ∪ soldOfThatBasis.
+        $productsPlaced    = $this->buildProductRows($stockedToday, $soldPlaced, $remainingRows, $names);
+        $productsDelivered = $this->buildProductRows($stockedToday, $soldDelivered, $remainingRows, $names);
+
+        // 6. AI hint tính trên nhóm "đã đặt" (nhịp bán trong ngày, gồm đơn mới —
+        // hợp với gợi ý restock/flash-sale).
+        $hint = $this->buildAiHint($productsPlaced, $vnNow->hour);
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'products_placed'    => $productsPlaced,
+                'products_delivered' => $productsDelivered,
+                'hint'               => $hint,
+            ],
+        ]);
+    }
+
+    /**
+     * Tổng sold/revenue theo product cho 1 basis (đặt/giao). $scope nhận query
+     * builder (alias oi/o đã join) và áp filter status + thời gian tương ứng.
+     *
+     * @return array<int, array{sold: float, revenue: float}>
+     */
+    private function soldByProductForBasis(int $farmId, callable $scope): array
+    {
+        $query = \Illuminate\Support\Facades\DB::table('zalo_order_items as oi')
+            ->join('zalo_orders as o', 'o.id', '=', 'oi.order_id')
+            ->where('oi.farm_id', $farmId);
+
+        $scope($query);
+
+        $rows = $query
+            ->selectRaw('
+                oi.product_id AS product_id,
+                COALESCE(SUM(oi.quantity), 0) AS sold,
+                COALESCE(SUM(oi.price * oi.quantity), 0) AS revenue
+            ')
+            ->groupBy('oi.product_id')
+            ->get();
+
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->product_id] = [
+                'sold'    => (float) $r->sold,
+                'revenue' => (float) $r->revenue,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Dựng danh sách row "Sản phẩm hôm nay" cho 1 nhóm. Product hiển thị =
+     * union(stockedToday, soldByProduct). stocked/remaining dùng chung 2 nhóm;
+     * sold/revenue/sellthrough/status theo basis của $soldByProduct.
+     *
+     * @param  array<int, array{sold: float, revenue: float}> $soldByProduct
+     */
+    private function buildProductRows($stockedToday, array $soldByProduct, $remainingRows, $names): array
+    {
         $productIds = array_unique(array_merge(
             array_keys($stockedToday->toArray()),
             array_keys($soldByProduct),
         ));
 
         if (empty($productIds)) {
-            return response()->json(['error' => false, 'data' => []]);
+            return [];
         }
-
-        // 5. Lấy tên sản phẩm 1 query.
-        $names = \Illuminate\Support\Facades\DB::table('zalo_products')
-            ->whereIn('id', $productIds)
-            ->pluck('name', 'id');
 
         $rows = [];
         foreach ($productIds as $pid) {
@@ -380,19 +438,7 @@ class FarmHubController extends Controller
         // Sort theo revenue desc — sản phẩm bán chạy lên đầu.
         usort($rows, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
 
-        // 6. AI hint đơn giản — theo spec design doc:
-        //   - sellthrough >= 95% → nhập thêm (qty_in * 1.3)
-        //   - sau 14h VN + sellthrough < 30% với stocked > 5 → flash sale
-        $vnNow = \Carbon\Carbon::now($tz);
-        $hint  = $this->buildAiHint($rows, $vnNow->hour);
-
-        return response()->json([
-            'error' => false,
-            'data'  => [
-                'products' => $rows,
-                'hint'     => $hint,
-            ],
-        ]);
+        return $rows;
     }
 
     /**

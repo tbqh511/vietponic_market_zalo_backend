@@ -307,10 +307,9 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/products/today');
 
         $response->assertOk();
-        // Khi không có sản phẩm, controller trả data=[] (early return).
-        $data = $response->json('data');
-        $products = $data['products'] ?? $data;
-        $this->assertEmpty($products);
+        // Khi không có sản phẩm, cả 2 nhóm rỗng.
+        $this->assertEmpty($response->json('data.products_placed'));
+        $this->assertEmpty($response->json('data.products_delivered'));
     }
 
     /**
@@ -355,7 +354,8 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/products/today');
 
         $response->assertOk();
-        $products = $response->json('data.products');
+        // Đơn delivering created hôm nay → nhóm placed.
+        $products = $response->json('data.products_placed');
 
         $this->assertCount(1, $products);
         $row = $products[0];
@@ -409,7 +409,8 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/products/today');
 
         $response->assertOk();
-        $products = $response->json('data.products');
+        // Đơn created hôm nay → nhóm placed; hint AI tính trên placed.
+        $products = $response->json('data.products_placed');
         $this->assertNotEmpty($products);
 
         $row = $products[0];
@@ -464,7 +465,8 @@ class FarmHubTest extends TestCase
             ->getJson('/api/farm/products/today');
 
         $response->assertOk();
-        $products = $response->json('data.products');
+        // Đơn delivering created hôm nay → nhóm placed.
+        $products = $response->json('data.products_placed');
         $this->assertNotEmpty($products);
         // stocked = 0 (không có batch hôm nay), sold = 5 → sentinel 999
         $this->assertEquals(999.0, $products[0]['sellthrough_pct']);
@@ -740,6 +742,303 @@ class FarmHubTest extends TestCase
         $this->assertEquals(200000.0, (float) $overview['revenue']);
         // profit = revenue - cost = 200000 - 100000
         $this->assertEquals(100000.0, (float) $overview['profit']);
+
+        // Khối 'delivered' (HUB-01) phản chiếu đúng số top-level (cùng basis "đã giao").
+        $this->assertEquals(1, $overview['delivered']['orders_count']);
+        $this->assertEquals(200000.0, (float) $overview['delivered']['revenue']);
+    }
+
+    // ─── HUB-01: tách 2 chỉ số "đã đặt" (placed) / "đã giao" (delivered) ────────
+
+    /**
+     * Khối overview['placed'] gồm MỌI đơn created_at hôm nay TRỪ 'cancelled'
+     * (pending + delivering vào, cancelled không vào). Basis = created_at.
+     */
+    public function test_overview_placed_includes_today_orders_all_statuses_except_cancelled(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        // Đơn pending hôm nay → VÀO placed.
+        $pending = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+            'total'          => '100000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $pending->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 3,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        // Đơn delivering hôm nay → VÀO placed.
+        $delivering = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivering',
+            'payment_status' => 'pending',
+            'total'          => '40000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $delivering->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 2,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        // Đơn cancelled hôm nay → KHÔNG vào placed.
+        $cancelled = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'cancelled',
+            'payment_status' => 'pending',
+            'total'          => '999000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $cancelled->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 50,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $overview = app(\App\Services\FarmDashboardService::class)->getOverview($farm, 'today');
+
+        // 2 đơn (pending + delivering), cancelled bị loại.
+        $this->assertEquals(2, $overview['placed']['orders_count']);
+        // revenue placed = 3*20000 + 2*20000 = 100000 (cancelled 50*20000 không tính).
+        $this->assertEquals(100000.0, (float) $overview['placed']['revenue']);
+        $this->assertEquals(5.0, (float) $overview['placed']['items_sold']);
+        // delivered = 0 (chưa đơn nào giao).
+        $this->assertEquals(0, $overview['delivered']['orders_count']);
+    }
+
+    /**
+     * Đơn đặt HÔM QUA, giao HÔM NAY → chỉ vào 'delivered', KHÔNG vào 'placed'.
+     * Đảm bảo 2 basis độc lập (placed=created_at, delivered=delivered_at).
+     */
+    public function test_overview_delivered_does_not_leak_into_placed(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivered',
+            'payment_status' => 'completed',
+            'total'          => '60000',
+            // Đặt hôm qua, giao hôm nay (đầu giờ chiều VN để chắc chắn trong ngày).
+            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10)->setTimezone('UTC'),
+            // Giao hôm nay, đầu ngày VN (01:00) → luôn ≤ now() bất kể giờ chạy test.
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour()->setTimezone('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $order->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 3,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $overview = app(\App\Services\FarmDashboardService::class)->getOverview($farm, 'today');
+
+        $this->assertEquals(1, $overview['delivered']['orders_count']);
+        $this->assertEquals(60000.0, (float) $overview['delivered']['revenue']);
+        // created_at hôm qua → KHÔNG vào placed.
+        $this->assertEquals(0, $overview['placed']['orders_count']);
+        $this->assertEquals(0.0, (float) $overview['placed']['revenue']);
+    }
+
+    /**
+     * Scope farm: item của farm khác trong cùng đơn KHÔNG lẫn vào placed của farm này.
+     */
+    public function test_overview_placed_scoped_to_current_farm(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        [, $otherFarm]     = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+            'total'          => '100000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        // Item của farm hiện tại.
+        ZaloOrderItem::create([
+            'order_id'            => $order->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 2,
+            'cost_price_snapshot' => '10000',
+        ]);
+        // Item của farm KHÁC cùng đơn → không được tính vào placed của $farm.
+        ZaloOrderItem::create([
+            'order_id'            => $order->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $otherFarm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 9,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $overview = app(\App\Services\FarmDashboardService::class)->getOverview($farm, 'today');
+
+        $this->assertEquals(1, $overview['placed']['orders_count']);
+        // Chỉ 2kg của farm hiện tại, không gồm 9kg farm khác.
+        $this->assertEquals(2.0, (float) $overview['placed']['items_sold']);
+        $this->assertEquals(40000.0, (float) $overview['placed']['revenue']);
+    }
+
+    /**
+     * /farm/products/today trả 2 nhóm tách basis:
+     *   - products_placed: đơn created_at hôm nay (trừ cancelled)
+     *   - products_delivered: đơn delivered + delivered_at hôm nay
+     * Đơn đặt hôm nay CHƯA giao → chỉ vào placed.
+     */
+    public function test_products_today_splits_placed_and_delivered(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        FarmStockBatch::create([
+            'farm_id'            => $farm->id,
+            'product_id'         => $product->id,
+            'batch_date'         => now('Asia/Ho_Chi_Minh')->toDateString(),
+            'quantity_in'        => 20,
+            'quantity_sold'      => 0,
+            'quantity_remaining' => 20,
+            'cost_price'         => 10000,
+            'status'             => 'active',
+        ]);
+
+        // Đơn đặt hôm nay, đang giao (chưa delivered) → vào placed, KHÔNG vào delivered.
+        $placedOrder = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivering',
+            'payment_status' => 'pending',
+            'total'          => '120000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $placedOrder->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 8,
+        ]);
+
+        // Đơn delivered hôm nay (created hôm qua) → vào delivered, KHÔNG vào placed.
+        $deliveredOrder = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivered',
+            'payment_status' => 'completed',
+            'total'          => '45000',
+            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10)->setTimezone('UTC'),
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour()->setTimezone('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $deliveredOrder->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 3,
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/products/today');
+
+        $response->assertOk();
+
+        $placed = $response->json('data.products_placed');
+        $this->assertCount(1, $placed);
+        $this->assertEquals(8.0, $placed[0]['sold']);
+
+        $delivered = $response->json('data.products_delivered');
+        $this->assertCount(1, $delivered);
+        $this->assertEquals(3.0, $delivered[0]['sold']);
+    }
+
+    /**
+     * Đơn cancelled hôm nay KHÔNG cộng vào products_placed.sold.
+     */
+    public function test_products_today_cancelled_excluded_from_placed(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        FarmStockBatch::create([
+            'farm_id'            => $farm->id,
+            'product_id'         => $product->id,
+            'batch_date'         => now('Asia/Ho_Chi_Minh')->toDateString(),
+            'quantity_in'        => 20,
+            'quantity_sold'      => 0,
+            'quantity_remaining' => 20,
+            'cost_price'         => 10000,
+            'status'             => 'active',
+        ]);
+
+        // Đơn pending hôm nay → vào placed (sold = 5).
+        $pending = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+            'total'          => '75000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $pending->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 5,
+        ]);
+
+        // Đơn cancelled hôm nay → KHÔNG tính.
+        $cancelled = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'cancelled',
+            'payment_status' => 'pending',
+            'total'          => '150000',
+            'created_at'     => \Carbon\Carbon::now('UTC'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'   => $cancelled->id,
+            'product_id' => $product->id,
+            'farm_id'    => $farm->id,
+            'name'       => $product->name,
+            'price'      => '15000',
+            'quantity'   => 30,
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson('/api/farm/products/today');
+
+        $response->assertOk();
+        $placed = $response->json('data.products_placed');
+        $this->assertCount(1, $placed);
+        // Chỉ 5 từ đơn pending, không gồm 30 từ đơn cancelled.
+        $this->assertEquals(5.0, $placed[0]['sold']);
     }
 
     // ─── D. Stock-In (Khai báo nhập kho buổi sáng) ─────────────────────────────
@@ -885,6 +1184,99 @@ class FarmHubTest extends TestCase
         $response->assertStatus(403)->assertJson(['error' => true]);
         // Transaction chưa chạy → không batch nào được tạo.
         $this->assertDatabaseMissing('farm_stock_batches', ['product_id' => $owned->id]);
+    }
+
+    /**
+     * importBatch: client GỬI expire_date thủ công → lô lưu đúng ngày đó
+     * (KHÔNG bị ghi đè bằng batch_date + 5). Phủ nhánh user-supplied của STOCK-02.
+     */
+    public function test_stock_in_batch_uses_client_supplied_expire_date(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $p = $this->makeProduct();
+        $farm->products()->attach($p->id, ['cost_price' => 8000]);
+
+        $expire = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->addDays(12)->toDateString();
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->postJson('/api/farm/stock-in/batch', [
+                'items' => [
+                    ['product_id' => $p->id, 'quantity' => 10, 'expire_date' => $expire],
+                ],
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.0.expire_date', $expire);
+
+        $batch = FarmStockBatch::where('product_id', $p->id)->first();
+        $this->assertEquals(
+            $expire,
+            \Carbon\Carbon::parse($batch->expire_date)->toDateString()
+        );
+    }
+
+    /**
+     * import (per-SKU): có expire_date → lưu đúng; không có → null (lô không hạn).
+     */
+    public function test_per_sku_import_respects_expire_date(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $p = $this->makeProduct();
+        $farm->products()->attach($p->id, ['cost_price' => 8000]);
+
+        $expire = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->addDays(8)->toDateString();
+
+        // Có expire_date (route: POST /farm/inventory/import, product_id trong body)
+        $this->withHeaders($this->authHeader($customer))
+            ->postJson("/api/farm/inventory/import", [
+                'product_id'  => $p->id,
+                'quantity'    => 7,
+                'expire_date' => $expire,
+                'note'        => 'lô có hạn',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.expire_date', $expire);
+
+        // Không truyền expire_date → null
+        $this->withHeaders($this->authHeader($customer))
+            ->postJson("/api/farm/inventory/import", [
+                'product_id' => $p->id,
+                'quantity'   => 3,
+                'note'       => 'lô không hạn',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('data.expire_date', null);
+    }
+
+    /**
+     * GET /farm/inventory?view=batches trả expire_date từng lô đúng định dạng
+     * YYYY-MM-DD — màn "Lô hàng" của FE đọc field này (STOCK-02).
+     */
+    public function test_inventory_batches_view_returns_expire_date(): void
+    {
+        [$customer, $farm] = $this->makeFarmPartner();
+        $p = $this->makeProduct();
+        $farm->products()->attach($p->id, ['cost_price' => 8000]);
+
+        $expire = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->addDays(4)->toDateString();
+        FarmStockBatch::create([
+            'farm_id'       => $farm->id,
+            'product_id'    => $p->id,
+            'batch_date'    => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->toDateString(),
+            'quantity_in'   => 9,
+            'quantity_sold' => 0,
+            'cost_price'    => 8000,
+            'expire_date'   => $expire,
+            'status'        => 'active',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($customer))
+            ->getJson("/api/farm/inventory?view=batches&product_id={$p->id}&status=active");
+
+        $response->assertOk()
+            ->assertJsonPath('meta.view', 'batches')
+            ->assertJsonPath('data.0.product_id', $p->id)
+            ->assertJsonPath('data.0.expire_date', $expire);
     }
 
     // ─── E. Payouts (Công nợ & Thanh toán) ──────────────────────────────────────
