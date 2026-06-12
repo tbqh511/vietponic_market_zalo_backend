@@ -269,10 +269,11 @@ class FarmHubController extends Controller
         $vnNow = \Carbon\Carbon::now($tz);
         $today = $vnNow->toDateString();
 
-        // Ngày hôm nay VN tz dưới dạng UTC range — tránh CONVERT_TZ (MySQL-only).
-        // 00:00 VN = 17:00 UTC hôm trước; 24:00 VN = 17:00 UTC hôm nay.
-        $todayStartUtc = $vnNow->copy()->startOfDay()->setTimezone('UTC');
-        $todayEndUtc   = $vnNow->copy()->endOfDay()->setTimezone('UTC');
+        // Cửa sổ "hôm nay" theo GIỜ VN, so trực tiếp với created_at/delivered_at
+        // (cũng lưu giờ VN — app.timezone=Asia/Ho_Chi_Minh, cột dateTime naive).
+        // KHÔNG setTimezone('UTC'): trước đây làm cửa sổ lệch -7h (HUB-01 TZ-fix B18).
+        $todayStart = $vnNow->copy()->startOfDay();
+        $todayEnd   = $vnNow->copy()->endOfDay();
 
         // 1. Stocked hôm nay (batches có batch_date = today). Group by product.
         // Dùng chung cho cả 2 nhóm (đặt/giao) — "nhập hôm nay" không phụ thuộc basis.
@@ -301,13 +302,13 @@ class FarmHubController extends Controller
         $soldPlaced = $this->soldByProductForBasis(
             $farm->id,
             fn ($q) => $q->where('o.status', '!=', 'cancelled')
-                        ->whereBetween('o.created_at', [$todayStartUtc, $todayEndUtc]),
+                        ->whereBetween('o.created_at', [$todayStart, $todayEnd]),
         );
         $soldDelivered = $this->soldByProductForBasis(
             $farm->id,
             fn ($q) => $q->where('o.status', 'delivered')
                         ->whereNotNull('o.delivered_at')
-                        ->whereBetween('o.delivered_at', [$todayStartUtc, $todayEndUtc]),
+                        ->whereBetween('o.delivered_at', [$todayStart, $todayEnd]),
         );
 
         // 4. Tên sản phẩm: 1 query cho union mọi product xuất hiện ở cả 2 nhóm.

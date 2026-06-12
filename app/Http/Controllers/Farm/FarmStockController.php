@@ -360,11 +360,10 @@ class FarmStockController extends Controller
 
         $vnNow      = Carbon::now('Asia/Ho_Chi_Minh');
         $windowFrom = $vnNow->copy()->subDays(self::SUGGEST_WINDOW_DAYS - 1)->startOfDay();
-        // Convert sang UTC để so với delivered_at (lưu UTC trong DB).
-        $windowFromUtc = $windowFrom->copy()->setTimezone('UTC');
-        $nowUtc        = $vnNow->copy()->setTimezone('UTC');
-        $yStartUtc     = $vnNow->copy()->subDay()->startOfDay()->setTimezone('UTC');
-        $yEndUtc       = $vnNow->copy()->subDay()->endOfDay()->setTimezone('UTC');
+        // So trực tiếp giờ VN với delivered_at (cũng lưu giờ VN — cột dateTime naive,
+        // app.timezone=Asia/Ho_Chi_Minh). KHÔNG setTimezone('UTC') (HUB-01 TZ-fix B18).
+        $yStart = $vnNow->copy()->subDay()->startOfDay();
+        $yEnd   = $vnNow->copy()->subDay()->endOfDay();
 
         // Tổng bán trong cửa sổ + bán riêng hôm qua, group theo product_id.
         $salesRows = DB::table('zalo_order_items')
@@ -372,13 +371,13 @@ class FarmStockController extends Controller
             ->where('zalo_order_items.farm_id', $farm->id)
             ->where('zalo_orders.status', 'delivered')
             ->whereNotNull('zalo_orders.delivered_at')
-            ->whereBetween('zalo_orders.delivered_at', [$windowFromUtc, $nowUtc])
+            ->whereBetween('zalo_orders.delivered_at', [$windowFrom, $vnNow])
             ->groupBy('zalo_order_items.product_id')
             ->selectRaw('
                 zalo_order_items.product_id AS product_id,
                 COALESCE(SUM(zalo_order_items.quantity), 0) AS window_qty,
                 COALESCE(SUM(CASE WHEN zalo_orders.delivered_at BETWEEN ? AND ? THEN zalo_order_items.quantity ELSE 0 END), 0) AS yesterday_qty
-            ', [$yStartUtc, $yEndUtc])
+            ', [$yStart, $yEnd])
             ->get()
             ->keyBy('product_id');
 

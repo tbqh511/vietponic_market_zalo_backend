@@ -135,12 +135,13 @@ class FarmDashboardService
 
         [$start, $end] = $this->resolveRange($range, $from, $to);
 
-        // MySQL CONVERT_TZ: convert delivered_at từ UTC sang VN tz trước khi
-        // DATE() để bucket khớp với "ngày VN". Bucket key dạng 'YYYY-MM-DD'
-        // (day) hoặc 'YYYY-Www' (week — ISO 8601, vd '2026-W21').
+        // delivered_at lưu theo GIỜ VN (xem ghi chú TZ ở itemsBaseQuery) → bucket
+        // trực tiếp trên cột, KHÔNG CONVERT_TZ (trước đây convert giả định lưu
+        // UTC làm lệch ngày). Bucket key 'YYYY-MM-DD' (day) hoặc 'YYYY-Www'
+        // (week — ISO 8601, vd '2026-W21').
         $bucketExpr = $bucket === 'day'
-            ? "DATE(CONVERT_TZ(zalo_orders.delivered_at, '+00:00', '+07:00'))"
-            : "DATE_FORMAT(CONVERT_TZ(zalo_orders.delivered_at, '+00:00', '+07:00'), '%x-W%v')";
+            ? "DATE(zalo_orders.delivered_at)"
+            : "DATE_FORMAT(zalo_orders.delivered_at, '%x-W%v')";
 
         $rows = $this->itemsBaseQuery($farm, $start, $end)
             ->selectRaw("
@@ -349,22 +350,20 @@ class FarmDashboardService
      *   - JOIN zalo_orders để áp filter status='delivered' + delivered_at range
      *   - WHERE farm_id = farm hiện tại
      *
-     * delivered_at được convert sang VN tz trước khi so sánh với $start/$end
-     * (vốn đã ở VN tz). Convert ở SQL thay vì PHP để optimizer dùng được index
-     * (status, delivered_at).
+     * $start/$end ở VN tz và được so trực tiếp với delivered_at — mốc thời gian
+     * trong DB cũng lưu theo GIỜ VN (app.timezone=Asia/Ho_Chi_Minh, cột dateTime
+     * naive, delivered_at = now()). KHÔNG convert sang UTC: trước đây có
+     * setTimezone('UTC') khiến cửa sổ "hôm nay" lệch -7h, đơn giao sau ~07:00 sáng
+     * VN bị rớt (HUB-01 TZ-fix B18).
      */
     protected function itemsBaseQuery(Farm $farm, Carbon $start, Carbon $end)
     {
-        // $start/$end ở VN tz — convert sang UTC để so với delivered_at (UTC trong DB).
-        $startUtc = $start->copy()->setTimezone('UTC');
-        $endUtc   = $end->copy()->setTimezone('UTC');
-
         return ZaloOrderItem::query()
             ->join('zalo_orders', 'zalo_orders.id', '=', 'zalo_order_items.order_id')
             ->where('zalo_order_items.farm_id', $farm->id)
             ->where('zalo_orders.status', 'delivered')
             ->whereNotNull('zalo_orders.delivered_at')
-            ->whereBetween('zalo_orders.delivered_at', [$startUtc, $endUtc]);
+            ->whereBetween('zalo_orders.delivered_at', [$start, $end]);
     }
 
     /**
@@ -374,19 +373,16 @@ class FarmDashboardService
      *   - lọc theo created_at (thời điểm đặt) trong range
      *
      * Khác deliveredBaseQuery ở: KHÔNG lọc status='delivered', dùng created_at
-     * thay delivered_at → gồm cả đơn vừa đặt chưa giao. Convert tz y hệt để
-     * optimizer dùng được index và để 2 basis nhất quán cách so sánh thời gian.
+     * thay delivered_at → gồm cả đơn vừa đặt chưa giao. So $start/$end (giờ VN)
+     * trực tiếp với created_at (cũng lưu giờ VN) — xem ghi chú TZ ở itemsBaseQuery.
      */
     protected function placedBaseQuery(Farm $farm, Carbon $start, Carbon $end)
     {
-        $startUtc = $start->copy()->setTimezone('UTC');
-        $endUtc   = $end->copy()->setTimezone('UTC');
-
         return ZaloOrderItem::query()
             ->join('zalo_orders', 'zalo_orders.id', '=', 'zalo_order_items.order_id')
             ->where('zalo_order_items.farm_id', $farm->id)
             ->where('zalo_orders.status', '!=', 'cancelled')
-            ->whereBetween('zalo_orders.created_at', [$startUtc, $endUtc]);
+            ->whereBetween('zalo_orders.created_at', [$start, $end]);
     }
 
     /**

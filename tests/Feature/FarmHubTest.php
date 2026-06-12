@@ -107,6 +107,14 @@ class FarmHubTest extends TestCase
         return ['Authorization' => 'Bearer ' . JWTAuth::fromUser($customer)];
     }
 
+    protected function tearDown(): void
+    {
+        // Một số test "hôm nay" freeze giờ VN bằng setTestNow — reset để không
+        // rò sang test khác.
+        \Carbon\Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     // ─── A. Middleware tests ───────────────────────────────────────────────────
 
     /**
@@ -332,13 +340,13 @@ class FarmHubTest extends TestCase
             'status'             => 'active',
         ]);
 
-        // Tạo order 'delivering' hôm nay — dùng UTC để khớp với controller BETWEEN.
+        // Tạo order 'delivering' hôm nay — now() lưu giờ VN giống production.
         $order = ZaloOrder::create([
             'customer_id'    => $customer->id,
             'status'         => 'delivering',
             'payment_status' => 'pending',
             'total'          => '120000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
 
         ZaloOrderItem::create([
@@ -392,7 +400,7 @@ class FarmHubTest extends TestCase
             'status'         => 'delivered',
             'payment_status' => 'completed',
             'total'          => '150000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
 
         ZaloOrderItem::create([
@@ -443,13 +451,13 @@ class FarmHubTest extends TestCase
             'status'             => 'active',
         ]);
 
-        // Đơn tạo hôm nay (UTC) — controller BETWEEN dùng UTC bounds.
+        // Đơn tạo hôm nay — now() lưu giờ VN, khớp cửa sổ "hôm nay" giờ VN.
         $order = ZaloOrder::create([
             'customer_id'    => $customer->id,
             'status'         => 'delivering',
             'payment_status' => 'pending',
             'total'          => '75000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
 
         ZaloOrderItem::create([
@@ -696,14 +704,14 @@ class FarmHubTest extends TestCase
         [$customer, $farm] = $this->makeFarmPartner();
         $product = $this->makeProduct();
 
-        // Đơn 1: delivered → tính revenue. Dùng UTC để khớp với itemsBaseQuery.
+        // Đơn 1: delivered → tính revenue. now() lưu giờ VN, khớp itemsBaseQuery.
         $delivered = ZaloOrder::create([
             'customer_id'    => $customer->id,
             'status'         => 'delivered',
             'payment_status' => 'completed',
             'total'          => '200000',
-            'delivered_at'   => \Carbon\Carbon::now('UTC')->subHours(2),
-            'created_at'     => \Carbon\Carbon::now('UTC')->subHours(3),
+            'delivered_at'   => now()->subHours(2),
+            'created_at'     => now()->subHours(3),
         ]);
 
         ZaloOrderItem::create([
@@ -722,7 +730,7 @@ class FarmHubTest extends TestCase
             'status'         => 'delivering',
             'payment_status' => 'pending',
             'total'          => '150000',
-            'created_at'     => \Carbon\Carbon::now('UTC')->subHour(),
+            'created_at'     => now()->subHour(),
         ]);
 
         ZaloOrderItem::create([
@@ -765,7 +773,7 @@ class FarmHubTest extends TestCase
             'status'         => 'pending',
             'payment_status' => 'pending',
             'total'          => '100000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'            => $pending->id,
@@ -783,7 +791,7 @@ class FarmHubTest extends TestCase
             'status'         => 'delivering',
             'payment_status' => 'pending',
             'total'          => '40000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'            => $delivering->id,
@@ -801,7 +809,7 @@ class FarmHubTest extends TestCase
             'status'         => 'cancelled',
             'payment_status' => 'pending',
             'total'          => '999000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'            => $cancelled->id,
@@ -839,9 +847,9 @@ class FarmHubTest extends TestCase
             'payment_status' => 'completed',
             'total'          => '60000',
             // Đặt hôm qua, giao hôm nay (đầu giờ chiều VN để chắc chắn trong ngày).
-            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10)->setTimezone('UTC'),
+            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10),
             // Giao hôm nay, đầu ngày VN (01:00) → luôn ≤ now() bất kể giờ chạy test.
-            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour()->setTimezone('UTC'),
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour(),
         ]);
         ZaloOrderItem::create([
             'order_id'            => $order->id,
@@ -876,7 +884,7 @@ class FarmHubTest extends TestCase
             'status'         => 'pending',
             'payment_status' => 'pending',
             'total'          => '100000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         // Item của farm hiện tại.
         ZaloOrderItem::create([
@@ -907,6 +915,86 @@ class FarmHubTest extends TestCase
         $this->assertEquals(40000.0, (float) $overview['placed']['revenue']);
     }
 
+    // ─── HUB-01 TZ-fix (B18): "hôm nay" phải theo giờ VN, không lệch 7h ─────────
+    // Production lưu created_at/delivered_at theo GIỜ VN (app.timezone=Asia/Ho_Chi_Minh,
+    // delivered_at=now(), created_at từ FE gửi +07:00). Bug cũ convert range sang UTC
+    // (tưởng mốc lưu UTC) → cửa sổ "hôm nay" lệch -7h. 2 test dưới freeze giờ VN để
+    // tái hiện tất định: ĐỎ trên code cũ, XANH sau fix.
+
+    /**
+     * Đơn GIAO lúc tối muộn (21:30) giờ VN HÔM NAY phải vào 'delivered'.
+     * Bug cũ: range upper bị dịch về 14:30 UTC → đơn 21:30 VN bị rớt khỏi hôm nay.
+     */
+    public function test_overview_today_counts_order_delivered_late_evening_vn(): void
+    {
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-06-12 21:30:00', 'Asia/Ho_Chi_Minh'));
+
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        // Giao "bây giờ" = 21:30 hôm nay giờ VN; lưu giờ VN giống production now().
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'delivered',
+            'payment_status' => 'completed',
+            'total'          => '80000',
+            'created_at'     => now(),     // giờ VN
+            'delivered_at'   => now(),     // 21:30 VN hôm nay
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $order->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 4,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $overview = app(\App\Services\FarmDashboardService::class)->getOverview($farm, 'today');
+
+        // Phải vào 'delivered' (giao hôm nay) và cả 'placed' (đặt hôm nay).
+        $this->assertEquals(1, $overview['delivered']['orders_count']);
+        $this->assertEquals(80000.0, (float) $overview['delivered']['revenue']);
+        $this->assertEquals(1, $overview['placed']['orders_count']);
+    }
+
+    /**
+     * Đơn ĐẶT 22:00 HÔM QUA giờ VN KHÔNG được lọt vào "đã đặt hôm nay".
+     * Bug cũ: range lệch -7h kéo đơn 17:00–24:00 VN hôm qua vào hôm nay.
+     */
+    public function test_overview_today_excludes_order_placed_last_evening_vn(): void
+    {
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-06-12 21:30:00', 'Asia/Ho_Chi_Minh'));
+
+        [$customer, $farm] = $this->makeFarmPartner();
+        $product = $this->makeProduct();
+
+        // Đặt 22:00 hôm qua giờ VN (lưu giờ VN), chưa giao.
+        $order = ZaloOrder::create([
+            'customer_id'    => $customer->id,
+            'status'         => 'pending',
+            'payment_status' => 'pending',
+            'total'          => '60000',
+            'created_at'     => \Carbon\Carbon::parse('2026-06-11 22:00:00', 'Asia/Ho_Chi_Minh'),
+        ]);
+        ZaloOrderItem::create([
+            'order_id'            => $order->id,
+            'product_id'          => $product->id,
+            'farm_id'             => $farm->id,
+            'name'                => $product->name,
+            'price'               => '20000',
+            'quantity'            => 3,
+            'cost_price_snapshot' => '10000',
+        ]);
+
+        $overview = app(\App\Services\FarmDashboardService::class)->getOverview($farm, 'today');
+
+        // created_at hôm qua → KHÔNG vào placed/delivered hôm nay.
+        $this->assertEquals(0, $overview['placed']['orders_count']);
+        $this->assertEquals(0, $overview['delivered']['orders_count']);
+    }
+
     /**
      * /farm/products/today trả 2 nhóm tách basis:
      *   - products_placed: đơn created_at hôm nay (trừ cancelled)
@@ -935,7 +1023,7 @@ class FarmHubTest extends TestCase
             'status'         => 'delivering',
             'payment_status' => 'pending',
             'total'          => '120000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $placedOrder->id,
@@ -952,8 +1040,8 @@ class FarmHubTest extends TestCase
             'status'         => 'delivered',
             'payment_status' => 'completed',
             'total'          => '45000',
-            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10)->setTimezone('UTC'),
-            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour()->setTimezone('UTC'),
+            'created_at'     => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->startOfDay()->addHours(10),
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay()->addHour(),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $deliveredOrder->id,
@@ -1003,7 +1091,7 @@ class FarmHubTest extends TestCase
             'status'         => 'pending',
             'payment_status' => 'pending',
             'total'          => '75000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $pending->id,
@@ -1020,7 +1108,7 @@ class FarmHubTest extends TestCase
             'status'         => 'cancelled',
             'payment_status' => 'pending',
             'total'          => '150000',
-            'created_at'     => \Carbon\Carbon::now('UTC'),
+            'created_at'     => now(),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $cancelled->id,
@@ -1059,8 +1147,8 @@ class FarmHubTest extends TestCase
             'status'         => 'delivered',
             'payment_status' => 'completed',
             'total'          => '210000',
-            'created_at'     => \Carbon\Carbon::now('UTC')->subDays(2),
-            'delivered_at'   => \Carbon\Carbon::now('UTC')->subDays(2),
+            'created_at'     => now()->subDays(2),
+            'delivered_at'   => now()->subDays(2),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $order->id,
@@ -1103,8 +1191,8 @@ class FarmHubTest extends TestCase
             'status'         => 'delivered',
             'payment_status' => 'completed',
             'total'          => '75000',
-            'created_at'     => \Carbon\Carbon::now('UTC')->subDay(),
-            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->setTime(10, 0)->setTimezone('UTC'),
+            'created_at'     => now()->subDay(),
+            'delivered_at'   => \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->subDay()->setTime(10, 0),
         ]);
         ZaloOrderItem::create([
             'order_id'   => $order->id,
