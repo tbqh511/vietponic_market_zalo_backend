@@ -19,6 +19,7 @@
             <file>./tests/Feature/ZaloNotifyTest.php</file>
             <file>./tests/Feature/CheckPaymentStatusJobTest.php</file>
             <file>./tests/Feature/CancelUnpaidOrderTest.php</file>
+            <file>./tests/Feature/CheckoutIdempotencyTest.php</file>
             <file>./tests/Feature/UpdateOrderStatusTest.php</file>
             <file>./tests/Feature/CustomerCancelGuardTest.php</file>
             <file>./tests/Feature/AdminWebOrderUpdateGuardTest.php</file>

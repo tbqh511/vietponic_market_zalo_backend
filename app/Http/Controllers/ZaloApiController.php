@@ -191,18 +191,40 @@ class ZaloApiController extends Controller
             $delivery['type'] ?? '',
         ]));
 
-        $cachedOrderId = Cache::get($idempotencyKey);
-        if ($cachedOrderId) {
-            Log::info('Zalo Order: idempotency hit, trả về order cũ', [
+        // Fast-path: nếu đơn trùng đã tạo xong từ trước (request thứ 2 đến SAU khi
+        // request đầu đã Cache::put) thì trả luôn orderId cũ, không cần lock.
+        if ($duplicatedResponse = $this->respondDuplicatedOrder($idempotencyKey, $customerId)) {
+            return $duplicatedResponse;
+        }
+
+        // ─── Chống TOCTOU (ORDER-08 / B17) ────────────────────────────────────
+        // Window: giữa Cache::get ở trên và Cache::put (sau khi tạo đơn) hai request
+        // gần như đồng thời đều MISS cache → cả hai tạo đơn. Serialize bằng atomic
+        // lock: request thứ 2 đợi request đầu nhả lock rồi RE-CHECK cache → thấy
+        // orderId → trả duplicated thay vì tạo đơn thứ 2.
+        //
+        // Cache store mặc định production là 'file' — KHÔNG hỗ trợ lock; dùng
+        // database lock store (bảng cache_locks) để serialize cross-process.
+        $lockKey = 'zalo_order_lock:' . md5($idempotencyKey);
+        $lock = Cache::store('database')->lock($lockKey, 10);
+
+        // block(3): chờ tối đa 3s để lấy lock. Nếu quá hạn (LockTimeoutException),
+        // vẫn đi tiếp idempotency-an-toàn — re-check cache một lần; còn miss thì
+        // chấp nhận tạo đơn (thà hiếm khi lọt hơn là kẹt khách).
+        try {
+            $lock->block(3);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            Log::warning('Zalo Order: lock timeout, đi tiếp không khoá', [
                 'customer_id' => $customerId,
-                'order_id'    => $cachedOrderId,
                 'key'         => $idempotencyKey,
             ]);
-            return response()->json([
-                'message'    => 'Đã tạo đơn hàng thành công!',
-                'orderId'    => $cachedOrderId,
-                'duplicated' => true,
-            ], 201);
+            $lock = null;
+        }
+
+        try {
+        // RE-CHECK trong lock: request đầu có thể vừa tạo đơn + Cache::put xong.
+        if ($duplicatedResponse = $this->respondDuplicatedOrder($idempotencyKey, $customerId)) {
+            return $duplicatedResponse;
         }
 
         // Server-side validate total: tính lại từ giá sản phẩm trong DB, ghi đè total từ client
@@ -458,6 +480,33 @@ class ZaloApiController extends Controller
         return response()->json([
             'message' => 'Đã tạo đơn hàng thành công!',
             'orderId' => $order->id,
+        ], 201);
+        } finally {
+            // Luôn nhả lock dù tạo đơn thành công hay trả 422 ở giữa.
+            optional($lock)->release();
+        }
+    }
+
+    /**
+     * Idempotency hit → trả lại orderId đã cache kèm duplicated:true (vẫn 201).
+     * Trả null nếu chưa có đơn trùng trong cache. Dùng ở cả fast-path (ngoài lock)
+     * lẫn re-check (trong lock) của store().
+     */
+    private function respondDuplicatedOrder(string $idempotencyKey, $customerId)
+    {
+        $cachedOrderId = Cache::get($idempotencyKey);
+        if (!$cachedOrderId) {
+            return null;
+        }
+        Log::info('Zalo Order: idempotency hit, trả về order cũ', [
+            'customer_id' => $customerId,
+            'order_id'    => $cachedOrderId,
+            'key'         => $idempotencyKey,
+        ]);
+        return response()->json([
+            'message'    => 'Đã tạo đơn hàng thành công!',
+            'orderId'    => $cachedOrderId,
+            'duplicated' => true,
         ], 201);
     }
 
