@@ -102,8 +102,15 @@ class OrderPackingTest extends TestCase
 
     /**
      * Tạo một đơn có 1 item thuộc $farm, kèm delivery shipping (để test mask).
+     * $deliveryAttrs ghi đè field delivery (vd type='pickup' + station_name cho
+     * test đơn nhận-tại-trạm).
      */
-    private function makeOrderForFarm(Farm $farm, Customer $buyer, array $orderAttrs = []): ZaloOrder
+    private function makeOrderForFarm(
+        Farm $farm,
+        Customer $buyer,
+        array $orderAttrs = [],
+        array $deliveryAttrs = []
+    ): ZaloOrder
     {
         $product = $this->makeProduct();
 
@@ -124,13 +131,13 @@ class OrderPackingTest extends TestCase
             'quantity'   => 6,
         ]);
 
-        ZaloDelivery::create([
+        ZaloDelivery::create(array_merge([
             'order_id' => $order->id,
             'type'     => 'shipping',
             'name'     => 'Nguyễn Văn A',
             'phone'    => '0937456739',
             'address'  => '12 Lê Lợi, P. Bến Nghé, Q.1, TP.HCM',
-        ]);
+        ], $deliveryAttrs));
 
         return $order;
     }
@@ -651,6 +658,98 @@ class OrderPackingTest extends TestCase
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertContains($hubOwner->id, $ids);
         $this->assertContains($hubStaff->id, $ids);
+    }
+
+    // ─── G. Chi tiết đơn đóng gói (show) — PACK-07 ────────────────────────────
+
+    public function test_show_returns_station_name_for_pickup_order(): void
+    {
+        // Đơn nhận-tại-trạm: detail hiện TÊN TRẠM thay địa chỉ giao.
+        [$owner, $farm] = $this->makeFarmPartner();
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer, [], [
+            'type'         => 'pickup',
+            'address'      => null,
+            'station_name' => 'Trạm Quận 1',
+        ]);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->getJson("/api/farm/orders/{$order->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.is_pickup', true)
+            ->assertJsonPath('data.station_name', 'Trạm Quận 1')
+            // delivery_address vẫn = station_name cho pickup (backward-compat).
+            ->assertJsonPath('data.delivery_address', 'Trạm Quận 1');
+        $this->assertEquals(90000.0, $response->json('data.order_total'));
+    }
+
+    public function test_show_masks_phone_and_address_for_shipping_order(): void
+    {
+        // Đơn giao tận nơi: SĐT + địa chỉ phải bị che (KHÔNG nới lỏng).
+        [$owner, $farm] = $this->makeFarmPartner();
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer);
+
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->getJson("/api/farm/orders/{$order->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.is_pickup', false)
+            ->assertJsonPath('data.customer_phone', '0937***739')
+            ->assertJsonPath('data.delivery_address', 'Q.1, TP.HCM');
+
+        $data = $response->json('data');
+        $this->assertNotEquals('0937456739', $data['customer_phone']);
+        $this->assertStringNotContainsString('Lê Lợi', $data['delivery_address']);
+        $this->assertStringNotContainsString('12 ', $data['delivery_address']);
+    }
+
+    public function test_show_includes_packer_name_and_timestamps(): void
+    {
+        // Phiếu đã gán + đang đóng → detail trả tên người đóng + mốc thời gian.
+        // Seed phiếu trực tiếp (1 HTTP request/test) — tránh JWT singleton cache
+        // khi đổi actor giữa nhiều request trong cùng test (xem claim test).
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staff = $this->makeStaff($farm);
+        $buyer = $this->makeCustomer();
+        $order = $this->makeOrderForFarm($farm, $buyer);
+
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staff->id,
+            'status'               => 'packing',
+            'packing_started_at'   => now(),
+        ]);
+
+        // Owner xem mọi phiếu → thấy tên người đóng + mốc thời gian.
+        $response = $this->withHeaders($this->authHeader($owner))
+            ->getJson("/api/farm/orders/{$order->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.assignment_status', 'packing')
+            ->assertJsonPath('data.assigned_customer_id', $staff->id)
+            ->assertJsonPath('data.assigned_customer_name', $staff->name);
+        $this->assertNotNull($response->json('data.packing_started_at'));
+    }
+
+    public function test_staff_cannot_view_others_assignment_detail(): void
+    {
+        // Staff chỉ xem được phiếu gán cho mình; phiếu người khác → 403.
+        [$owner, $farm] = $this->makeFarmPartner();
+        $staffA = $this->makeStaff($farm);
+        $staffB = $this->makeStaff($farm);
+        $buyer  = $this->makeCustomer();
+        $order  = $this->makeOrderForFarm($farm, $buyer);
+
+        // Phiếu gán cho staffA (seed trực tiếp — 1 HTTP request/test).
+        $this->assignmentFor($order->id, $farm->id)->update([
+            'assigned_customer_id' => $staffA->id,
+            'status'               => 'assigned',
+        ]);
+
+        $this->withHeaders($this->authHeader($staffB))
+            ->getJson("/api/farm/orders/{$order->id}")
+            ->assertStatus(403);
     }
 
     // ─── E. ContactMasker (unit) ──────────────────────────────────────────────

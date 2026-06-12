@@ -99,21 +99,32 @@ class FarmPackingController extends Controller
         $delivery   = $order->delivery;
         $isPickup   = $delivery && $delivery->type === 'pickup';
 
+        // Tên người đóng (nếu phiếu đã gán) — để màn chi tiết hiện "Đang đóng: …".
+        $assignedName = $assignment && $assignment->assigned_customer_id !== null
+            ? optional($assignment->assignedCustomer)->name
+            : null;
+
         return response()->json([
             'error' => false,
             'data'  => [
                 'order_id'          => (int) $order->id,
                 'order_status'      => $order->status,
                 'order_created_at'  => $order->created_at,
+                'order_total'       => (float) $order->total,
                 'assignment_status' => optional($assignment)->status
                     ?? OrderFarmAssignment::STATUS_UNASSIGNED,
                 'assigned_customer_id' => optional($assignment)->assigned_customer_id !== null
                     ? (int) $assignment->assigned_customer_id : null,
+                'assigned_customer_name' => $assignedName,
+                'packing_started_at' => optional($assignment)->packing_started_at,
+                'packed_at'          => optional($assignment)->packed_at,
                 'is_mine'           => $isHub && $assignment
                     && (int) $assignment->assigned_customer_id === (int) $customer->id,
                 // Farm thường = xem chỉ-đọc.
                 'read_only'         => ! $isHub,
                 'is_pickup'         => (bool) $isPickup,
+                // Tên trạm cho đơn pickup (key riêng, độc lập delivery_address).
+                'station_name'      => $isPickup ? ($delivery?->station_name) : null,
                 // Thông tin giao đã che server-side.
                 'customer_name'     => $delivery?->name,
                 'customer_phone'    => ContactMasker::maskPhone($delivery?->phone),
