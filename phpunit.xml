@@ -38,6 +38,7 @@
         <testsuite name="VtpOrder">
             <file>./tests/Feature/ViettelPostWebhookTest.php</file>
             <file>./tests/Feature/VtpCreateOrderTest.php</file>
+            <file>./tests/Feature/CreateVtpOrderOnPaymentListenerTest.php</file>
         </testsuite>
         <!-- Testsuite cho hệ thống Affiliate -->
         <testsuite name="Affiliate">
@@ -48,6 +49,8 @@
             <file>./tests/Feature/CommissionCreditedOnPaymentTest.php</file>
             <file>./tests/Feature/CommissionOnDeliveryTest.php</file>
             <file>./tests/Feature/CommissionClawbackOnCancelTest.php</file>
+            <file>./tests/Feature/AffiliateBankAndProfileTest.php</file>
+            <file>./tests/Feature/AffiliateAdminTest.php</file>
         </testsuite>
         <!-- Testsuite cho Zalo OA / ZNS push notification -->
         <testsuite name="Notify">

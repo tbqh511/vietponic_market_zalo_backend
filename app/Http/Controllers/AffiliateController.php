@@ -138,9 +138,9 @@ class AffiliateController extends Controller
             'bank_holder' => 'nullable|string|max:120',
         ]);
 
-        $customer->affiliate_bank_name = $data['bank_name'] ?? $customer->affiliate_bank_name;
-        $customer->affiliate_bank_account = $data['bank_account'] ?? $customer->affiliate_bank_account;
-        $customer->affiliate_bank_holder = $data['bank_holder'] ?? $customer->affiliate_bank_holder;
+        if (array_key_exists('bank_name', $data))    $customer->affiliate_bank_name    = $data['bank_name']    ?: null;
+        if (array_key_exists('bank_account', $data)) $customer->affiliate_bank_account = $data['bank_account'] ?: null;
+        if (array_key_exists('bank_holder', $data))  $customer->affiliate_bank_holder  = $data['bank_holder']  ?: null;
         $customer->save();
 
         return response()->json([
