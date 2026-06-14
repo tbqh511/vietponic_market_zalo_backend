@@ -16,11 +16,32 @@ class ZaloProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ZaloProduct::query();
-        if ($request->has('category_id') && $request->category_id) {
+        $query = ZaloProduct::query()->with('category');
+
+        if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
-        $products = $query->orderBy('id')->with('category')->get();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('id', $search)
+                  ->orWhereHas('category', fn($q2) => $q2->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($request->filled('price_min')) {
+            $query->where('price', '>=', (int) $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('price', '<=', (int) $request->price_max);
+        }
+
+        $perPage = (int) $request->get('per_page', 15);
+        $perPage = in_array($perPage, [10, 15, 25, 50]) ? $perPage : 15;
+
+        $products = $query->orderBy('id')->paginate($perPage)->withQueryString();
         $categories = ZaloCategory::orderBy('id')->get();
         return view('admin.zalo_products.index', compact('products', 'categories'));
     }
