@@ -151,8 +151,11 @@ class Customer extends Authenticatable implements JWTSubject
 
     public function getProfileAttribute($image)
     {
-        return $image != ''
-            ? url('') . config('global.IMG_PATH') . config('global.USER_IMG_PATH') . $image
-            : url('') . config('global.IMG_PATH') . config('global.USER_IMG_PATH') . '1693209486.1303.png';
+        if ($image == '') return null;
+        // Zalo avatar URLs (https://…) được lưu raw — trả nguyên, không prepend path local.
+        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) {
+            return $image;
+        }
+        return url('') . config('global.IMG_PATH') . config('global.USER_IMG_PATH') . $image;
     }
 }
