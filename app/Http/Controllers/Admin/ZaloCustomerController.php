@@ -32,6 +32,19 @@ class ZaloCustomerController extends Controller
             });
         }
 
+        // Filter chuyên cho SĐT — partial match theo digit-only: nhập "3878"
+        // khớp được số đầy đủ "84918963878". Normalize cả 2 phía (bỏ space, "-",
+        // "+", ".") để số lưu có định dạng vẫn match. Bỏ qua nếu input không có chữ số.
+        if ($request->filled('phone')) {
+            $digits = preg_replace('/\D+/', '', $request->phone);
+            if ($digits !== '') {
+                $query->whereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(mobile, ' ', ''), '-', ''), '+', ''), '.', '') LIKE ?",
+                    ["%{$digits}%"]
+                );
+            }
+        }
+
         if ($request->filled('is_active')) {
             $query->where('isActive', $request->is_active);
         }
@@ -62,18 +75,24 @@ class ZaloCustomerController extends Controller
 
         $customers = $query->orderByDesc('id')->paginate(25)->withQueryString();
 
+        // Farms ĐÃ có chủ + đang active — hiển thị trong modal "Gán làm Staff"
+        // để admin chọn farm sẵn có. Staff chỉ vào được Hub khi farm active.
+        // (Partial cũng cần để biết có disable nút "Staff" trên từng dòng không.)
+        $farmsWithOwner = Farm::query()
+            ->whereNotNull('owner_customer_id')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        // Live filter (AJAX) chỉ cần phần bảng — trả partial, không kèm layout.
+        if ($request->ajax() || $request->boolean('partial')) {
+            return view('admin.zalo_customers._table', compact('customers', 'farmsWithOwner'));
+        }
+
         // Farms chưa có owner — hiển thị trong modal "Chỉ định Farm Partner"
         // để admin chọn gán customer vào farm có sẵn thay vì luôn tạo mới.
         $availableFarms = Farm::query()
             ->whereNull('owner_customer_id')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        // Farms ĐÃ có chủ + đang active — hiển thị trong modal "Gán làm Staff"
-        // để admin chọn farm sẵn có. Staff chỉ vào được Hub khi farm active.
-        $farmsWithOwner = Farm::query()
-            ->whereNotNull('owner_customer_id')
-            ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 

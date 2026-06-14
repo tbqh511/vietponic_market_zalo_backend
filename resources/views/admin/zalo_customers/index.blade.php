@@ -19,15 +19,18 @@
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
             <h4 class="mb-0">Quản lý Khách hàng</h4>
-            <form method="GET" action="{{ route('zalo-customers.index') }}" class="d-flex flex-wrap gap-2 align-items-center">
+            <form id="customerFilterForm" method="GET" action="{{ route('zalo-customers.index') }}" class="d-flex flex-wrap gap-2 align-items-center">
                 <input type="text" name="q" value="{{ request('q') }}"
                        placeholder="Tìm tên / SĐT / email" class="form-control" style="max-width:220px;">
-                <select name="is_active" class="form-select" style="max-width:160px;" onchange="this.form.submit()">
+                <input type="search" name="phone" value="{{ request('phone') }}" inputmode="numeric"
+                       placeholder="Lọc nhanh SĐT (vd: 3878)" class="form-control" style="max-width:200px;"
+                       title="Nhập một phần số điện thoại — vd 3878 sẽ khớp 84918963878">
+                <select name="is_active" class="form-select" style="max-width:160px;">
                     <option value="">Tất cả trạng thái</option>
                     <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>Đang hoạt động</option>
                     <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Đã tắt</option>
                 </select>
-                <select name="farm_status" class="form-select" style="max-width:190px;" onchange="this.form.submit()">
+                <select name="farm_status" class="form-select" style="max-width:190px;">
                     <option value="">Tất cả trạng thái Farm</option>
                     <option value="approved"  {{ request('farm_status') === 'approved'  ? 'selected' : '' }}>Farm đã duyệt</option>
                     <option value="requested" {{ request('farm_status') === 'requested' ? 'selected' : '' }}>Đang xin duyệt</option>
@@ -38,7 +41,7 @@
                 <input type="date" name="date_to" value="{{ request('date_to') }}"
                        class="form-control" style="max-width:150px;" title="Đến ngày">
                 <button type="submit" class="btn btn-secondary">Lọc</button>
-                @if(request()->hasAny(['q','is_active','farm_status','date_from','date_to']))
+                @if(request()->hasAny(['q','phone','is_active','farm_status','date_from','date_to']))
                     <a href="{{ route('zalo-customers.index') }}" class="btn btn-outline-secondary">Xoá lọc</a>
                 @endif
             </form>
@@ -46,147 +49,9 @@
     </div>
 
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>ID</th>
-                        <th>Họ tên</th>
-                        <th>SĐT</th>
-                        <th>Email</th>
-                        <th class="text-center">Trạng thái</th>
-                        <th class="text-center">Farm Partner</th>
-                        <th>Ngày tham gia</th>
-                        <th style="min-width:220px;">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($customers as $c)
-                    <tr>
-                        <td class="text-muted small">{{ $c->id }}</td>
-                        <td>
-                            <a href="{{ route('zalo-customers.show', $c->id) }}" class="fw-semibold text-decoration-none">
-                                {{ $c->name ?: '—' }}
-                            </a>
-                            @if($c->logintype)
-                                <br><span class="badge bg-secondary" style="font-size:0.65rem;">{{ $c->logintype }}</span>
-                            @endif
-                        </td>
-                        <td class="small">{{ $c->mobile ?: '—' }}</td>
-                        <td class="small text-muted">{{ $c->email ?: '—' }}</td>
-
-                        {{-- Toggle Active --}}
-                        <td class="text-center">
-                            <form action="{{ route('zalo-customers.toggle-active', $c->id) }}" method="POST" class="d-inline"
-                                  onsubmit="return confirm('{{ $c->isActive ? 'Vô hiệu hoá' : 'Kích hoạt' }} tài khoản {{ addslashes($c->name ?: '#'.$c->id) }}?')">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit" class="btn btn-sm {{ $c->isActive ? 'btn-success' : 'btn-outline-danger' }}"
-                                        title="{{ $c->isActive ? 'Đang hoạt động — nhấn để vô hiệu hoá' : 'Đã tắt — nhấn để kích hoạt' }}"
-                                        style="min-width:90px;">
-                                    @if($c->isActive)
-                                        <i class="bi bi-check-circle-fill"></i> Hoạt động
-                                    @else
-                                        <i class="bi bi-slash-circle"></i> Đã tắt
-                                    @endif
-                                </button>
-                            </form>
-                        </td>
-
-                        {{-- Trạng thái Farm Partner + thao tác inline --}}
-                        <td class="text-center">
-                            @php $fps = $c->farm_partner_status ?: 'none'; @endphp
-                            <div class="d-flex flex-column align-items-center gap-1">
-                                @if($fps === 'approved' && $c->isFarmOwner())
-                                    <span class="badge bg-primary"><i class="bi bi-tree-fill"></i> Chủ farm</span>
-                                    @if($c->farm)
-                                        <div class="small text-muted" title="Mã: {{ $c->farm->code }}">
-                                            {{ $c->farm->name }}
-                                        </div>
-                                    @endif
-                                    <form action="{{ route('zalo-customers.suspend-farm', $c->id) }}" method="POST" class="d-inline"
-                                          onsubmit="return confirm('Tạm dừng vai trò Farm Partner của {{ addslashes($c->name ?: '#'.$c->id) }}?\nFarm sẽ bị ẩn khỏi Hub.')">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Tạm dừng vai trò Farm Partner">
-                                            <i class="bi bi-pause-circle"></i> Tạm dừng
-                                        </button>
-                                    </form>
-                                @elseif($fps === 'approved' && $c->isFarmStaff())
-                                    <span class="badge bg-info text-dark"><i class="bi bi-person-badge"></i> Nhân viên</span>
-                                    @if($c->farm)
-                                        <div class="small text-muted" title="Mã: {{ $c->farm->code }}">
-                                            {{ $c->farm->name }}
-                                        </div>
-                                        <a href="{{ route('farms.show', $c->farm->id) }}#tab-staff"
-                                           class="btn btn-sm btn-outline-secondary" title="Quản lý tại trang Farm">
-                                            <i class="bi bi-box-arrow-up-right"></i> Vào farm
-                                        </a>
-                                    @endif
-                                @elseif($fps === 'approved')
-                                    {{-- Approved nhưng chưa có farm_id/farm_role — data lệch, hiển thị cảnh báo --}}
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Approved chưa gán farm</span>
-                                @elseif($fps === 'requested')
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Đang xin</span>
-                                    <button type="button" class="btn btn-sm btn-outline-success"
-                                            data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
-                                            data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
-                                            title="Duyệt và gán Farm">
-                                        <i class="bi bi-check2-circle"></i> Duyệt
-                                    </button>
-                                @elseif($fps === 'suspended')
-                                    <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Tạm dừng</span>
-                                    <div class="small text-muted">Kích hoạt lại trong /farms</div>
-                                @else
-                                    <span class="text-muted small">—</span>
-                                    <div class="d-flex gap-1 flex-wrap justify-content-center">
-                                        <button type="button" class="btn btn-sm btn-outline-success"
-                                                data-bs-toggle="modal" data-bs-target="#promoteFarmModal"
-                                                data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
-                                                title="Chỉ định làm chủ farm">
-                                            <i class="bi bi-tree"></i> Chủ farm
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-info"
-                                                data-bs-toggle="modal" data-bs-target="#assignStaffModal"
-                                                data-customer-id="{{ $c->id }}" data-customer-name="{{ $c->name ?: '#'.$c->id }}"
-                                                title="Gán làm nhân viên farm có sẵn"
-                                                @if($farmsWithOwner->isEmpty()) disabled @endif>
-                                            <i class="bi bi-person-plus"></i> Staff
-                                        </button>
-                                    </div>
-                                @endif
-                            </div>
-                        </td>
-
-                        <td class="small text-muted">{{ $c->created_at?->format('d/m/Y') }}</td>
-
-                        <td>
-                            <div class="d-flex gap-1 flex-wrap">
-                                <a href="{{ route('zalo-customers.show', $c->id) }}"
-                                   class="btn btn-sm btn-outline-primary" title="Xem chi tiết">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{{ route('zalo-customers.edit', $c->id) }}"
-                                   class="btn btn-sm btn-outline-secondary" title="Sửa thông tin">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-4">Chưa có khách hàng nào</td>
-                    </tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <div class="text-muted small">
-                Tổng: <strong>{{ $customers->total() }}</strong> khách hàng
-            </div>
-            {{ $customers->links() }}
+        {{-- Vùng được live filter (AJAX) thay thế — xem _table.blade.php + script cuối file. --}}
+        <div id="customersTable" aria-live="polite">
+            @include('admin.zalo_customers._table')
         </div>
     </div>
 </div>
@@ -385,6 +250,76 @@
     modal.addEventListener('hidden.bs.modal', function () {
         form.reset();
         selectFarm.value = '';
+    });
+})();
+
+/* ── Live filter (AJAX) ──────────────────────────────────────────────────────
+ * Gõ vào ô SĐT / ô tìm kiếm hoặc đổi select/ngày → nạp lại CHỈ phần bảng
+ * (#customersTable) qua AJAX, không reload cả trang nên không mất focus.
+ * Vẫn search toàn bộ DB + giữ phân trang. Nút "Lọc" / Enter là fallback khi
+ * tắt JS (submit thường). */
+(function () {
+    const form      = document.getElementById('customerFilterForm');
+    const container = document.getElementById('customersTable');
+    if (!form || !container) return;
+
+    let timer   = null;
+    let inflight = null;
+
+    function buildQuery() {
+        const params = new URLSearchParams(new FormData(form));
+        // Bỏ field rỗng cho URL gọn (backend dùng filled() nên không ảnh hưởng).
+        for (const key of [...params.keys()]) {
+            if (params.get(key) === '') params.delete(key);
+        }
+        return params;
+    }
+
+    async function reload(url) {
+        const params  = buildQuery();
+        const cleanUrl = url || (form.action + (params.toString() ? '?' + params.toString() : ''));
+        // Cập nhật URL trình duyệt (không kèm partial=1) để refresh/chia sẻ giữ filter.
+        window.history.replaceState(null, '', cleanUrl);
+
+        // Thêm partial=1 cho request lấy đúng phần bảng.
+        const fetchUrl = cleanUrl + (cleanUrl.includes('?') ? '&' : '?') + 'partial=1';
+
+        if (inflight) inflight.abort();
+        inflight = new AbortController();
+        container.style.opacity = '0.5';
+        try {
+            const res = await fetch(fetchUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: inflight.signal,
+            });
+            if (res.ok) container.innerHTML = await res.text();
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error('Live filter failed:', e);
+        } finally {
+            container.style.opacity = '';
+        }
+    }
+
+    const debounced = function () {
+        clearTimeout(timer);
+        timer = setTimeout(() => reload(), 350);
+    };
+
+    // Gõ text/SĐT → debounce; đổi select/ngày → nạp ngay.
+    form.querySelectorAll('input[type="text"], input[type="search"]')
+        .forEach(el => el.addEventListener('input', debounced));
+    form.querySelectorAll('select, input[type="date"]')
+        .forEach(el => el.addEventListener('change', () => reload()));
+
+    // Phân trang trong vùng bảng → nạp AJAX thay vì reload cả trang.
+    container.addEventListener('click', function (e) {
+        const link = e.target.closest('.pagination a');
+        if (!link || !link.href) return;
+        e.preventDefault();
+        // Bỏ partial khỏi href hiển thị; reload() tự thêm lại.
+        const u = new URL(link.href);
+        u.searchParams.delete('partial');
+        reload(u.toString());
     });
 })();
 </script>
