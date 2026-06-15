@@ -26,7 +26,7 @@ class ZaloStationController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'image_file' => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
+            'image_file' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:2048',
             'image' => 'nullable|string|max:1024',
             'address' => 'nullable|string|max:500',
             'lat' => 'nullable|numeric|between:-90,90',
@@ -103,7 +103,7 @@ class ZaloStationController extends Controller
         $station = Station::findOrFail($id);
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'image_file' => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
+            'image_file' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:2048',
             'image' => 'nullable|string|max:1024',
             'address' => 'nullable|string|max:500',
             'lat' => 'nullable|numeric|between:-90,90',
@@ -198,8 +198,14 @@ class ZaloStationController extends Controller
             case 'image/gif':
                 $source = imagecreatefromgif($imagePath);
                 break;
+            case 'image/webp':
+                if (!function_exists('imagecreatefromwebp')) {
+                    throw new \Exception('Server chưa bật hỗ trợ WEBP (GD --with-webp). Vui lòng dùng JPEG/PNG.');
+                }
+                $source = imagecreatefromwebp($imagePath);
+                break;
             default:
-                throw new \Exception('Unsupported image type');
+                throw new \Exception('Định dạng ảnh không hỗ trợ: ' . $mime);
         }
 
         $width = imagesx($source);

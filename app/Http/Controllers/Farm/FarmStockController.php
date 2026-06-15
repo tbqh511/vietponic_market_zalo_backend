@@ -601,6 +601,7 @@ class FarmStockController extends Controller
             'status'        => 'active',
             'note'          => $request->note,
         ]);
+        $batch->refresh(); // reload generated column quantity_remaining from MySQL
 
         return response()->json([
             'error' => false,

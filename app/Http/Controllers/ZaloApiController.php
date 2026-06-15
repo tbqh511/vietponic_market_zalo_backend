@@ -45,7 +45,7 @@ class ZaloApiController extends Controller
 
     public function products(Request $request)
     {
-        $query = ZaloProduct::with(['category', 'unit', 'productImages']);
+        $query = ZaloProduct::with(['category', 'unit', 'productImages', 'activeBatches']);
         if ($request->has('categoryId')) {
             $query->where('category_id', $request->categoryId);
         }
@@ -67,7 +67,7 @@ class ZaloApiController extends Controller
                 'unit_label'        => $product->unit?->label,
                 'system_unit'       => $product->system_unit,
                 'conversion_factor' => (float) $product->conversion_factor,
-                'stock_available'   => $product->stock_available,
+                'stock_available'   => (float) $product->activeBatches->sum('quantity_remaining'),
             ];
         });
         return response()->json(['error' => false, 'data' => $data]);

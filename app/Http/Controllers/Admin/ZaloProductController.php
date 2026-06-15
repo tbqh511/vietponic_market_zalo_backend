@@ -62,7 +62,7 @@ class ZaloProductController extends Controller
             'price'              => 'nullable|numeric|min:0',
             'original_price'     => 'nullable|numeric|min:0',
             'images'             => 'required|array|min:1',
-            'images.*'           => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*'           => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'detail'             => 'nullable|string',
             'unit_id'            => 'required|exists:zalo_units,id',
             'system_unit'        => 'required|in:g,ml,piece',
@@ -135,7 +135,7 @@ class ZaloProductController extends Controller
             'price'              => 'nullable|numeric|min:0',
             'original_price'     => 'nullable|numeric|min:0',
             'new_images'         => 'nullable|array',
-            'new_images.*'       => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'new_images.*'       => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'detail'             => 'nullable|string',
             'unit_id'            => 'nullable|exists:zalo_units,id',
             'system_unit'        => 'required|in:g,ml,piece',
@@ -276,8 +276,14 @@ class ZaloProductController extends Controller
             case 'image/gif':
                 $source = imagecreatefromgif($imagePath);
                 break;
+            case 'image/webp':
+                if (!function_exists('imagecreatefromwebp')) {
+                    throw new \Exception('Server chưa bật hỗ trợ WEBP (GD --with-webp). Vui lòng dùng JPEG/PNG.');
+                }
+                $source = imagecreatefromwebp($imagePath);
+                break;
             default:
-                throw new \Exception('Unsupported image type');
+                throw new \Exception('Định dạng ảnh không hỗ trợ: ' . $mime);
         }
 
         $width = imagesx($source);
