@@ -91,7 +91,8 @@
             </div>
             <div class="tab-pane fade" id="tab-products" role="tabpanel">
                 @include('admin.farms._partials.tab_products', [
-                    'farm' => $farm,
+                    'farm'              => $farm,
+                    'farmProducts'      => $farmProducts,
                     'availableProducts' => $availableProducts,
                 ])
             </div>
@@ -119,6 +120,16 @@
 
 @section('js')
 <script>
+    // Kích hoạt đúng tab từ URL param ?tab=
+    (function () {
+        const tab = new URLSearchParams(location.search).get('tab');
+        if (tab) {
+            const btn = document.querySelector('[data-bs-target="#tab-' + tab + '"]');
+            if (btn) new bootstrap.Tab(btn).show();
+        }
+    })();
+
+    // Select2 cho modal gắn sản phẩm
     $('#attachProductModal').on('shown.bs.modal', function () {
         if (!$('#selectProduct').data('select2')) {
             $('#selectProduct').select2({
@@ -133,6 +144,18 @@
             });
         }
         $('#selectProduct').val(null).trigger('change');
+    });
+
+    // Populate modal sửa sản phẩm
+    document.querySelectorAll('.btn-edit-product').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var modal = document.getElementById('editProductModal');
+            modal.querySelector('form').action = this.dataset.action;
+            modal.querySelector('#editCostPrice').value = this.dataset.cost;
+            modal.querySelector('#editIsPrimary').checked = this.dataset.primary === '1';
+            modal.querySelector('#editProductName').textContent = this.dataset.name;
+            new bootstrap.Modal(modal).show();
+        });
     });
 </script>
 @endsection

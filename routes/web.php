@@ -151,6 +151,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::patch('farms/{farm}/transfer-ownership', [FarmController::class, 'transferOwnership'])->name('farms.transfer-ownership');
         // Tab "Cấu hình Sản phẩm"
         Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');
+        Route::patch('farms/{farm}/products/{product}', [FarmController::class, 'updateProduct'])->name('farms.products.update');
         Route::delete('farms/{farm}/products/{product}', [FarmController::class, 'detachProduct'])->name('farms.products.detach');
         // Tab "Nhân viên" — staff/operator của farm (full quyền Hub, không nhận payout)
         Route::post('farms/{farm}/staff', [FarmController::class, 'attachStaff'])->name('farms.staff.attach');

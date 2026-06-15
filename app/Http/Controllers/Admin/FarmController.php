@@ -164,7 +164,7 @@ class FarmController extends Controller
         return view('admin.farms.index', compact('farms'));
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         $farm = Farm::with(['owner', 'approver', 'products', 'staff'])->findOrFail($id);
 
@@ -174,6 +174,22 @@ class FarmController extends Controller
             ->orderByDesc('id')
             ->limit(50)
             ->get();
+
+        // Tab "Cấu hình Sản phẩm": paginated + search + filter.
+        $farmProducts = $farm->products()
+            ->when($request->filled('product_q'), function ($q) use ($request) {
+                $term = trim($request->product_q);
+                $q->where(function ($w) use ($term) {
+                    $w->where('zalo_products.name', 'like', "%{$term}%")
+                      ->orWhere('zalo_products.id', 'like', "%{$term}%");
+                });
+            })
+            ->when($request->filled('product_primary') && $request->product_primary !== '', function ($q) use ($request) {
+                $q->wherePivot('is_primary', (bool) $request->product_primary);
+            })
+            ->orderBy('zalo_products.name')
+            ->paginate(15, ['zalo_products.*'], 'product_page')
+            ->withQueryString();
 
         // Dropdown "Gắn thêm sản phẩm" trong Tab 2: chỉ hiện product chưa gắn.
         $attachedIds = $farm->products->pluck('id')->all();
@@ -233,6 +249,7 @@ class FarmController extends Controller
         return view('admin.farms.show', compact(
             'farm',
             'batches',
+            'farmProducts',
             'availableProducts',
             'availableStaffCandidates',
             'transferCandidates'
@@ -404,7 +421,7 @@ class FarmController extends Controller
             'is_primary' => (bool) ($data['is_primary'] ?? false),
         ]);
 
-        return redirect()->route('farms.show', $farm->id)
+        return redirect()->route('farms.show', ['farm' => $farm->id, 'tab' => 'products'])
             ->with('success', 'Đã gắn sản phẩm vào farm.');
     }
 
@@ -427,8 +444,30 @@ class FarmController extends Controller
 
         $farm->products()->detach($productId);
 
-        return redirect()->route('farms.show', $farm->id)
+        return redirect()->route('farms.show', ['farm' => $farm->id, 'tab' => 'products'])
             ->with('success', 'Đã gỡ sản phẩm khỏi farm.');
+    }
+
+    public function updateProduct(Request $request, int $farmId, int $productId)
+    {
+        $farm = Farm::findOrFail($farmId);
+
+        $data = $request->validate([
+            'cost_price' => 'required|numeric|min:0',
+            'is_primary' => 'nullable|boolean',
+        ]);
+
+        if (! $farm->products()->where('zalo_products.id', $productId)->exists()) {
+            return back()->with('error', 'Sản phẩm không thuộc farm này.');
+        }
+
+        $farm->products()->updateExistingPivot($productId, [
+            'cost_price' => $data['cost_price'],
+            'is_primary' => (bool) ($data['is_primary'] ?? false),
+        ]);
+
+        return redirect()->route('farms.show', ['farm' => $farmId, 'tab' => 'products'])
+            ->with('success', 'Đã cập nhật thông tin sản phẩm.');
     }
 
     // ────────────────────────────────────────────────────────────────────
