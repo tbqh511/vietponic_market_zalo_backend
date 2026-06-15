@@ -116,3 +116,23 @@
         ])
     @endif
 @endsection
+
+@section('js')
+<script>
+    $('#attachProductModal').on('shown.bs.modal', function () {
+        if (!$('#selectProduct').data('select2')) {
+            $('#selectProduct').select2({
+                dropdownParent: $('#attachProductModal'),
+                placeholder: '— Tìm hoặc chọn sản phẩm —',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() { return 'Không tìm thấy sản phẩm'; },
+                    searching: function() { return 'Đang tìm...'; }
+                }
+            });
+        }
+        $('#selectProduct').val(null).trigger('change');
+    });
+</script>
+@endsection

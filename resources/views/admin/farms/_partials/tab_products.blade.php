@@ -71,7 +71,7 @@
                     @else
                         <div class="mb-3">
                             <label class="form-label">Sản phẩm <span class="text-danger">*</span></label>
-                            <select name="product_id" class="form-select" required>
+                            <select id="selectProduct" name="product_id" class="form-select" required style="width:100%">
                                 <option value="">— Chọn sản phẩm —</option>
                                 @foreach($availableProducts as $p)
                                     <option value="{{ $p->id }}">{{ $p->name }} (#{{ $p->id }})</option>
