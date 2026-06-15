@@ -106,7 +106,7 @@
     </div>
 @endsection
 
-@section('scripts')
+@section('script')
 <script>
 // ─── Multi-image upload (create page) ───────────────────────────────────────
 const dt = new DataTransfer();

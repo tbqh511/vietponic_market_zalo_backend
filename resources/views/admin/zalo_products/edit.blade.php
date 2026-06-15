@@ -175,7 +175,7 @@
     </div>
 @endsection
 
-@section('scripts')
+@section('script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 // ─── Drag-to-reorder existing images ──────────────────────────────────────
