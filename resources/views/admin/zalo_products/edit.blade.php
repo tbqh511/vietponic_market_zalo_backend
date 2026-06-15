@@ -6,15 +6,22 @@
             <h4>Sửa sản phẩm</h4>
         </div>
         <div class="card-body">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
             @if($errors->any())
                 <div class="alert alert-danger">
-                    <ul>
+                    <ul class="mb-0">
                         @foreach($errors->all() as $e)
                             <li>{{ $e }}</li>
                         @endforeach
                     </ul>
                 </div>
             @endif
+
             <form action="{{ route('zalo-products.update', $product->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
@@ -23,7 +30,9 @@
                     <select name="category_id" class="form-select">
                         <option value="">-- Không có --</option>
                         @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}" {{ $product->category_id == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                            <option value="{{ $cat->id }}" {{ $product->category_id == $cat->id ? 'selected' : '' }}>
+                                {{ $cat->name }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
@@ -39,26 +48,59 @@
                     <label class="form-label">Giá gốc</label>
                     <input type="number" name="original_price" class="form-control" value="{{ old('original_price', $product->original_price) }}" step="0.01">
                 </div>
+
+                {{-- ─── Hình ảnh hiện tại ───────────────────────────────────────────── --}}
                 <div class="mb-3">
-                    <label class="form-label">Hình ảnh sản phẩm</label>
-                    @if($product->image)
-                        <div class="mb-2">
-                            <strong>Hình ảnh hiện tại:</strong><br>
-                            <img src="{{ $product->image_url }}" alt="Hình ảnh hiện tại" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+                    <label class="form-label fw-semibold">Hình ảnh sản phẩm</label>
+
+                    @if($product->productImages->count() > 0)
+                        <p class="form-text mb-2">
+                            Kéo thả để sắp xếp lại. Ảnh đầu tiên là ảnh đại diện.
+                            Nhấn <strong>×</strong> để xóa từng ảnh.
+                        </p>
+                        <div id="existing-images" class="row g-2 mb-3">
+                            @foreach($product->productImages as $idx => $img)
+                                <div class="col-6 col-sm-4 col-md-3 col-lg-2 sortable-item" data-id="{{ $img->id }}">
+                                    <div class="position-relative border rounded overflow-hidden bg-light" style="aspect-ratio:1;cursor:grab;">
+                                        <img src="{{ $img->image_url }}"
+                                             class="w-100 h-100"
+                                             style="object-fit:cover"
+                                             alt="Ảnh {{ $idx + 1 }}">
+                                        @if($idx === 0)
+                                            <span class="position-absolute top-0 start-0 badge bg-primary m-1"
+                                                  style="font-size:10px">Ảnh chính</span>
+                                        @endif
+                                        <button type="button"
+                                                onclick="deleteExistingImage({{ $img->id }}, this)"
+                                                class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0"
+                                                style="width:22px;height:22px;line-height:1;font-size:14px"
+                                                title="Xoá ảnh này">×</button>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
+                    @else
+                        <p class="text-muted small mb-2">Chưa có ảnh nào. Hãy tải lên ảnh mới bên dưới.</p>
                     @endif
-                    <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this)">
-                    <div class="form-text">
-                        Định dạng chấp nhận: JPEG, PNG, JPG, GIF. Dung lượng tối đa: 2MB. Hình sẽ được thu nhỏ về 560x560px.
-                        @if($product->image)
-                            Để trống để giữ hình ảnh hiện tại.
-                        @endif
+
+                    {{-- Upload thêm ảnh mới --}}
+                    <label class="form-label">Thêm ảnh mới</label>
+                    <div id="drop-zone"
+                         class="border border-2 border-dashed rounded p-3 text-center text-muted"
+                         style="cursor:pointer;border-color:#adb5bd !important;"
+                         onclick="document.getElementById('new-image-input').click()">
+                        <i class="fas fa-cloud-upload-alt fa-xl mb-1"></i>
+                        <div class="small">Kéo thả hoặc <strong>click</strong> để thêm ảnh</div>
                     </div>
-                    <div id="image-preview" class="mt-2" style="display: none;">
-                        <strong>Xem trước hình ảnh mới:</strong><br>
-                        <img id="preview-img" src="" alt="Image Preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+                    <input type="file" id="new-image-input" name="new_images[]" multiple accept="image/*"
+                           class="d-none" onchange="handleNewFiles(this.files)">
+
+                    <div id="new-preview-grid" class="row g-2 mt-2"></div>
+                    <div id="new-count-hint" class="form-text mt-1" style="display:none;">
+                        <span id="new-count">0</span> ảnh mới đã chọn
                     </div>
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label">Mô tả chi tiết</label>
                     <textarea name="detail" class="form-control" rows="4">{{ old('detail', $product->detail) }}</textarea>
@@ -71,7 +113,10 @@
                         <select name="unit_id" class="form-select" id="unit-select">
                             <option value="">-- không gắn đơn vị --</option>
                             @foreach($units as $u)
-                                <option value="{{ $u->id }}" data-system="{{ $u->system_unit_type }}" {{ old('unit_id', $product->unit_id) == $u->id ? 'selected' : '' }}>{{ $u->label }} ({{ $u->system_unit_type }})</option>
+                                <option value="{{ $u->id }}" data-system="{{ $u->system_unit_type }}"
+                                    {{ old('unit_id', $product->unit_id) == $u->id ? 'selected' : '' }}>
+                                    {{ $u->label }} ({{ $u->system_unit_type }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -85,7 +130,9 @@
                     </div>
                     <div class="mb-3 col-md-4">
                         <label class="form-label">Hệ số quy đổi</label>
-                        <input type="number" name="conversion_factor" class="form-control" value="{{ old('conversion_factor', $product->conversion_factor) }}" step="0.001" min="0.001" required>
+                        <input type="number" name="conversion_factor" class="form-control"
+                               value="{{ old('conversion_factor', $product->conversion_factor) }}"
+                               step="0.001" min="0.001" required>
                         <div class="form-text">Ví dụ: 1 bó = 100g → nhập 100. 1 hộp cà chua = 200g → nhập 200.</div>
                     </div>
                 </div>
@@ -129,7 +176,143 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
+// ─── Drag-to-reorder existing images ──────────────────────────────────────
+const existingGrid = document.getElementById('existing-images');
+if (existingGrid) {
+    const sortable = Sortable.create(existingGrid, {
+        animation: 150,
+        ghostClass: 'opacity-50',
+        onEnd() {
+            updatePrimaryBadge();
+            saveNewOrder();
+        }
+    });
+}
+
+function updatePrimaryBadge() {
+    if (!existingGrid) return;
+    existingGrid.querySelectorAll('.sortable-item').forEach((item, idx) => {
+        const badge = item.querySelector('.badge');
+        if (idx === 0) {
+            if (!badge) {
+                const img = item.querySelector('img');
+                const b = document.createElement('span');
+                b.className = 'position-absolute top-0 start-0 badge bg-primary m-1';
+                b.style.fontSize = '10px';
+                b.textContent = 'Ảnh chính';
+                img.parentElement.appendChild(b);
+            }
+        } else {
+            badge?.remove();
+        }
+    });
+}
+
+function saveNewOrder() {
+    if (!existingGrid) return;
+    const order = Array.from(existingGrid.querySelectorAll('.sortable-item'))
+        .map(el => parseInt(el.dataset.id));
+    fetch('{{ route("zalo-products.images.reorder", $product->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content
+                         ?? '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ order })
+    });
+}
+
+// ─── Delete existing image ────────────────────────────────────────────────
+function deleteExistingImage(imageId, btn) {
+    if (!confirm('Xoá ảnh này?')) return;
+    btn.disabled = true;
+    fetch(`{{ url('zalo-products/' . $product->id . '/images') }}/${imageId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const col = btn.closest('.sortable-item');
+            col.remove();
+            updatePrimaryBadge();
+        }
+    })
+    .catch(() => { btn.disabled = false; alert('Xoá thất bại, thử lại.'); });
+}
+
+// ─── Add new images preview ───────────────────────────────────────────────
+const dt = new DataTransfer();
+
+function handleNewFiles(files) {
+    const allowed = ['image/jpeg','image/png','image/jpg','image/gif'];
+    const maxSize = 2 * 1024 * 1024;
+    Array.from(files).forEach(file => {
+        if (!allowed.includes(file.type)) {
+            alert(`"${file.name}" không phải định dạng hợp lệ (JPEG, PNG, JPG, GIF).`);
+            return;
+        }
+        if (file.size > maxSize) {
+            alert(`"${file.name}" vượt quá 2MB.`);
+            return;
+        }
+        dt.items.add(file);
+    });
+    syncNewInput();
+    renderNewPreviews();
+}
+
+function syncNewInput() {
+    const input = document.getElementById('new-image-input');
+    input.files = dt.files;
+    const countEl = document.getElementById('new-count');
+    const hintEl  = document.getElementById('new-count-hint');
+    countEl.textContent = dt.files.length;
+    hintEl.style.display = dt.files.length > 0 ? '' : 'none';
+}
+
+function removeNewFile(index) {
+    dt.items.remove(index);
+    syncNewInput();
+    renderNewPreviews();
+}
+
+function renderNewPreviews() {
+    const grid = document.getElementById('new-preview-grid');
+    grid.innerHTML = '';
+    Array.from(dt.files).forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-4 col-md-3 col-lg-2';
+            col.innerHTML = `
+                <div class="position-relative border rounded overflow-hidden bg-light" style="aspect-ratio:1">
+                    <img src="${e.target.result}" class="w-100 h-100" style="object-fit:cover" alt="">
+                    <span class="position-absolute top-0 start-0 badge bg-success m-1" style="font-size:10px">Mới</span>
+                    <button type="button" onclick="removeNewFile(${i})"
+                        class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0"
+                        style="width:22px;height:22px;line-height:1;font-size:14px"
+                        title="Bỏ ảnh này">×</button>
+                </div>`;
+            grid.appendChild(col);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+const zone = document.getElementById('drop-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('bg-light'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('bg-light'));
+zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('bg-light');
+    handleNewFiles(e.dataTransfer.files);
+});
+
+// ─── Unit sync ────────────────────────────────────────────────────────────
 function syncSystemUnit(selectEl) {
     const sys = selectEl.selectedOptions[0]?.dataset.system;
     if (sys) document.getElementById('system-unit-select').value = sys;
@@ -138,36 +321,6 @@ const unitSelect = document.getElementById('unit-select');
 if (unitSelect) {
     unitSelect.addEventListener('change', function () { syncSystemUnit(this); });
     syncSystemUnit(unitSelect);
-}
-function previewImage(input) {
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        
-        // Validate file type
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-        if (!allowedTypes.includes(file.type)) {
-            alert('Vui lòng chọn tệp hình ảnh hợp lệ (JPEG, PNG, JPG, GIF)');
-            input.value = '';
-            return;
-        }
-        
-        // Validate file size (2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Dung lượng tệp phải nhỏ hơn 2MB');
-            input.value = '';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('preview-img').src = e.target.result;
-            document.getElementById('image-preview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    } else {
-        // Hide preview if no file selected
-        document.getElementById('image-preview').style.display = 'none';
-    }
 }
 </script>
 @endsection

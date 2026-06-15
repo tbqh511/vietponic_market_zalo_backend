@@ -45,11 +45,14 @@ class ZaloApiController extends Controller
 
     public function products(Request $request)
     {
-        $query = ZaloProduct::with(['category', 'unit']);
+        $query = ZaloProduct::with(['category', 'unit', 'productImages']);
         if ($request->has('categoryId')) {
             $query->where('category_id', $request->categoryId);
         }
         $data = $query->orderBy('id')->get()->map(function ($product) {
+            $extraImages = $product->images_urls;
+            // Primary image first; fallback to legacy image_url if no rows in product_images
+            $primaryUrl = count($extraImages) > 0 ? $extraImages[0] : $product->image_url;
             return [
                 'id'                => $product->id,
                 'category_id'       => $product->category_id,
@@ -57,7 +60,8 @@ class ZaloApiController extends Controller
                 'name'              => $product->name,
                 'price'             => $product->price,
                 'original_price'    => $product->original_price,
-                'image'             => $product->image_url,
+                'image'             => $primaryUrl,
+                'images'            => count($extraImages) > 0 ? $extraImages : [$primaryUrl],
                 'detail'            => $product->detail,
                 'unit_id'           => $product->unit_id,
                 'unit_label'        => $product->unit?->label,

@@ -39,6 +39,18 @@ class ZaloProduct extends Model
         return $this->belongsTo(ZaloCategory::class, 'category_id');
     }
 
+    public function productImages()
+    {
+        return $this->hasMany(ZaloProductImage::class, 'product_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function getImagesUrlsAttribute(): array
+    {
+        return $this->productImages->map(fn($img) => $img->image_url)->values()->all();
+    }
+
     public function unit()
     {
         return $this->belongsTo(ZaloUnit::class, 'unit_id');

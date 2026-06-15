@@ -109,6 +109,8 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
 
         Route::resource('zalo-categories', ZaloCategoryController::class);
         Route::resource('zalo-products', ZaloProductController::class);
+        Route::delete('zalo-products/{product}/images/{image}', [ZaloProductController::class, 'destroyImage'])->name('zalo-products.images.destroy');
+        Route::post('zalo-products/{product}/images/reorder', [ZaloProductController::class, 'reorderImages'])->name('zalo-products.images.reorder');
         Route::resource('zalo-orders', ZaloOrderController::class);
         Route::post('zalo-orders/{order}/vtp-retry', [ZaloOrderController::class, 'retryVtp'])->name('zalo-orders.vtp-retry');
 
