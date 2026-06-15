@@ -36,8 +36,9 @@
                             <th>ID</th>
                             <th>Tên Customer</th>
                             <th>SĐT</th>
-                            <th>Email</th>
-                            <th>Ngày yêu cầu</th>
+                            <th>Tên farm đăng ký</th>
+                            <th>Địa chỉ</th>
+                            <th>Ngày gửi</th>
                             <th>Trạng thái</th>
                             <th class="text-end">Hành động</th>
                         </tr>
@@ -48,8 +49,14 @@
                                 <td>#{{ $c->id }}</td>
                                 <td>{{ $c->name ?: '—' }}</td>
                                 <td>{{ $c->mobile ?: '—' }}</td>
-                                <td>{{ $c->email ?: '—' }}</td>
-                                <td>{{ $c->updated_at?->format('d/m/Y H:i') }}</td>
+                                <td>
+                                    {{ $c->farm_application_name ?: '—' }}
+                                    @if($c->farm_application_description)
+                                        <br><small class="text-muted">{{ Str::limit($c->farm_application_description, 60) }}</small>
+                                    @endif
+                                </td>
+                                <td>{{ $c->farm_application_address ?: '—' }}</td>
+                                <td>{{ $c->farm_applied_at?->format('d/m/Y H:i') ?? $c->updated_at?->format('d/m/Y H:i') }}</td>
                                 <td><span class="badge bg-warning text-dark">Đang chờ</span></td>
                                 <td class="text-end">
                                     <button type="button"
@@ -58,7 +65,10 @@
                                             data-bs-target="#approveModal"
                                             data-customer-id="{{ $c->id }}"
                                             data-customer-name="{{ $c->name }}"
-                                            data-customer-mobile="{{ $c->mobile }}">
+                                            data-customer-mobile="{{ $c->mobile }}"
+                                            data-farm-name="{{ $c->farm_application_name }}"
+                                            data-farm-address="{{ $c->farm_application_address }}"
+                                            data-farm-description="{{ $c->farm_application_description }}">
                                         Duyệt
                                     </button>
                                     <form action="{{ route('farm-requests.reject', $c->id) }}" method="POST" class="d-inline"
@@ -70,7 +80,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Không có yêu cầu nào đang chờ duyệt.</td>
+                                <td colspan="8" class="text-center text-muted py-4">Không có yêu cầu nào đang chờ duyệt.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -98,11 +108,13 @@
                             <strong>Customer:</strong>
                             <span id="modalCustomerName">—</span>
                             (<span id="modalCustomerMobile">—</span>)
+                            <div id="modalFarmAddress" class="mt-1 text-muted small"></div>
+                            <div id="modalFarmDescription" class="mt-1 text-muted small fst-italic"></div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Tên Farm <span class="text-danger">*</span></label>
                             <input type="text" name="name" id="farmName" class="form-control" required maxlength="150">
-                            <small class="text-muted">Auto-fill từ tên customer, có thể sửa.</small>
+                            <small class="text-muted">Auto-fill từ yêu cầu của customer, có thể sửa.</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Mã Farm <span class="text-danger">*</span></label>
@@ -140,14 +152,26 @@
 
         document.querySelectorAll('.btn-approve').forEach(btn => {
             btn.addEventListener('click', () => {
-                const id     = btn.dataset.customerId;
-                const name   = btn.dataset.customerName || '';
-                const mobile = btn.dataset.customerMobile || '';
+                const id          = btn.dataset.customerId;
+                const name        = btn.dataset.customerName || '';
+                const mobile      = btn.dataset.customerMobile || '';
+                const farmName    = btn.dataset.farmName || '';
+                const farmAddress = btn.dataset.farmAddress || '';
+                const farmDesc    = btn.dataset.farmDescription || '';
 
                 document.getElementById('modalCustomerName').textContent   = name || '—';
                 document.getElementById('modalCustomerMobile').textContent = mobile || '—';
-                document.getElementById('farmName').value = 'Farm ' + name;
-                document.getElementById('farmCode').value = 'FARM-' + slugifyFarmCode(name) + '-001';
+
+                const addrEl = document.getElementById('modalFarmAddress');
+                addrEl.textContent = farmAddress ? '📍 ' + farmAddress : '';
+
+                const descEl = document.getElementById('modalFarmDescription');
+                descEl.textContent = farmDesc ? '"' + farmDesc + '"' : '';
+
+                // Pre-fill từ dữ liệu đăng ký; fallback về tên customer.
+                const displayName = farmName || ('Farm ' + name);
+                document.getElementById('farmName').value = displayName;
+                document.getElementById('farmCode').value = 'FARM-' + slugifyFarmCode(farmName || name) + '-001';
                 document.getElementById('farmNote').value = '';
                 document.getElementById('approveForm').action = '{{ url('farm-requests') }}/' + id + '/approve';
             });

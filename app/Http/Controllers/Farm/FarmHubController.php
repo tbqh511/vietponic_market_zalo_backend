@@ -233,14 +233,44 @@ class FarmHubController extends Controller
     /**
      * POST /farm/request-partnership
      * Customer (chưa là partner) xin trở thành farm partner.
-     * Stub: chưa có flow approval — return 501 để FE biết.
      */
     public function requestPartnership(Request $request): JsonResponse
     {
+        /** @var \App\Models\Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
+
+        if ($customer->farm_partner_status === 'approved') {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Tài khoản đã được duyệt là Farm Partner.',
+            ], 409);
+        }
+
+        if ($customer->farm_partner_status === 'requested') {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Yêu cầu của bạn đang được xem xét. Vui lòng chờ trong 1-3 ngày làm việc.',
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'name'        => 'required|string|max:120',
+            'address'     => 'required|string|max:200',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $customer->update([
+            'farm_partner_status'          => 'requested',
+            'farm_application_name'        => $validated['name'],
+            'farm_application_address'     => $validated['address'],
+            'farm_application_description' => $validated['description'] ?? null,
+            'farm_applied_at'              => now(),
+        ]);
+
         return response()->json([
-            'error'   => true,
-            'message' => 'Tính năng đăng ký Farm Partner đang được phát triển. Vui lòng liên hệ admin Vietponics để được duyệt thủ công.',
-        ], 501);
+            'error'   => false,
+            'message' => 'Đã gửi yêu cầu. Vietponics sẽ liên hệ duyệt trong 1-3 ngày làm việc.',
+        ]);
     }
 
     /**
