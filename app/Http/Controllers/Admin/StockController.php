@@ -135,12 +135,8 @@ class StockController extends Controller
             return back()->with('error', 'Nhập kho thất bại: ' . $e->getMessage())->withInput();
         }
 
-        $msg = 'Nhập kho thành công. Tồn kho đã được cập nhật.';
-        $referer = $request->headers->get('referer', '');
-        if (str_contains($referer, route('inventory.index'))) {
-            return redirect()->to($referer)->with('success', $msg);
-        }
-        return redirect()->route('inventory.show', $inventory->id)->with('success', $msg);
+        return redirect()->route('inventory.show', $inventory->id)
+            ->with('success', 'Nhập kho thành công. Tồn kho đã được cập nhật.');
     }
 
     public function adjust(Request $request, ZaloProduct $inventory)

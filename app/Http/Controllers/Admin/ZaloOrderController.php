@@ -117,17 +117,35 @@ class ZaloOrderController extends Controller
     public function edit($id)
     {
         $order = ZaloOrder::with(['items', 'delivery'])->findOrFail($id);
-        return view('admin.zalo_orders.edit', compact('order'));
+
+        $statusOptions = [
+            'pending'    => 'Chờ xác nhận',
+            'confirmed'  => 'Đã xác nhận',
+            'preparing'  => 'Đang chuẩn bị',
+            'delivering' => 'Đang giao',
+            'delivered'  => 'Đã giao',
+            'cancelled'  => 'Đã huỷ',
+        ];
+        $paymentOptions = [
+            'pending'  => 'Chờ thanh toán',
+            'cod'      => 'COD',
+            'success'  => 'Đã thanh toán',
+            'failed'   => 'Thất bại',
+            'refunded' => 'Đã hoàn tiền',
+        ];
+
+        return view('admin.zalo_orders.edit', compact('order', 'statusOptions', 'paymentOptions'));
     }
 
     public function update(Request $request, $id)
     {
         $order = ZaloOrder::findOrFail($id);
         $data = $request->validate([
-            'status' => 'nullable|string|max:255',
-            'payment_status' => 'nullable|string|max:255',
-            'received_at' => 'nullable|date',
-            'note' => 'nullable|string',
+            'status'              => 'nullable|string|max:255',
+            'payment_status'      => 'nullable|string|max:255',
+            'received_at'         => 'nullable|date',
+            'note'                => 'nullable|string',
+            'cancellation_reason' => 'nullable|string|max:500',
         ]);
 
         $previousStatus = $order->status;
@@ -196,7 +214,7 @@ class ZaloOrderController extends Controller
             $order->update([
                 'cancelled_at'        => now(),
                 'cancelled_by'        => 'admin',
-                'cancellation_reason' => 'Admin huỷ qua admin dashboard',
+                'cancellation_reason' => $data['cancellation_reason'] ?? 'Admin huỷ qua admin dashboard',
             ]);
             try {
                 $this->stockService->releaseReservation($order->id);

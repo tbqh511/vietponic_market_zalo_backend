@@ -4,14 +4,75 @@
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
+    @if($errors->any())
+        <div class="alert alert-danger py-2">
+            <ul class="mb-0 ps-3">
+                @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
+            </ul>
+        </div>
+    @endif
     @if(session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
+    @php
+        $statusOptions = [
+            'pending'    => 'Chờ xác nhận',
+            'confirmed'  => 'Đã xác nhận',
+            'preparing'  => 'Đang chuẩn bị',
+            'delivering' => 'Đang giao',
+            'delivered'  => 'Đã giao',
+            'cancelled'  => 'Đã huỷ',
+        ];
+        $paymentOptions = [
+            'pending'  => 'Chờ thanh toán',
+            'cod'      => 'COD',
+            'success'  => 'Đã thanh toán',
+            'failed'   => 'Thất bại',
+            'refunded' => 'Đã hoàn tiền',
+        ];
+    @endphp
+
+    {{-- ── Cập nhật nhanh ──────────────────────────────────────────────────── --}}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form action="{{ route('zalo-orders.update', $order->id) }}" method="POST"
+                  class="row g-2 align-items-end flex-wrap">
+                @csrf
+                @method('PUT')
+                <div class="col-auto">
+                    <label class="form-label mb-1 small fw-semibold">Trạng thái</label>
+                    <select name="status" class="form-select form-select-sm">
+                        @foreach($statusOptions as $val => $label)
+                            <option value="{{ $val }}" @selected($order->status === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1 small fw-semibold">Thanh toán</label>
+                    <select name="payment_status" class="form-select form-select-sm">
+                        @foreach($paymentOptions as $val => $label)
+                            <option value="{{ $val }}" @selected($order->payment_status === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label mb-1 small fw-semibold">Ghi chú</label>
+                    <input type="text" name="note" class="form-control form-control-sm"
+                        value="{{ $order->note }}" placeholder="Ghi chú nhanh..." style="width:200px">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Cập nhật</button>
+                    <a href="{{ route('zalo-orders.edit', $order->id) }}" class="btn btn-outline-secondary btn-sm ms-1">Sửa đầy đủ</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h4>Order #{{ $order->id }}</h4>
-            <a href="{{ route('zalo-orders.edit', $order->id) }}" class="btn btn-secondary">Sửa</a>
+            <h4 class="mb-0">Đơn hàng #{{ $order->id }}</h4>
+            <span class="text-muted small">{{ $order->created_at?->format('d/m/Y H:i') }}</span>
         </div>
         <div class="card-body">
             <h5>Giao hàng</h5>
@@ -68,8 +129,40 @@
             </table>
 
             <h5>Tóm tắt đơn hàng</h5>
-            <p>Tổng tiền: {{ number_format($order->total) }}</p>
-            <p>Trạng thái: {{ $order->status }} | Thanh toán: {{ $order->payment_status }}</p>
+            @php
+                $statusBadge = match($order->status) {
+                    'delivered'  => 'success',
+                    'delivering' => 'primary',
+                    'preparing'  => 'info',
+                    'confirmed'  => 'warning',
+                    'cancelled'  => 'danger',
+                    default      => 'secondary',
+                };
+                $paymentBadge = match($order->payment_status) {
+                    'success'  => 'success',
+                    'failed'   => 'danger',
+                    'refunded' => 'warning',
+                    'cod'      => 'secondary',
+                    default    => 'light text-dark border',
+                };
+            @endphp
+            <div class="mb-2">
+                <span class="badge bg-{{ $statusBadge }}">{{ $statusOptions[$order->status] ?? $order->status }}</span>
+                <span class="badge bg-{{ $paymentBadge }} ms-1">{{ $paymentOptions[$order->payment_status] ?? $order->payment_status }}</span>
+            </div>
+            @if($order->subtotal && $order->subtotal != $order->total)
+                <p class="mb-1 text-muted small">Tạm tính: {{ number_format($order->subtotal) }}đ</p>
+            @endif
+            @if($order->shipping_fee)
+                <p class="mb-1 text-muted small">Phí vận chuyển: {{ number_format($order->shipping_fee) }}đ</p>
+            @endif
+            @if($order->discount_amount)
+                <p class="mb-1 text-success small">Giảm giá@if($order->voucher_code) ({{ $order->voucher_code }})@endif: -{{ number_format($order->discount_amount) }}đ</p>
+            @endif
+            <p class="fw-bold">Tổng tiền: {{ number_format($order->total) }}đ</p>
+            @if($order->cancellation_reason)
+                <p class="text-danger small mb-0">Lý do huỷ: {{ $order->cancellation_reason }}</p>
+            @endif
         </div>
     </div>
 
