@@ -121,61 +121,107 @@
             </div>
         </div>
 
-        {{-- Movement history — sau khi chuyển sang batch model, "movement" = order_items
-             đã trừ vào batch FEFO. Cột "trước/sau" không còn ý nghĩa per-row (vì
-             allocation song song giữa nhiều batch), nên view chỉ hiển thị qty xuất
-             + batch nguồn + đơn hàng. --}}
+        {{-- Lịch sử nhập/xuất kho — đọc từ ledger stock_movements: gồm tất cả lượt
+             nhập (admin/farm) và xuất (đơn hàng, huỷ đơn, điều chỉnh, farm export,
+             đóng lô). Có search/filter real-time + paging qua AJAX. --}}
         <div class="card">
-            <div class="card-header"><h6 class="mb-0">Lịch sử xuất kho (theo đơn hàng / batch)</h6></div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Thời gian</th>
-                                <th>Batch</th>
-                                <th class="text-center">Số lượng</th>
-                                <th>Đơn hàng</th>
-                                <th>Trạng thái đơn</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($movements as $m)
-                            <tr>
-                                <td class="small text-muted text-nowrap">
-                                    {{ $m->order?->created_at?->format('d/m/Y H:i') }}
-                                </td>
-                                <td class="small">
-                                    @if($m->batch)
-                                        <span class="badge bg-light text-dark border">#{{ $m->batch->id }}</span>
-                                        <span class="text-muted">— {{ $m->batch->batch_date?->format('d/m/Y') }}</span>
-                                    @else
-                                        <span class="text-muted">backorder</span>
-                                    @endif
-                                </td>
-                                <td class="text-center fw-bold text-danger">
-                                    -{{ rtrim(rtrim(number_format((float) $m->quantity, 2, '.', ''), '0'), '.') }}
-                                </td>
-                                <td class="small">
-                                    <a href="{{ route('zalo-orders.show', $m->order_id) }}">#{{ $m->order_id }}</a>
-                                </td>
-                                <td class="small">
-                                    <span class="badge bg-info text-dark">{{ $m->order?->status ?? '—' }}</span>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-3">Chưa có lịch sử xuất kho.</td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            <div class="card-header"><h6 class="mb-0">Lịch sử nhập / xuất kho</h6></div>
+            <div class="card-body">
+                <form id="movementFilter" onsubmit="return false;">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" id="mvSearch" name="q" class="form-control"
+                                       placeholder="Tìm theo ghi chú / #đơn / #batch..."
+                                       value="{{ $filters['q'] ?? '' }}">
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <select id="mvType" name="type" class="form-select form-select-sm">
+                                <option value="">-- Loại --</option>
+                                <option value="in"  {{ ($filters['type'] ?? '') === 'in'  ? 'selected' : '' }}>Nhập</option>
+                                <option value="out" {{ ($filters['type'] ?? '') === 'out' ? 'selected' : '' }}>Xuất</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <select id="mvSource" name="source" class="form-select form-select-sm">
+                                <option value="">-- Tất cả nguồn --</option>
+                                @foreach(\App\Models\StockMovement::SOURCE_LABELS as $key => $label)
+                                    <option value="{{ $key }}" {{ ($filters['source'] ?? '') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="input-group input-group-sm">
+                                <input type="date" id="mvFrom" name="from" class="form-control" value="{{ $filters['from'] ?? '' }}" title="Từ ngày">
+                                <input type="date" id="mvTo" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}" title="Đến ngày">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="movementsContainer" class="border rounded position-relative">
+                    @include('admin.inventory._movements')
                 </div>
-                @if($movements->hasPages())
-                <div class="p-3">{{ $movements->links() }}</div>
-                @endif
             </div>
         </div>
     </div>
 </div>
+@endsection
+
+@section('script')
+<script>
+(function () {
+    var baseUrl   = "{{ route('inventory.movements', $inventory->id) }}";
+    var container = document.getElementById('movementsContainer');
+    var form      = document.getElementById('movementFilter');
+    if (!container || !form) return;
+
+    var debounceTimer = null;
+
+    function currentParams() {
+        return {
+            q:      (document.getElementById('mvSearch').value || '').trim(),
+            type:   document.getElementById('mvType').value,
+            source: document.getElementById('mvSource').value,
+            from:   document.getElementById('mvFrom').value,
+            to:     document.getElementById('mvTo').value
+        };
+    }
+
+    function load(url, params) {
+        container.classList.add('opacity-50');
+        $.get(url, params || {})
+            .done(function (html) { container.innerHTML = html; })
+            .fail(function () {
+                if (window.Toastify) {
+                    Toastify({ text: 'Không tải được lịch sử kho.', duration: 4000, backgroundColor: '#dc3545' }).showToast();
+                }
+            })
+            .always(function () { container.classList.remove('opacity-50'); });
+    }
+
+    function reload() { load(baseUrl, currentParams()); }
+
+    // Search: debounce 300ms.
+    document.getElementById('mvSearch').addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(reload, 300);
+    });
+
+    // Select / date: reload ngay.
+    ['mvType', 'mvSource', 'mvFrom', 'mvTo'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', reload);
+    });
+
+    // Phân trang AJAX — link đã kèm query string nhờ withQueryString().
+    container.addEventListener('click', function (e) {
+        var a = e.target.closest('.pagination a');
+        if (!a) return;
+        e.preventDefault();
+        load(a.getAttribute('href'));
+    });
+})();
+</script>
 @endsection

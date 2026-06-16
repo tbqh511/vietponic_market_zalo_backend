@@ -132,6 +132,7 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::get('inventory', [StockController::class, 'index'])->name('inventory.index');
         Route::get('inventory/low-stock', [StockController::class, 'lowStock'])->name('inventory.low-stock');
         Route::get('inventory/report', [StockController::class, 'report'])->name('inventory.report');
+        Route::get('inventory/{inventory}/movements', [StockController::class, 'movements'])->name('inventory.movements');
         Route::get('inventory/{inventory}', [StockController::class, 'show'])->name('inventory.show');
         Route::get('inventory/{inventory}/import', [StockController::class, 'importForm'])->name('inventory.import');
         Route::post('inventory/{inventory}/import', [StockController::class, 'importStore'])->name('inventory.import.store');

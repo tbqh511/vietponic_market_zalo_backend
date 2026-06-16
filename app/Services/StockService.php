@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Farm;
 use App\Models\FarmStockBatch;
+use App\Models\StockMovement;
 use App\Models\ZaloOrder;
 use App\Models\ZaloOrderItem;
 use App\Models\ZaloProduct;
@@ -184,6 +185,17 @@ class StockService
                 $batch->save();
             }
 
+            // Ghi ledger xuất kho cho slice này (1 batch = 1 dòng movement).
+            $this->recordMovement(
+                productId: $productId,
+                type: 'out',
+                source: 'order',
+                qty: $take,
+                batchId: $batch->id,
+                orderId: $orderId,
+                farmId: $batch->farm_id,
+            );
+
             if ($isFirstSlice) {
                 // Slice đầu: update row order_item gốc.
                 $baseItem->farm_stock_batch_id  = $batch->id;
@@ -265,6 +277,17 @@ class StockService
                     $batch->quantity_remaining = (float) $batch->quantity_in - $newQtySold;
                     $batch->saveQuietly();
                 }
+
+                // Ghi ledger hoàn kho (nhập lại) khi huỷ đơn.
+                $this->recordMovement(
+                    productId: (int) $item->product_id,
+                    type: 'in',
+                    source: 'order_cancel',
+                    qty: (float) $item->quantity,
+                    batchId: (int) $batch->id,
+                    orderId: $orderId,
+                    farmId: $batch->farm_id,
+                );
             }
         });
     }
@@ -305,6 +328,8 @@ class StockService
             qty: (float) $qty,
             costPrice: $this->resolveCostPrice($defaultFarm->id, $productId),
             note: $note,
+            source: 'admin_import',
+            createdBy: $adminId,
         );
     }
 
@@ -327,6 +352,8 @@ class StockService
             qty: (float) $qty,
             costPrice: $this->resolveCostPrice($farm->id, $productId),
             note: $note,
+            source: 'farm_import',
+            createdBy: $farmCustomerId,
         );
     }
 
@@ -336,7 +363,7 @@ class StockService
      * phương thức adjustBatchQuantity bên dưới. Method này GIỮ signature cũ
      * (product-level) cho compatibility — trừ FEFO trên các batch của farm.
      */
-    public function exportStock(int $productId, int|float $qty, string $note, int $farmCustomerId): void
+    public function exportStock(int $productId, int|float $qty, string $note, int $farmCustomerId, string $source = 'farm_export', ?int $createdBy = null): void
     {
         $farm = Farm::active()->where('owner_customer_id', $farmCustomerId)->first();
         if (!$farm) {
@@ -344,8 +371,9 @@ class StockService
         }
 
         $remaining = (float) $qty;
+        $createdBy = $createdBy ?? $farmCustomerId;
 
-        DB::transaction(function () use ($farm, $productId, &$remaining, $note) {
+        DB::transaction(function () use ($farm, $productId, &$remaining, $note, $source, $createdBy) {
             $batches = FarmStockBatch::query()
                 ->where('farm_id', $farm->id)
                 ->where('product_id', $productId)
@@ -368,6 +396,19 @@ class StockService
                     $batch->status = 'depleted';
                     $batch->save();
                 }
+
+                // Ghi ledger xuất kho thủ công (admin điều chỉnh / farm export).
+                $this->recordMovement(
+                    productId: $productId,
+                    type: 'out',
+                    source: $source,
+                    qty: $take,
+                    batchId: (int) $batch->id,
+                    farmId: $farm->id,
+                    note: $note,
+                    createdBy: $createdBy,
+                );
+
                 $remaining -= $take;
             }
         });
@@ -409,10 +450,12 @@ class StockService
                 qty: $diff,
                 costPrice: $this->resolveCostPrice($defaultFarm->id, $productId),
                 note: "[adjust] {$note}",
+                source: 'admin_adjust',
+                createdBy: $adminId,
             );
         } else {
             // diff < 0: trừ |diff| theo FEFO trên tất cả batch của default farm.
-            $this->exportStock($productId, abs($diff), "[adjust] {$note}", $defaultFarm->owner_customer_id ?? 0);
+            $this->exportStock($productId, abs($diff), "[adjust] {$note}", $defaultFarm->owner_customer_id ?? 0, 'admin_adjust', $adminId);
         }
     }
 
@@ -469,20 +512,38 @@ class StockService
     }
 
     /**
-     * Lịch sử movement của 1 product. Trong batch model, "movement" =
-     * batch.created_at + order_items đã trừ vào batch. Trả về paginator
-     * giả lập (collection sorted) — view chỉ cần iterate.
+     * Lịch sử nhập/xuất của 1 product — đọc từ ledger stock_movements.
+     * Hỗ trợ filter: q (tìm theo note / #order / #batch), type (in|out),
+     * source, from/to (theo ngày). Trả LengthAwarePaginator + giữ query string.
      *
-     * Để tránh phải rewrite view ngay, trả paginator của order_items.
+     * @param  array  $filters  ['q','type','source','from','to']
      */
-    public function getMovementHistory(int $productId, int $perPage = 20)
+    public function getMovementHistory(int $productId, array $filters = [], int $perPage = 20)
     {
-        return ZaloOrderItem::query()
-            ->with(['order:id,status,created_at', 'batch:id,batch_date,cost_price'])
+        return StockMovement::query()
+            ->with(['batch:id,batch_date', 'order:id,status,created_at'])
             ->where('product_id', $productId)
-            ->whereNotNull('farm_stock_batch_id')
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+            ->when($filters['type'] ?? null, fn ($q, $t) => $q->where('type', $t))
+            ->when($filters['source'] ?? null, fn ($q, $s) => $q->where('source', $s))
+            ->when($filters['q'] ?? null, function ($q, $kw) {
+                $kw = trim($kw);
+                $num = ltrim($kw, '#');
+                $q->where(function ($w) use ($kw, $num) {
+                    $w->where('note', 'like', "%{$kw}%");
+                    if ($num !== '' && ctype_digit($num)) {
+                        $w->orWhere('order_id', $num)
+                          ->orWhere('batch_id', $num);
+                    }
+                });
+            })
+            ->when($filters['from'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
+            ->when($filters['to'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '<=', $d))
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString()
+            // Pin path tới endpoint AJAX để link phân trang luôn trả partial,
+            // dù render lần đầu từ route inventory.show.
+            ->withPath(route('inventory.movements', $productId));
     }
 
     /**
@@ -610,9 +671,9 @@ class StockService
     /**
      * Tạo 1 batch mới — dùng chung cho import (admin/farm) và adjust.
      */
-    private function createBatch(int $farmId, int $productId, float $qty, float $costPrice, string $note): FarmStockBatch
+    private function createBatch(int $farmId, int $productId, float $qty, float $costPrice, string $note, string $source = 'admin_import', ?int $createdBy = null): FarmStockBatch
     {
-        return FarmStockBatch::create([
+        $batch = FarmStockBatch::create([
             'farm_id'       => $farmId,
             'product_id'    => $productId,
             'batch_date'    => now()->toDateString(),
@@ -623,5 +684,92 @@ class StockService
             'status'        => 'active',
             'note'          => $note,
         ]);
+
+        $this->recordMovement(
+            productId: $productId,
+            type: 'in',
+            source: $source,
+            qty: $qty,
+            batchId: (int) $batch->id,
+            farmId: $farmId,
+            note: $note,
+            createdBy: $createdBy,
+        );
+
+        return $batch;
+    }
+
+    // ─── Ledger (stock_movements) ─────────────────────────────────────────
+
+    /**
+     * Ghi 1 dòng ledger nhập/xuất. quantity được ký dấu theo $type:
+     * in → +abs, out → -abs (để SUM(quantity) per product khớp tồn).
+     */
+    private function recordMovement(
+        int $productId,
+        string $type,
+        string $source,
+        float $qty,
+        ?int $batchId = null,
+        ?int $orderId = null,
+        ?int $farmId = null,
+        ?string $note = null,
+        ?int $createdBy = null,
+    ): void {
+        $signed = $type === 'out' ? -abs($qty) : abs($qty);
+
+        StockMovement::create([
+            'product_id' => $productId,
+            'batch_id'   => $batchId,
+            'order_id'   => $orderId,
+            'farm_id'    => $farmId,
+            'type'       => $type,
+            'source'     => $source,
+            'quantity'   => $signed,
+            'note'       => $note !== null ? mb_substr($note, 0, 500) : null,
+            'created_by' => ($createdBy !== null && $createdBy > 0) ? $createdBy : null,
+        ]);
+    }
+
+    /**
+     * Ghi ledger nhập kho cho 1 batch được tạo TRỰC TIẾP ngoài createBatch()
+     * (vd FarmStockController tự gọi FarmStockBatch::create). Public để controller
+     * farm hub dùng lại sau khi tạo batch.
+     */
+    public function recordBatchIn(FarmStockBatch $batch, string $source = 'farm_import', ?int $createdBy = null): void
+    {
+        $this->recordMovement(
+            productId: (int) $batch->product_id,
+            type: 'in',
+            source: $source,
+            qty: (float) $batch->quantity_in,
+            batchId: (int) $batch->id,
+            farmId: (int) $batch->farm_id,
+            note: $batch->note,
+            createdBy: $createdBy,
+        );
+    }
+
+    /**
+     * Ghi ledger xuất kho khi đóng/thu hồi 1 batch còn tồn (status → recalled/expired).
+     * Ghi -quantity_remaining để phản ánh phần tồn bị rút khỏi khả dụng.
+     */
+    public function recordBatchClose(FarmStockBatch $batch, ?string $note = null, ?int $createdBy = null): void
+    {
+        $remaining = (float) $batch->quantity_remaining;
+        if ($remaining <= 1e-6) {
+            return;
+        }
+
+        $this->recordMovement(
+            productId: (int) $batch->product_id,
+            type: 'out',
+            source: 'batch_close',
+            qty: $remaining,
+            batchId: (int) $batch->id,
+            farmId: (int) $batch->farm_id,
+            note: $note,
+            createdBy: $createdBy,
+        );
     }
 }

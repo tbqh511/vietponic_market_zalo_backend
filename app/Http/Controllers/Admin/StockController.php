@@ -72,8 +72,33 @@ class StockController extends Controller
     {
         $inventory->loadMissing('category', 'unit');
         $this->decorateWithTotals(collect([$inventory]));
-        $movements = $this->stockService->getMovementHistory($inventory->id, 20);
-        return view('admin.inventory.show', compact('inventory', 'movements'));
+        $filters   = $this->movementFilters($request);
+        $movements = $this->stockService->getMovementHistory($inventory->id, $filters, 20);
+        return view('admin.inventory.show', compact('inventory', 'movements', 'filters'));
+    }
+
+    /**
+     * Partial AJAX cho bảng lịch sử nhập/xuất (search/filter real-time + paging).
+     */
+    public function movements(Request $request, ZaloProduct $inventory)
+    {
+        $filters   = $this->movementFilters($request);
+        $movements = $this->stockService->getMovementHistory($inventory->id, $filters, 20);
+        return view('admin.inventory._movements', compact('inventory', 'movements', 'filters'));
+    }
+
+    /**
+     * Chuẩn hoá các tham số filter cho lịch sử nhập/xuất.
+     */
+    private function movementFilters(Request $request): array
+    {
+        return [
+            'q'      => $request->input('q'),
+            'type'   => in_array($request->input('type'), ['in', 'out'], true) ? $request->input('type') : null,
+            'source' => array_key_exists($request->input('source'), \App\Models\StockMovement::SOURCE_LABELS) ? $request->input('source') : null,
+            'from'   => $request->input('from'),
+            'to'     => $request->input('to'),
+        ];
     }
 
     public function importForm(ZaloProduct $inventory)

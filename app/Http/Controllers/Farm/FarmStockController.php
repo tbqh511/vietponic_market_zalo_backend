@@ -530,6 +530,9 @@ class FarmStockController extends Controller
                     'note'          => $row['note'] ?? null,
                 ]);
 
+                // Ghi ledger nhập kho (farm hub).
+                app(StockService::class)->recordBatchIn($batch, 'farm_import', $farm->owner_customer_id);
+
                 $out[] = [
                     'id'                 => (int) $batch->id,
                     'product_id'         => (int) $batch->product_id,
@@ -603,6 +606,9 @@ class FarmStockController extends Controller
         ]);
         $batch->refresh(); // reload generated column quantity_remaining from MySQL
 
+        // Ghi ledger nhập kho (farm hub).
+        app(StockService::class)->recordBatchIn($batch, 'farm_import', $farm->owner_customer_id);
+
         return response()->json([
             'error' => false,
             'data'  => [
@@ -649,6 +655,9 @@ class FarmStockController extends Controller
                 'message' => "Batch đang ở trạng thái '{$batch->status}', không thể đóng nữa.",
             ], 422);
         }
+
+        // Ghi ledger phần tồn bị rút khỏi khả dụng khi đóng/thu hồi (trước khi đổi status).
+        app(StockService::class)->recordBatchClose($batch, $request->note, $farm->owner_customer_id);
 
         $batch->status = (string) $request->reason;
         if ($request->note) {
