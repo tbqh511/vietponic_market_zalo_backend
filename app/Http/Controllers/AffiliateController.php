@@ -198,6 +198,7 @@ class AffiliateController extends Controller
                 'customers.id',
                 'customers.name',
                 'customers.mobile',
+                'customers.firebase_id',
                 'customers.created_at',
                 DB::raw('COALESCE(o.orders_count, 0) as orders_count'),
                 DB::raw('COALESCE(o.orders_total, 0) as orders_total'),
@@ -209,8 +210,9 @@ class AffiliateController extends Controller
         $items = $paginator->getCollection()->map(function ($row) {
             return [
                 'id' => (int) $row->id,
-                'name' => $this->maskName($row->name),
-                'mobile_masked' => $this->maskMobile($row->mobile),
+                'name' => $row->name ?? 'Khách hàng',
+                'mobile' => $row->mobile ?: null,
+                'zalo_id' => $row->firebase_id ?: null,
                 'joined_at' => $row->created_at,
                 'orders_count' => (int) $row->orders_count,
                 'orders_total' => (float) $row->orders_total,
