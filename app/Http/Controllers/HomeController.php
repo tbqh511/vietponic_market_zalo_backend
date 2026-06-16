@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\Customer;
-use App\Models\Property;
-use App\Models\Setting;
+use App\Models\Farm;
+use App\Models\FarmStockBatch;
 use App\Models\User;
+use App\Models\ZaloOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,57 +37,54 @@ class HomeController extends Controller
         if (!has_permissions('read', 'dashboard')) {
             return redirect('dashboard')->with('error', PERMISSION_ERROR_MSG);
         } else {
+            $tz = 'Asia/Ho_Chi_Minh';
+            $today = now()->timezone($tz)->toDateString();
+            $monthStart = now()->timezone($tz)->startOfMonth();
 
+            // KPI Row 1
+            $stats['month_revenue']   = ZaloOrder::where('status', 'delivered')
+                ->where('delivered_at', '>=', $monthStart)->sum('total') ?? 0;
+            $stats['today_orders']    = ZaloOrder::whereDate('created_at', $today)->count();
+            $stats['total_customers'] = Customer::count();
+            $stats['active_farms']    = Farm::where('is_active', true)->count();
 
-            $properties = Property::select('id', 'title', 'price', 'title_image', 'latitude', 'longitude', 'city')->orderBy('price', 'DESC')->limit(10)->get();
-            $properties_data = Property::select('id', 'title', 'price', 'title_image', 'latitude', 'longitude', 'city', 'total_click')->where('total_click','>',0)->orderBy('total_click', 'DESC')->limit(10)->get();
+            // Alert Row 2
+            $stats['pending_orders']        = ZaloOrder::where('status', 'pending')->count();
+            $stats['pending_farm_requests'] = Customer::where('farm_partner_status', 'requested')->count();
+            $stats['expiring_soon']         = FarmStockBatch::where('status', 'active')
+                ->where('quantity_remaining', '>', 0)
+                ->whereNotNull('expire_date')
+                ->whereDate('expire_date', '<=', now()->addDays(7))->count();
+            $stats['new_customers_month']   = Customer::where('created_at', '>=', $monthStart)->count();
 
+            // Revenue + orders chart — last 30 days (timezone-aware)
+            $revenueRows = ZaloOrder::where('status', 'delivered')
+                ->where('delivered_at', '>=', now()->subDays(29))
+                ->selectRaw("DATE(CONVERT_TZ(delivered_at,'+00:00','+07:00')) as date, SUM(total) as revenue, COUNT(*) as cnt")
+                ->groupBy('date')->orderBy('date')->get();
 
-            // 0:Sell 1:Rent 2:Sold 3:Rented
-            $list['total_sell_property'] = Property::where('propery_type', '0')->get()->count();
-            $list['total_rant_property'] = Property::where('propery_type', '1')->get()->count();
+            // Order status pie chart
+            $orderStatusBreakdown = ZaloOrder::selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')->get();
 
+            // Recent orders table
+            $recentOrders = ZaloOrder::with('customer')->latest('created_at')->take(10)->get();
 
-            $list['total_properties'] = Property::all()->count();
+            // Expiring batches table
+            $expiringBatches = FarmStockBatch::with(['product', 'farm'])
+                ->where('status', 'active')
+                ->where('quantity_remaining', '>', 0)
+                ->whereNotNull('expire_date')
+                ->orderBy('expire_date')
+                ->take(8)->get();
 
-
-            $list['total_categories'] = Category::all()->count();
-
-
-
-            $list['total_customer'] = Customer::all()->count();
-            $list['recent_properties'] = Property::orderBy('id', 'DESC')->limit(10)->where('status',1)->get();
-            $property = Property::select(DB::raw("COUNT(*) as count"), DB::raw("DATE_FORMAT(created_at, '%M %Y') as month"))
-                ->whereYear('created_at', date('Y'))
-                ->groupBy(DB::raw("YEAR(created_at)"), DB::raw("MONTH(created_at)"))
-                ->pluck('count', 'month');
-
-
-
-
-            // dd(DB::getQueryLog());
-            $property_labels = $property->keys();
-            $property_data = $property->values();
-            // if (count($result)) {
-
-            $rows = array();
-            $firebase_settings = array();
-
-
-
-            $operate = '';
-
-            $settings['company_name'] = system_setting('company_name');
+            $settings['company_name']    = system_setting('company_name');
             $settings['currency_symbol'] = system_setting('currency_symbol');
 
-
-            // }
-            $userData = Customer::select(\DB::raw("COUNT(*) as count"))
-                ->whereYear('created_at', date('Y'))
-                ->groupBy(\DB::raw("Month(created_at)"))
-                ->pluck('count');
-
-            return view('home', compact('list', 'settings', 'property_labels', 'property_data', 'properties', 'userData', 'properties_data'));
+            return view('home', compact(
+                'stats', 'settings', 'revenueRows',
+                'orderStatusBreakdown', 'recentOrders', 'expiringBatches'
+            ));
         }
     }
     public function blank_dashboard()
