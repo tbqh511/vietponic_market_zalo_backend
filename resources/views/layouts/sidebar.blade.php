@@ -4,7 +4,7 @@
                 <div class="d-flex ">
                     <div class="logo">
                         <a href="{{ url('home') }}">
-                            <img src="{{ url('assets/images/logo/logo.png') }}?v={{ @filemtime(public_path('assets/images/logo/logo.png')) }}" alt="Logo" srcset="">
+                            <img src="{{ url('images/logo-vietponics.png') }}?v={{ @filemtime(public_path('images/logo-vietponics.png')) }}" alt="Vietponics" srcset="">
                         </a>
                     </div>
                     &nbsp;

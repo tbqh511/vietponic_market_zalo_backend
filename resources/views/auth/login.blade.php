@@ -26,8 +26,8 @@
                     <div class="auth-logo mb-5">
 
 
-                        <a href="{{ url('') }}"><img src="{{ url('assets/images/logo/logo.png') }}"
-                                alt="Logo"></a>
+                        <a href="{{ url('') }}"><img src="{{ url('images/logo-vietponics.png') }}?v={{ @filemtime(public_path('images/logo-vietponics.png')) }}"
+                                alt="Vietponics"></a>
                     </div>
                     <div class="center mtop-120">
                         <div class='login_heading'>
