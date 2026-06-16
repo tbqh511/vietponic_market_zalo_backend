@@ -582,12 +582,17 @@ class StockService
     }
 
     /**
-     * Farm mặc định cho admin web (chưa hỗ trợ chọn farm). Lấy farm active
-     * đầu tiên theo id — seeder/admin nên đặt tên farm "main"/"vietponics".
+     * Farm mặc định cho admin web (chưa hỗ trợ chọn farm).
+     *
+     * Ưu tiên farm được gắn làm "Hub đóng gói" (is_packing_hub = true) có id
+     * nhỏ nhất — đây là nơi gom tồn kho admin nhập tay. Nếu chưa có hub nào
+     * được gắn thì fallback về farm active đầu tiên theo id để không vỡ luồng
+     * nhập/adjust cũ.
      */
     private function resolveDefaultFarm(): ?Farm
     {
-        return Farm::active()->orderBy('id')->first();
+        return Farm::packingHub()->orderBy('id')->first()
+            ?? Farm::active()->orderBy('id')->first();
     }
 
     /**
