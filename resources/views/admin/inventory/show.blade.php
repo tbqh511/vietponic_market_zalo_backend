@@ -121,6 +121,54 @@
             </div>
         </div>
 
+        {{-- Danh sách lô hàng đang tồn (FEFO order) --}}
+        <div class="card mb-3">
+            <div class="card-header"><h6 class="mb-0">Danh sách lô hàng đang tồn</h6></div>
+            <div class="card-body p-0">
+                @if($batches->isEmpty())
+                    <p class="text-muted p-3 mb-0">Không có lô hàng active nào.</p>
+                @else
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#Lô</th>
+                                <th>Farm</th>
+                                <th class="text-nowrap">Ngày nhập</th>
+                                <th class="text-nowrap">Ngày HH</th>
+                                <th class="text-center">Còn lại</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($batches as $b)
+                            @php
+                                $today = now()->startOfDay();
+                                $exp   = $b->expire_date ? \Carbon\Carbon::parse($b->expire_date)->startOfDay() : null;
+                                if (!$exp) {
+                                    $expClass = 'text-muted'; $expLabel = '—';
+                                } elseif ($exp->lt($today)) {
+                                    $expClass = 'text-danger fw-semibold'; $expLabel = $exp->format('d/m/Y') . ' (Hết hạn)';
+                                } elseif ($exp->diffInDays($today) <= 7) {
+                                    $expClass = 'text-warning fw-semibold'; $expLabel = $exp->format('d/m/Y') . ' (Sắp HH)';
+                                } else {
+                                    $expClass = 'text-success'; $expLabel = $exp->format('d/m/Y');
+                                }
+                            @endphp
+                            <tr>
+                                <td class="small">#{{ $b->id }}</td>
+                                <td class="small text-muted">{{ $b->farm?->name ?? '—' }}</td>
+                                <td class="small text-nowrap">{{ optional($b->batch_date)->format('d/m/Y') }}</td>
+                                <td class="small text-nowrap {{ $expClass }}">{{ $expLabel }}</td>
+                                <td class="text-center fw-bold">{{ rtrim(rtrim(number_format((float)$b->quantity_remaining, 2, '.', ''), '0'), '.') }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Lịch sử nhập/xuất kho — đọc từ ledger stock_movements: gồm tất cả lượt
              nhập (admin/farm) và xuất (đơn hàng, huỷ đơn, điều chỉnh, farm export,
              đóng lô). Có search/filter real-time + paging qua AJAX. --}}

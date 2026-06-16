@@ -43,6 +43,14 @@
                         <span class="badge bg-light border" style="color:#212529;">#{{ $m->batch_id }}</span>
                         @if($m->batch)
                             <span class="text-muted">— {{ optional($m->batch->batch_date)->format('d/m/Y') }}</span>
+                            @if($m->batch->expire_date)
+                                @php
+                                    $bExp   = \Carbon\Carbon::parse($m->batch->expire_date)->startOfDay();
+                                    $bToday = now()->startOfDay();
+                                    $bCls   = $bExp->lt($bToday) ? 'text-danger' : ($bExp->diffInDays($bToday) <= 7 ? 'text-warning' : 'text-muted');
+                                @endphp
+                                <span class="d-block {{ $bCls }}">HH: {{ $bExp->format('d/m/Y') }}</span>
+                            @endif
                         @endif
                     @else
                         <span class="text-muted">—</span>

@@ -74,7 +74,13 @@ class StockController extends Controller
         $this->decorateWithTotals(collect([$inventory]));
         $filters   = $this->movementFilters($request);
         $movements = $this->stockService->getMovementHistory($inventory->id, $filters, 20);
-        return view('admin.inventory.show', compact('inventory', 'movements', 'filters'));
+        $batches   = \App\Models\FarmStockBatch::where('product_id', $inventory->id)
+            ->where('status', 'active')
+            ->where('quantity_remaining', '>', 0)
+            ->fefo()
+            ->with('farm:id,name')
+            ->get();
+        return view('admin.inventory.show', compact('inventory', 'movements', 'filters', 'batches'));
     }
 
     /**
@@ -110,8 +116,10 @@ class StockController extends Controller
     public function importStore(Request $request, ZaloProduct $inventory)
     {
         $request->validate([
-            'quantity' => 'required|numeric|min:0.01',
-            'note'     => 'nullable|string|max:500',
+            'quantity'    => 'required|numeric|min:0.01',
+            'batch_date'  => 'nullable|date',
+            'expire_date' => 'nullable|date',
+            'note'        => 'nullable|string|max:500',
         ]);
 
         try {
@@ -119,7 +127,9 @@ class StockController extends Controller
                 $inventory->id,
                 (float) $request->quantity,
                 $request->note ?: 'Nhập kho',
-                auth()->id() ?? 0
+                auth()->id() ?? 0,
+                $request->expire_date ?: null,
+                $request->batch_date ?: null,
             );
         } catch (\Throwable $e) {
             return back()->with('error', 'Nhập kho thất bại: ' . $e->getMessage())->withInput();

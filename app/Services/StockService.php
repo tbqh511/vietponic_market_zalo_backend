@@ -313,7 +313,7 @@ class StockService
      * signature để StockController/StockApiController không crash khi build,
      * nhưng sẽ throw nếu không có farm mặc định.
      */
-    public function importStock(int $productId, int|float $qty, string $note, int $adminId): void
+    public function importStock(int $productId, int|float $qty, string $note, int $adminId, ?string $expireDate = null, ?string $batchDate = null): void
     {
         $defaultFarm = $this->resolveDefaultFarm();
         if (!$defaultFarm) {
@@ -330,6 +330,8 @@ class StockService
             note: $note,
             source: 'admin_import',
             createdBy: $adminId,
+            batchDate: $batchDate,
+            expireDate: $expireDate,
         );
     }
 
@@ -521,7 +523,7 @@ class StockService
     public function getMovementHistory(int $productId, array $filters = [], int $perPage = 20)
     {
         return StockMovement::query()
-            ->with(['batch:id,batch_date', 'order:id,status,created_at'])
+            ->with(['batch:id,batch_date,expire_date', 'order:id,status,created_at'])
             ->where('product_id', $productId)
             ->when($filters['type'] ?? null, fn ($q, $t) => $q->where('type', $t))
             ->when($filters['source'] ?? null, fn ($q, $s) => $q->where('source', $s))
@@ -671,16 +673,16 @@ class StockService
     /**
      * Tạo 1 batch mới — dùng chung cho import (admin/farm) và adjust.
      */
-    private function createBatch(int $farmId, int $productId, float $qty, float $costPrice, string $note, string $source = 'admin_import', ?int $createdBy = null): FarmStockBatch
+    private function createBatch(int $farmId, int $productId, float $qty, float $costPrice, string $note, string $source = 'admin_import', ?int $createdBy = null, ?string $batchDate = null, ?string $expireDate = null): FarmStockBatch
     {
         $batch = FarmStockBatch::create([
             'farm_id'       => $farmId,
             'product_id'    => $productId,
-            'batch_date'    => now()->toDateString(),
+            'batch_date'    => $batchDate ?? now()->toDateString(),
             'quantity_in'   => $qty,
             'quantity_sold' => 0,
             'cost_price'    => $costPrice,
-            'expire_date'   => null,
+            'expire_date'   => $expireDate,
             'status'        => 'active',
             'note'          => $note,
         ]);
