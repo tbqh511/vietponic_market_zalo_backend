@@ -1,4 +1,4 @@
-<h1>Privacy Policy for eBroker</h1>
+<h1>Privacy Policy for Vietponics</h1>
 @php
     echo $privacy_policy->data;
     

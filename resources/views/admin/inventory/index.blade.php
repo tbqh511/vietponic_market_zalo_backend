@@ -244,7 +244,7 @@
     </div>
 </div>
 
-@push('scripts')
+@section('script')
 <script>
 // Nhập kho modal
 document.getElementById('importModal').addEventListener('show.bs.modal', function (e) {
@@ -274,5 +274,5 @@ document.getElementById('exportModal').addEventListener('show.bs.modal', functio
     document.querySelector('#exportForm input[name=note]').value = '';
 });
 </script>
-@endpush
+@endsection
 @endsection
