@@ -122,7 +122,7 @@ class AffiliateController extends Controller
             'referrals_count' => $referralsCount,
             'commission_stats' => $stats,
             'balance' => $stats['confirmed'],
-            'locked' => $customer->affiliate_status === 'approved',
+            'locked' => false,
         ];
     }
 
