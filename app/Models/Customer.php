@@ -27,6 +27,7 @@ class Customer extends Authenticatable implements JWTSubject
         'affiliate_status',
         'affiliate_approved_at',
         'affiliate_bank_name',
+        'affiliate_bank_bin',
         'affiliate_bank_account',
         'affiliate_bank_holder',
         // Farm Partner Hub — role mặc định 'customer'. Chỉ admin được set.

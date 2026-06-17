@@ -95,9 +95,10 @@ class AffiliatePartnerController extends Controller
             'name' => 'nullable|string|max:120',
             'mobile' => 'nullable|string|max:30',
             'email' => 'nullable|email|max:120',
-            'affiliate_bank_name' => 'nullable|string|max:120',
+            'affiliate_bank_name'    => 'nullable|string|max:120',
+            'affiliate_bank_bin'     => 'nullable|string|max:20',
             'affiliate_bank_account' => 'nullable|string|max:60',
-            'affiliate_bank_holder' => 'nullable|string|max:120',
+            'affiliate_bank_holder'  => 'nullable|string|max:120',
         ]);
         $partner->fill($data)->save();
         return redirect()->route('affiliate-partners.show', $partner->id)

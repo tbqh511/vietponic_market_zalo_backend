@@ -116,6 +116,7 @@ class AffiliateController extends Controller
             'name' => $customer->name,
             'mobile' => $customer->mobile,
             'bank_name' => $customer->affiliate_bank_name,
+            'bank_bin' => $customer->affiliate_bank_bin,
             'bank_account' => $customer->affiliate_bank_account,
             'bank_holder' => $customer->affiliate_bank_holder,
             'commission_rate' => (float) (Setting::where('type', 'affiliate_commission_rate')->value('data') ?? 5),
@@ -133,12 +134,14 @@ class AffiliateController extends Controller
         $customer = $request->attributes->get('zalo_customer');
 
         $data = $request->validate([
-            'bank_name' => 'nullable|string|max:120',
+            'bank_name'    => 'nullable|string|max:120',
+            'bank_bin'     => 'nullable|string|max:20',
             'bank_account' => 'nullable|string|max:60',
-            'bank_holder' => 'nullable|string|max:120',
+            'bank_holder'  => 'nullable|string|max:120',
         ]);
 
         if (array_key_exists('bank_name', $data))    $customer->affiliate_bank_name    = $data['bank_name']    ?: null;
+        if (array_key_exists('bank_bin', $data))     $customer->affiliate_bank_bin     = $data['bank_bin']     ?: null;
         if (array_key_exists('bank_account', $data)) $customer->affiliate_bank_account = $data['bank_account'] ?: null;
         if (array_key_exists('bank_holder', $data))  $customer->affiliate_bank_holder  = $data['bank_holder']  ?: null;
         $customer->save();
