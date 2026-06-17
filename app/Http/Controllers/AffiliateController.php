@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Listeners\RecordAffiliateCommission;
 use App\Models\AffiliateCommission;
 use App\Models\Customer;
 use App\Models\Setting;
@@ -95,6 +96,19 @@ class AffiliateController extends Controller
                 ->get();
             foreach ($rows as $row) {
                 $stats[$row->status] = (int) $row->total;
+            }
+
+            // "Chờ" = hoa hồng ước tính từ các đơn đang xử lý (chưa giao, chưa bị ghi commission)
+            $rate = RecordAffiliateCommission::resolveCommissionRate();
+            $referredIds = Customer::where('referred_by_customer_id', $customer->id)->pluck('id');
+            if ($referredIds->isNotEmpty() && $rate > 0) {
+                $activeOrderIds = AffiliateCommission::whereIn('status', ['confirmed', 'pending', 'paid'])
+                    ->pluck('order_id');
+                $pendingTotal = ZaloOrder::whereIn('customer_id', $referredIds)
+                    ->whereIn('status', ['pending', 'confirmed', 'preparing', 'delivering'])
+                    ->whereNotIn('id', $activeOrderIds)
+                    ->sum(DB::raw('CAST(total AS DECIMAL(20,2))'));
+                $stats['pending'] = (int) round((float) $pendingTotal * $rate / 100);
             }
         }
 
