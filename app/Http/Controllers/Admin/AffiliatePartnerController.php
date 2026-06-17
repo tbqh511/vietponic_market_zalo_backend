@@ -28,7 +28,7 @@ class AffiliatePartnerController extends Controller
             });
         }
 
-        $partners = $query->orderByDesc('affiliate_approved_at')->orderByDesc('id')->paginate(20);
+        $partners = $query->orderByDesc('affiliate_approved_at')->orderByDesc('id')->paginate(20)->withQueryString();
 
         $commissionRate = Setting::where('type', 'affiliate_commission_rate')->value('data') ?? '5';
         $autoApprove = (string) (Setting::where('type', 'affiliate_auto_approve')->value('data') ?? '1') === '1';
@@ -115,6 +115,14 @@ class AffiliatePartnerController extends Controller
             $partner->affiliate_approved_at = Carbon::now();
         }
         $partner->save();
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'affiliate_approved_at' => $partner->affiliate_approved_at
+                    ? $partner->affiliate_approved_at->format('Y-m-d H:i:s')
+                    : null,
+            ]);
+        }
         return redirect()->route('affiliate-partners.show', $partner->id)
             ->with('success', 'Đã đổi trạng thái cộng tác viên');
     }
