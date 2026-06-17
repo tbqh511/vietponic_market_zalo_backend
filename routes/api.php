@@ -64,6 +64,11 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     // ─── Voucher / mã giảm giá (customer-facing) ──────────────────────────
     Route::get('vouchers/available', [VoucherApiController::class, 'available']);
     Route::post('vouchers/validate', [VoucherApiController::class, 'validateCode']);
+
+    // ─── Cart persistence (pre-checkout draft) ────────────────────────────
+    Route::get('cart', [ZaloApiController::class, 'getCart']);
+    Route::post('cart', [ZaloApiController::class, 'saveCart']);
+    Route::delete('cart', [ZaloApiController::class, 'clearCart']);
 });
 
 // ─── Farm Partnership Request — customer JWT (chưa cần là farm partner) ──────

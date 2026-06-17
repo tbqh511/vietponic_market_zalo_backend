@@ -12,6 +12,7 @@ use App\Models\ZaloDelivery;
 use App\Models\Customer;
 use App\Models\Voucher;
 use App\Models\AffiliateCommission;
+use App\Models\ZaloCart;
 use App\Services\StockService;
 use App\Services\RefundService;
 use App\Services\VoucherService;
@@ -481,6 +482,8 @@ class ZaloApiController extends Controller
                 ->delay(now()->addMinutes(\App\Jobs\CancelUnpaidOrder::timeoutMinutes()));
         }
 
+        $this->clearCartForCustomer($customerId);
+
         return response()->json([
             'message' => 'Đã tạo đơn hàng thành công!',
             'orderId' => $order->id,
@@ -513,6 +516,61 @@ class ZaloApiController extends Controller
             'duplicated' => true,
         ], 201);
     }
+
+    // ─── Cart persistence ─────────────────────────────────────────────────────
+
+    public function getCart(Request $request)
+    {
+        $customerId = $request->attributes->get('zalo_customer_id');
+        $cart = ZaloCart::where('customer_id', $customerId)->first();
+
+        if (!$cart || $cart->isExpired()) {
+            return response()->json(['error' => false, 'data' => null]);
+        }
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'cart_data'  => $cart->cart_data,
+                'expires_at' => $cart->expires_at->toISOString(),
+            ],
+        ]);
+    }
+
+    public function saveCart(Request $request)
+    {
+        $customerId = $request->attributes->get('zalo_customer_id');
+        $request->validate(['cart_data' => 'required|array']);
+
+        $cart = ZaloCart::updateOrCreate(
+            ['customer_id' => $customerId],
+            [
+                'cart_data'  => $request->input('cart_data'),
+                'expires_at' => now()->addDays(7),
+            ]
+        );
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'cart_data'  => $cart->cart_data,
+                'expires_at' => $cart->expires_at->toISOString(),
+            ],
+        ]);
+    }
+
+    public function clearCart(Request $request)
+    {
+        ZaloCart::where('customer_id', $request->attributes->get('zalo_customer_id'))->delete();
+        return response()->json(['error' => false, 'message' => 'Đã xoá giỏ hàng']);
+    }
+
+    private function clearCartForCustomer($customerId): void
+    {
+        ZaloCart::where('customer_id', $customerId)->delete();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     public function prepareOrder(Request $request)
     {
