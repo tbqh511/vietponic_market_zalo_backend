@@ -1491,7 +1491,7 @@ class ZaloApiController extends Controller
 
     public function getDefaultAddress(Request $request)
     {
-        $customer = $request->get('auth_customer');
+        $customer = $request->attributes->get('zalo_customer');
         return response()->json([
             'error' => false,
             'data'  => $customer->default_shipping_address,
@@ -1513,7 +1513,7 @@ class ZaloApiController extends Controller
             'ward_name'     => 'nullable|string|max:100',
         ]);
 
-        $customer = $request->get('auth_customer');
+        $customer = $request->attributes->get('zalo_customer');
         $customer->update([
             'default_shipping_address' => $request->only([
                 'address', 'name', 'phone', 'alias',
