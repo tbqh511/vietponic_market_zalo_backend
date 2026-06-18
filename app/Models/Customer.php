@@ -52,15 +52,17 @@ class Customer extends Authenticatable implements JWTSubject
         // firebase_id = Zalo user_id là khoá map từ OA follow webhook.
         'oa_followed',
         'oa_followed_at',
+        'default_shipping_address',
     ];
 
     protected $casts = [
-        'affiliate_approved_at'   => 'datetime',
-        'farm_id'                 => 'integer',
-        'referred_by_customer_id' => 'integer',
-        'oa_followed'             => 'boolean',
-        'oa_followed_at'          => 'datetime',
-        'farm_applied_at'         => 'datetime',
+        'affiliate_approved_at'    => 'datetime',
+        'farm_id'                  => 'integer',
+        'referred_by_customer_id'  => 'integer',
+        'oa_followed'              => 'boolean',
+        'oa_followed_at'           => 'datetime',
+        'farm_applied_at'          => 'datetime',
+        'default_shipping_address' => 'array',
     ];
 
     protected $hidden = [

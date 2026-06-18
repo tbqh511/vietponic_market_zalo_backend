@@ -69,6 +69,10 @@ Route::group(['middleware' => ['zalo.jwt']], function () {
     Route::get('cart', [ZaloApiController::class, 'getCart']);
     Route::post('cart', [ZaloApiController::class, 'saveCart']);
     Route::delete('cart', [ZaloApiController::class, 'clearCart']);
+
+    // ─── Customer default address ──────────────────────────────────────────
+    Route::get('customer/address', [ZaloApiController::class, 'getDefaultAddress']);
+    Route::put('customer/address', [ZaloApiController::class, 'saveDefaultAddress']);
 });
 
 // ─── Farm Partnership Request — customer JWT (chưa cần là farm partner) ──────

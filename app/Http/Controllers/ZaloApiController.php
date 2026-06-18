@@ -1120,6 +1120,9 @@ class ZaloApiController extends Controller
                         // chờ duyệt" vs ROLE-05 "tạm dừng") ở guard client-side,
                         // không phải gọi thêm /farm/*.
                         'farm_partner_status' => $customer->farm_partner_status,
+                        // Địa chỉ giao hàng mặc định — FE restore vào localStorage
+                        // nếu chưa có địa chỉ local (tránh nhập lại khi đổi thiết bị).
+                        'saved_address' => $customer->default_shipping_address,
                     ]
                 ]
             ]);
@@ -1482,5 +1485,43 @@ class ZaloApiController extends Controller
         }
 
         return response()->json(['message' => 'Đã liên kết đơn hàng thành công!']);
+    }
+
+    // ─── Customer default address ─────────────────────────────────────────────
+
+    public function getDefaultAddress(Request $request)
+    {
+        $customer = $request->get('auth_customer');
+        return response()->json([
+            'error' => false,
+            'data'  => $customer->default_shipping_address,
+        ]);
+    }
+
+    public function saveDefaultAddress(Request $request)
+    {
+        $request->validate([
+            'address'       => 'required|string|max:500',
+            'name'          => 'required|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'alias'         => 'nullable|string|max:100',
+            'province_id'   => 'nullable|integer',
+            'district_id'   => 'nullable|integer',
+            'ward_id'       => 'nullable|integer',
+            'province_name' => 'nullable|string|max:100',
+            'district_name' => 'nullable|string|max:100',
+            'ward_name'     => 'nullable|string|max:100',
+        ]);
+
+        $customer = $request->get('auth_customer');
+        $customer->update([
+            'default_shipping_address' => $request->only([
+                'address', 'name', 'phone', 'alias',
+                'province_id', 'district_id', 'ward_id',
+                'province_name', 'district_name', 'ward_name',
+            ]),
+        ]);
+
+        return response()->json(['error' => false, 'message' => 'Đã lưu địa chỉ giao hàng']);
     }
 }
