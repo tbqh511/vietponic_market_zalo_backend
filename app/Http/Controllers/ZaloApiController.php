@@ -103,7 +103,14 @@ class ZaloApiController extends Controller
 
     public function stations()
     {
-        $data = Station::orderBy('id')->get();
+        $data = Station::orderBy('id')->get()->map(function ($station) {
+            if ($station->image
+                && !str_starts_with($station->image, 'http://')
+                && !str_starts_with($station->image, 'https://')) {
+                $station->image = asset($station->image);
+            }
+            return $station;
+        });
         return response()->json(['error' => false, 'data' => $data]);
     }
 
