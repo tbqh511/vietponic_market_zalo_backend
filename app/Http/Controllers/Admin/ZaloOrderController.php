@@ -234,6 +234,10 @@ class ZaloOrderController extends Controller
             }
         }
 
+        if ($request->boolean('_back_to_list')) {
+            return redirect()->back()->with('success', 'Đơn #' . $order->id . ' đã được cập nhật.');
+        }
+
         return redirect()->route('zalo-orders.show', $order->id)->with('success', 'Order updated');
     }
 
