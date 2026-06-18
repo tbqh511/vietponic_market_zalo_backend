@@ -65,52 +65,52 @@
                 </div>
             </div>
 
-            {{-- Server-side filter form (date range + dropdowns) --}}
-            <form method="GET" action="{{ route('zalo-orders.index') }}" class="row g-2 mb-2">
-                <div class="col-md-3">
-                    <label class="form-label small mb-0">Tìm kiếm (mã đơn / khách / SĐT)</label>
-                    <input type="text" name="q" value="{{ request('q') }}"
-                           class="form-control form-control-sm" placeholder="VD: 331, Huy, 0947...">
+            {{-- Filters: live search + server-side dropdowns/dates (all real-time) --}}
+            <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                {{-- Client-side real-time filter --}}
+                <div style="min-width: 220px; flex: 1 1 220px;">
+                    <label class="form-label small mb-0"><i class="fa fa-bolt text-warning me-1"></i>Lọc nhanh trang này (real-time)</label>
+                    <input type="text" id="liveSearch" class="form-control form-control-sm"
+                           placeholder="Tên, mã đơn, SĐT...">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-0">Trạng thái</label>
-                    <select name="status" class="form-select form-select-sm">
-                        <option value="">-- Tất cả --</option>
-                        @foreach($statusOptions as $val => $label)
-                            <option value="{{ $val }}" @selected(request('status') === $val)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-0">Thanh toán</label>
-                    <select name="payment_status" class="form-select form-select-sm">
-                        <option value="">-- Tất cả --</option>
-                        <option value="success" @selected(request('payment_status') === 'success')>Đã thanh toán</option>
-                        <option value="cod"     @selected(request('payment_status') === 'cod')>COD</option>
-                        <option value="pending" @selected(request('payment_status') === 'pending')>Chờ thanh toán</option>
-                        <option value="refunded"@selected(request('payment_status') === 'refunded')>Đã hoàn tiền</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-0">Từ ngày</label>
-                    <input type="date" name="from" value="{{ request('from') }}" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-0">Đến ngày</label>
-                    <input type="date" name="to" value="{{ request('to') }}" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-1 d-flex align-items-end gap-1">
-                    <button type="submit" class="btn btn-sm btn-primary flex-fill">Lọc</button>
-                    <a href="{{ route('zalo-orders.index') }}" class="btn btn-sm btn-outline-secondary">×</a>
-                </div>
-            </form>
 
-            {{-- Real-time client-side instant filter over loaded rows --}}
-            <div class="input-group input-group-sm mb-3" style="max-width: 360px;">
-                <span class="input-group-text bg-white"><i class="fa fa-bolt text-warning"></i></span>
-                <input type="text" id="liveSearch" class="form-control"
-                       placeholder="Lọc nhanh trong trang này (real-time)...">
-                <button class="btn btn-outline-secondary" type="button" id="liveClear">Xoá</button>
+                {{-- Server-side filters (auto-submit on change) --}}
+                <form method="GET" action="{{ route('zalo-orders.index') }}" id="filterForm"
+                      class="d-flex flex-wrap gap-2 align-items-end">
+                    <div>
+                        <label class="form-label small mb-0">Trạng thái</label>
+                        <select name="status" class="form-select form-select-sm" style="min-width:140px"
+                                onchange="this.form.submit()">
+                            <option value="">-- Tất cả --</option>
+                            @foreach($statusOptions as $val => $label)
+                                <option value="{{ $val }}" @selected(request('status') === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Thanh toán</label>
+                        <select name="payment_status" class="form-select form-select-sm" style="min-width:140px"
+                                onchange="this.form.submit()">
+                            <option value="">-- Tất cả --</option>
+                            <option value="success"  @selected(request('payment_status') === 'success')>Đã thanh toán</option>
+                            <option value="cod"      @selected(request('payment_status') === 'cod')>COD</option>
+                            <option value="pending"  @selected(request('payment_status') === 'pending')>Chờ thanh toán</option>
+                            <option value="refunded" @selected(request('payment_status') === 'refunded')>Đã hoàn tiền</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Từ ngày</label>
+                        <input type="date" name="from" value="{{ request('from') }}"
+                               class="form-control form-control-sm" onchange="this.form.submit()">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-0">Đến ngày</label>
+                        <input type="date" name="to" value="{{ request('to') }}"
+                               class="form-control form-control-sm" onchange="this.form.submit()">
+                    </div>
+                    <a href="{{ route('zalo-orders.index') }}" class="btn btn-sm btn-outline-secondary"
+                       title="Xoá bộ lọc">×</a>
+                </form>
             </div>
         </div>
 
