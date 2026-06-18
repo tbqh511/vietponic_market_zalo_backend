@@ -43,6 +43,7 @@ class VoucherController extends Controller
     {
         $data = $this->validateData($request);
         $data['code'] = strtoupper($data['code']);
+        $data = $this->normalizeDates($data);
 
         Voucher::create($data);
         return redirect()->route('vouchers.index')->with('success', 'Đã tạo mã giảm giá');
@@ -65,6 +66,7 @@ class VoucherController extends Controller
         $voucher = Voucher::findOrFail($id);
         $data = $this->validateData($request, $voucher->id);
         $data['code'] = strtoupper($data['code']);
+        $data = $this->normalizeDates($data);
 
         $voucher->fill($data)->save();
         return redirect()->route('vouchers.show', $voucher->id)->with('success', 'Đã cập nhật mã giảm giá');
@@ -83,6 +85,17 @@ class VoucherController extends Controller
         $voucher->is_active = !$voucher->is_active;
         $voucher->save();
         return back()->with('success', 'Đã đổi trạng thái mã giảm giá');
+    }
+
+    private function normalizeDates(array $data): array
+    {
+        if (!empty($data['valid_from'])) {
+            $data['valid_from'] = Carbon::parse($data['valid_from'])->startOfDay();
+        }
+        if (!empty($data['valid_to'])) {
+            $data['valid_to'] = Carbon::parse($data['valid_to'])->endOfDay();
+        }
+        return $data;
     }
 
     private function validateData(Request $request, ?int $ignoreId = null): array

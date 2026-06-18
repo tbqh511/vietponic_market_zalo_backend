@@ -53,13 +53,15 @@
 
     <div class="col-md-6">
         <label class="form-label">Hiệu lực từ</label>
-        <input type="datetime-local" name="valid_from" class="form-control"
-               value="{{ old('valid_from', optional($voucher->valid_from)->format('Y-m-d\TH:i')) }}">
+        <input type="date" name="valid_from" class="form-control"
+               value="{{ old('valid_from', optional($voucher->valid_from)->format('Y-m-d')) }}">
+        <small class="text-muted">Voucher sẽ có hiệu lực từ 00:00 ngày được chọn</small>
     </div>
     <div class="col-md-6">
         <label class="form-label">Hiệu lực đến</label>
-        <input type="datetime-local" name="valid_to" class="form-control"
-               value="{{ old('valid_to', optional($voucher->valid_to)->format('Y-m-d\TH:i')) }}">
+        <input type="date" name="valid_to" class="form-control"
+               value="{{ old('valid_to', optional($voucher->valid_to)->format('Y-m-d')) }}">
+        <small class="text-muted">Voucher hết hiệu lực sau 23:59 ngày được chọn</small>
     </div>
 
     <div class="col-md-6">
