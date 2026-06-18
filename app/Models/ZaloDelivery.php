@@ -13,7 +13,7 @@ class ZaloDelivery extends Model
     public $timestamps = false;
     protected $fillable = [
         'order_id','type','alias','address','name','phone',
-        'station_id','station_name','station_image','lat','lng',
+        'station_id','station_name','station_image','lat','lng','distance_km',
         'province_id','district_id','ward_id',
         'province_name','district_name','ward_name',
         'vtp_order_number','vtp_order_reference',
