@@ -13,13 +13,20 @@
                 <div class="mt-4 d-flex gap-2">
                     <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
                     <a href="{{ route('vouchers.index') }}" class="btn btn-secondary">Huỷ</a>
-                    <form action="{{ route('vouchers.destroy', $voucher->id) }}" method="POST" class="ms-auto"
-                          onsubmit="return confirm('Xoá mã này? Lịch sử đơn đã dùng vẫn được giữ.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-danger">Xoá</button>
-                    </form>
+                    <button type="button" class="btn btn-danger ms-auto"
+                            onclick="if(confirm('Xoá mã này? Lịch sử đơn đã dùng vẫn được giữ.')) document.getElementById('delete-voucher-form').submit();">
+                        Xoá
+                    </button>
                 </div>
+            </form>
+
+            {{-- Form DELETE tách riêng, không lồng vào form UPDATE --}}
+            <form id="delete-voucher-form"
+                  action="{{ route('vouchers.destroy', $voucher->id) }}"
+                  method="POST"
+                  class="d-none">
+                @csrf
+                @method('DELETE')
             </form>
         </div>
     </div>
