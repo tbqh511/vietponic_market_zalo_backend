@@ -57,7 +57,13 @@
                             @elseif($v->discount_type === 'fixed')
                                 {{ number_format((float) $v->discount_value) }}đ
                             @else
-                                {{ $v->discount_value > 0 ? 'tối đa ' . number_format((float) $v->discount_value) . 'đ' : 'toàn bộ' }}
+                                @if($v->discount_value > 0)
+                                    tối đa {{ number_format((float) $v->discount_value) }}đ
+                                @elseif($v->max_discount_amount)
+                                    tối đa {{ number_format($v->max_discount_amount) }}đ
+                                @else
+                                    toàn bộ
+                                @endif
                             @endif
                         </td>
                         <td>{{ $v->used_count }}/{{ $v->max_uses ?? '∞' }}</td>
