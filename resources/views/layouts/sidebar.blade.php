@@ -16,27 +16,37 @@
             <div class="sidebar-menu">
                 <ul class="menu">
                     @if (has_permissions('read', 'dashboard'))
-                        <li class="sidebar-item">
+                        <li class="sidebar-item {{ request()->is('home') ? 'active' : '' }}">
                             <a href="{{ url('home') }}" class='sidebar-link'>
                                 <i class="bi bi-grid-fill"></i>
                                 <span class="menu-item">{{ __('Dashboard') }}</span>
                             </a>
                         </li>
                     @endif
+
+                    @php
+                        $isSalesActive = request()->is('zalo-orders*') || request()->is('order-packing*') || request()->is('refunds*') || request()->is('zalo-stations*');
+                        $isProductsActive = request()->is('zalo-products*') || request()->is('zalo-categories*') || request()->is('inventory*');
+                        $isCustomersActive = request()->is('zalo-customers*') || request()->is('affiliate-partners*');
+                        $isFarmsActive = request()->is('farms*') || request()->is('farm-requests*') || request()->is('farm-payouts*');
+                        $isPromoActive = request()->is('vouchers*') || request()->is('banners*');
+                        $isSettingsActive = request()->is('users*') || request()->is('system-settings*') || request()->is('privacy-policy*') || request()->is('terms-conditions*') || request()->is('policies*');
+                    @endphp
+
                     {{-- Quản lý Bán hàng --}}
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ $isSalesActive ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-cart-fill"></i>
                             <span class="menu-item">{{ __('Quản lý Bán hàng') }}</span>
                         </a>
-                        <ul class="submenu" style="padding-left: 0rem">
-                            <li class="submenu-item">
+                        <ul class="submenu {{ $isSalesActive ? 'active' : '' }}" style="padding-left: 0rem">
+                            <li class="submenu-item {{ request()->is('zalo-orders*') ? 'active' : '' }}">
                                 <a href="{{ url('zalo-orders') }}">{{ __('Danh sách đơn hàng') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('order-packing*') ? 'active' : '' }}">
                                 <a href="{{ route('order-packing.index') }}">{{ __('Phân công đóng gói') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('refunds*') ? 'active' : '' }}">
                                 <a href="{{ route('refunds.pending') }}" class="d-flex justify-content-between align-items-center">
                                     <span>{{ __('Hoàn tiền chờ xử lý') }}</span>
                                     @if(($pendingRefundCount ?? 0) > 0)
@@ -44,77 +54,77 @@
                                     @endif
                                 </a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('zalo-stations*') ? 'active' : '' }}">
                                 <a href="{{ url('zalo-stations') }}">{{ __('Trạm lấy hàng') }}</a>
                             </li>
                         </ul>
                     </li>
 
                     {{-- Quản lý Sản phẩm --}}
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ $isProductsActive ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-box-seam"></i>
                             <span class="menu-item">{{ __('Quản lý Sản phẩm') }}</span>
                         </a>
-                        <ul class="submenu" style="padding-left: 0rem">
-                            <li class="submenu-item">
+                        <ul class="submenu {{ $isProductsActive ? 'active' : '' }}" style="padding-left: 0rem">
+                            <li class="submenu-item {{ request()->is('zalo-products*') ? 'active' : '' }}">
                                 <a href="{{ url('zalo-products') }}">{{ __('Danh sách sản phẩm') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('zalo-categories*') ? 'active' : '' }}">
                                 <a href="{{ url('zalo-categories') }}">{{ __('Danh mục sản phẩm') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('inventory*') ? 'active' : '' }}">
                                 <a href="{{ route('inventory.index') }}">{{ __('Quản lý tồn kho') }}</a>
                             </li>
                         </ul>
                     </li>
 
                     {{-- Khách hàng và Đối tác --}}
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ $isCustomersActive ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-people-fill"></i>
                             <span class="menu-item">{{ __('Khách hàng và Đối tác') }}</span>
                         </a>
-                        <ul class="submenu" style="padding-left: 0rem">
-                            <li class="submenu-item">
+                        <ul class="submenu {{ $isCustomersActive ? 'active' : '' }}" style="padding-left: 0rem">
+                            <li class="submenu-item {{ request()->is('zalo-customers*') ? 'active' : '' }}">
                                 <a href="{{ url('zalo-customers') }}">{{ __('Danh sách khách hàng') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('affiliate-partners*') ? 'active' : '' }}">
                                 <a href="{{ url('affiliate-partners') }}">{{ __('Cộng tác viên') }}</a>
                             </li>
                         </ul>
                     </li>
 
                     {{-- Quản lý Nông trại --}}
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ $isFarmsActive ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-tree"></i>
                             <span class="menu-item">{{ __('Quản lý Nông trại') }}</span>
                         </a>
-                        <ul class="submenu" style="padding-left: 0rem">
-                            <li class="submenu-item">
+                        <ul class="submenu {{ $isFarmsActive ? 'active' : '' }}" style="padding-left: 0rem">
+                            <li class="submenu-item {{ request()->is('farms') || request()->is('farms/*') ? 'active' : '' }}">
                                 <a href="{{ url('farms') }}">{{ __('Danh sách nông trại') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('farm-requests*') ? 'active' : '' }}">
                                 <a href="{{ url('farm-requests') }}">{{ __('Yêu cầu hợp tác nông trại') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('farm-payouts*') ? 'active' : '' }}">
                                 <a href="{{ url('farm-payouts') }}">{{ __('Đối soát doanh thu nông trại') }}</a>
                             </li>
                         </ul>
                     </li>
 
                     {{-- Quảng cáo và Khuyến mãi --}}
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ $isPromoActive ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-megaphone-fill"></i>
                             <span class="menu-item">{{ __('Quảng cáo và Khuyến mãi') }}</span>
                         </a>
-                        <ul class="submenu" style="padding-left: 0rem">
-                            <li class="submenu-item">
+                        <ul class="submenu {{ $isPromoActive ? 'active' : '' }}" style="padding-left: 0rem">
+                            <li class="submenu-item {{ request()->is('vouchers*') ? 'active' : '' }}">
                                 <a href="{{ url('vouchers') }}">{{ __('Mã giảm giá') }}</a>
                             </li>
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->is('banners*') ? 'active' : '' }}">
                                 <a href="{{ url('banners') }}">{{ __('Quản lý ảnh quảng cáo') }}</a>
                             </li>
                         </ul>
@@ -125,33 +135,33 @@
                             has_permissions('read', 'about_us') ||
                             has_permissions('read', 'privacy_policy') ||
                             has_permissions('read', 'terms_condition'))
-                        <li class="sidebar-item has-sub">
+                        <li class="sidebar-item has-sub {{ $isSettingsActive ? 'active' : '' }}">
                             <a href="#" class='sidebar-link'>
                                 <i class="bi bi-gear"></i>
                                 <span class="menu-item">{{ __('Cài đặt Hệ thống') }}</span>
                             </a>
-                            <ul class="submenu" style="padding-left: 0rem">
+                            <ul class="submenu {{ $isSettingsActive ? 'active' : '' }}" style="padding-left: 0rem">
                                 @if (has_permissions('read', 'users_accounts'))
-                                    <li class="submenu-item">
+                                    <li class="submenu-item {{ request()->is('users*') ? 'active' : '' }}">
                                         <a href="{{ url('users') }}">{{ __('Tài khoản người dùng') }}</a>
                                     </li>
                                 @endif
                                 @if (has_permissions('read', 'system_settings'))
-                                    <li class="submenu-item">
+                                    <li class="submenu-item {{ request()->is('system-settings*') ? 'active' : '' }}">
                                         <a href="{{ url('system-settings') }}">{{ __('Cài đặt hệ thống') }}</a>
                                     </li>
                                 @endif
                                 @if (has_permissions('read', 'privacy_policy'))
-                                    <li class="submenu-item">
+                                    <li class="submenu-item {{ request()->is('privacy-policy*') ? 'active' : '' }}">
                                         <a href="{{ url('privacy-policy') }}">{{ __('Chính sách bảo mật') }}</a>
                                     </li>
                                 @endif
                                 @if (has_permissions('read', 'terms_condition'))
-                                    <li class="submenu-item">
+                                    <li class="submenu-item {{ request()->is('terms-conditions*') ? 'active' : '' }}">
                                         <a href="{{ url('terms-conditions') }}">{{ __('Điều khoản sử dụng') }}</a>
                                     </li>
                                 @endif
-                                <li class="submenu-item">
+                                <li class="submenu-item {{ request()->is('policies*') ? 'active' : '' }}">
                                     <a href="{{ route('policies.index') }}">{{ __('Chính sách (Mini App)') }}</a>
                                 </li>
                             </ul>
