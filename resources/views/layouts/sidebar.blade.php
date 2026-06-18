@@ -3,7 +3,7 @@
             <div class="sidebar-header position-relative">
                 <div class="d-flex ">
                     <div class="logo">
-                        <a href="{{ url('home') }}">
+                        <a href="{{ url('dashboard') }}">
                             <img src="{{ url('images/logo-vietponics.png') }}?v={{ @filemtime(public_path('images/logo-vietponics.png')) }}" alt="Vietponics" srcset="">
                         </a>
                     </div>

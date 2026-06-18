@@ -63,7 +63,7 @@ Auth::routes(['register' => false]);
 Route::middleware(['auth', 'checklogin'])->group(function () {
     Route::group(['middleware' => 'language'], function () {
 
-        Route::get('dashboard', [HomeController::class, 'blank_dashboard'])->name('dashboard');
+        Route::get('dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/home', [HomeController::class, 'index'])->name('home');
 
         // Settings
