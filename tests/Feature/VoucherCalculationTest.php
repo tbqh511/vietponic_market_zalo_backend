@@ -112,4 +112,30 @@ class VoucherCalculationTest extends TestCase
         ]);
         $this->assertSame(0, $this->service->calculateDiscount($v, 200000, 0));
     }
+
+    public function test_free_shipping_value_zero_with_max_discount_cap(): void
+    {
+        // Bug case: admin đặt value=0 (free toàn bộ) + max_discount_amount=50000 (cap)
+        // Expect: giảm tối đa 50k dù ship thực tế 122k
+        $v = $this->voucher([
+            'discount_type'       => Voucher::TYPE_FREE_SHIPPING,
+            'discount_value'      => 0,
+            'max_discount_amount' => 50000,
+        ]);
+        $b = $this->service->breakdown($v, 1560000, 122059);
+        $this->assertSame(0,     $b['subtotal']);
+        $this->assertSame(50000, $b['shipping']);
+    }
+
+    public function test_free_shipping_value_with_cap_also_respects_max_discount(): void
+    {
+        // value=30000 cap từ discount_value, max_discount_amount=20000 cap chặt hơn → 20k
+        $v = $this->voucher([
+            'discount_type'       => Voucher::TYPE_FREE_SHIPPING,
+            'discount_value'      => 30000,
+            'max_discount_amount' => 20000,
+        ]);
+        $b = $this->service->breakdown($v, 200000, 50000);
+        $this->assertSame(20000, $b['shipping']);
+    }
 }

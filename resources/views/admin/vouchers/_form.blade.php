@@ -31,9 +31,9 @@
         <small class="text-muted">% với loại percent, VND với fixed/free_shipping (0 = free toàn bộ ship)</small>
     </div>
     <div class="col-md-4">
-        <label class="form-label">Giảm tối đa (chỉ percent)</label>
+        <label class="form-label">Giảm tối đa</label>
         <input type="number" min="0" name="max_discount_amount" class="form-control" value="{{ old('max_discount_amount', $voucher->max_discount_amount) }}">
-        <small class="text-muted">VND. Bỏ trống = không cap</small>
+        <small class="text-muted">VND. Bỏ trống = không cap. Áp dụng cho percent và free_shipping (khi giá trị = 0)</small>
     </div>
 
     <div class="col-md-4">

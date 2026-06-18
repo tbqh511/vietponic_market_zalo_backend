@@ -108,6 +108,10 @@ class VoucherService
                     // value = 0 → free toàn bộ phí ship
                     $shippingDiscount = $shippingFee;
                 }
+                // max_discount_amount đóng vai cap bổ sung (áp dụng cả khi value=0)
+                if (!is_null($voucher->max_discount_amount)) {
+                    $shippingDiscount = min($shippingDiscount, (int) $voucher->max_discount_amount);
+                }
                 $shippingDiscount = max(0, $shippingDiscount);
                 break;
         }
