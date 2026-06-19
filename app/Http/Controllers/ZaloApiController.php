@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\Voucher;
 use App\Models\AffiliateCommission;
 use App\Models\ZaloCart;
+use App\Models\OrderPackingLog;
 use App\Services\StockService;
 use App\Services\RefundService;
 use App\Services\VoucherService;
@@ -134,14 +135,19 @@ class ZaloApiController extends Controller
         // customer_id được gắn bởi ZaloJwtMiddleware
         $customerId = $request->attributes->get('zalo_customer_id');
 
-        $order = ZaloOrder::with(['items', 'delivery', 'trackingEvents'])
+        $order = ZaloOrder::with(['items', 'delivery', 'trackingEvents', 'packingLogs'])
             ->where('id', $id)
             ->where('customer_id', $customerId)
             ->first();
         if (!$order) {
             return response()->json(['error' => true, 'message' => 'Order not found'], 404);
         }
-        return response()->json(['error' => false, 'data' => $order]);
+        return response()->json([
+            'error' => false,
+            'data'  => array_merge($order->toArray(), [
+                'order_history' => $this->buildOrderHistory($order),
+            ]),
+        ]);
     }
 
     public function store(Request $request)
@@ -688,6 +694,18 @@ class ZaloApiController extends Controller
             $updates['delivered_at'] = now();
         }
         $order->update($updates);
+
+        // Ghi audit log để hành trình đơn hàng phía khách theo dõi được
+        if ($newStatus !== $previousStatus) {
+            OrderPackingLog::record(
+                $order->id,
+                farmId: null,
+                actor: null,
+                action: OrderPackingLog::ACTION_STATUS_CHANGED,
+                fromStatus: $previousStatus,
+                toStatus: $newStatus,
+            );
+        }
 
         // AFF-03 (B2): đơn giao thành công → fire OrderDelivered để ghi hoa hồng CTV
         // (gồm cả COD). Chỉ fire khi VỪA chuyển sang delivered. Idempotent nhờ
@@ -1542,5 +1560,115 @@ class ZaloApiController extends Controller
         ]);
 
         return response()->json(['error' => false, 'message' => 'Đã lưu địa chỉ giao hàng']);
+    }
+
+    /**
+     * Tổng hợp "Hành trình đơn hàng" customer-facing từ mọi nguồn:
+     * order timestamps + packing_logs + cancelled/refunded fields.
+     * VTP tracking events được FE merge riêng từ tracking_events[].
+     */
+    private function buildOrderHistory(ZaloOrder $order): array
+    {
+        $events = [];
+
+        // Đặt hàng thành công — luôn có
+        $events[] = [
+            'action'      => 'order_placed',
+            'title'       => 'Đặt hàng thành công',
+            'description' => null,
+            'occurred_at' => $order->created_at->toIso8601String(),
+            'meta'        => [],
+        ];
+
+        // Từ packing logs: chỉ lấy actions quan trọng với khách, dedup per bucket
+        // packingLogs relationship sort DESC → đảo về ASC để lấy earliest per bucket
+        $seenBuckets = [];
+        foreach ($order->packingLogs->reverse() as $log) {
+            [$action, $title] = $this->mapPackingLogToHistoryEvent($log);
+            if ($action === null || isset($seenBuckets[$action])) {
+                continue;
+            }
+            $seenBuckets[$action] = true;
+            $events[] = [
+                'action'      => $action,
+                'title'       => $title,
+                'description' => null,
+                'occurred_at' => $log->created_at->toIso8601String(),
+                'meta'        => [],
+            ];
+        }
+
+        // Giao thành công — chỉ cho pickup; shipping đã có VTP event 501 phía FE
+        if ($order->status === 'delivered'
+            && $order->delivered_at
+            && $order->delivery?->type === 'pickup') {
+            $events[] = [
+                'action'      => 'delivered',
+                'title'       => 'Giao hàng thành công',
+                'description' => null,
+                'occurred_at' => $order->delivered_at->toIso8601String(),
+                'meta'        => [],
+            ];
+        }
+
+        // Đơn hàng đã huỷ
+        if ($order->status === 'cancelled' && $order->cancelled_at) {
+            $cancelledByLabel = match ($order->cancelled_by) {
+                'customer' => 'Khách hàng',
+                'admin'    => 'Cửa hàng',
+                'system'   => 'Hệ thống',
+                default    => null,
+            };
+            $events[] = [
+                'action'      => 'cancelled',
+                'title'       => 'Đơn hàng đã huỷ',
+                'description' => $order->cancellation_reason,
+                'occurred_at' => $order->cancelled_at->toIso8601String(),
+                'meta'        => array_filter(['cancelled_by' => $cancelledByLabel]),
+            ];
+        }
+
+        // Hoàn tiền thành công
+        if ($order->refunded_at && $order->refund_status === 'refunded') {
+            $events[] = [
+                'action'      => 'refunded',
+                'title'       => 'Đã hoàn tiền',
+                'description' => null,
+                'occurred_at' => $order->refunded_at->toIso8601String(),
+                'meta'        => [],
+            ];
+        }
+
+        // Sort DESC — mới nhất trên đầu (cùng convention với VTP tracking events)
+        usort($events, fn ($a, $b) => strcmp($b['occurred_at'], $a['occurred_at']));
+
+        return $events;
+    }
+
+    /**
+     * Map một OrderPackingLog → [action_bucket, title] để đưa vào history.
+     * Trả [null, null] cho actions nội bộ không hiển thị với khách.
+     */
+    private function mapPackingLogToHistoryEvent(OrderPackingLog $log): array
+    {
+        if ($log->action === OrderPackingLog::ACTION_ORDER_CONFIRMED) {
+            return ['confirmed', 'Đơn hàng đã xác nhận'];
+        }
+
+        if ($log->action === OrderPackingLog::ACTION_HANDED_OFF) {
+            return ['delivering', 'Đã bàn giao vận chuyển'];
+        }
+
+        if ($log->action === OrderPackingLog::ACTION_STATUS_CHANGED) {
+            return match ($log->to_status) {
+                'confirmed'  => ['confirmed', 'Đơn hàng đã xác nhận'],
+                'preparing'  => ['preparing', 'Đang chuẩn bị đơn hàng'],
+                'delivering' => ['delivering', 'Đã bàn giao vận chuyển'],
+                'delivered'  => ['delivered', 'Giao hàng thành công'],
+                default      => [null, null],
+            };
+        }
+
+        return [null, null];
     }
 }
