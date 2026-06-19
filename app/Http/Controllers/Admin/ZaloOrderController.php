@@ -10,6 +10,7 @@ use App\Services\StockService;
 use App\Services\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\OrderPackingLog;
 use Illuminate\Support\Facades\Log;
 
 class ZaloOrderController extends Controller
@@ -202,6 +203,17 @@ class ZaloOrderController extends Controller
             $total = $order->items()->sum(DB::raw('price * quantity'));
             $order->total = $total;
             $order->save();
+
+            if (isset($data['status']) && $data['status'] !== $previousStatus) {
+                OrderPackingLog::record(
+                    $order->id,
+                    farmId: null,
+                    actor: null,
+                    action: OrderPackingLog::ACTION_STATUS_CHANGED,
+                    fromStatus: $previousStatus,
+                    toStatus: $data['status'],
+                );
+            }
         });
 
         // AFF-03 (B2): đơn giao thành công qua admin web → fire OrderDelivered (sau
