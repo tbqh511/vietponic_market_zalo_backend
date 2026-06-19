@@ -142,9 +142,11 @@ class ZaloApiController extends Controller
         if (!$order) {
             return response()->json(['error' => true, 'message' => 'Order not found'], 404);
         }
+        $orderData = $order->toArray();
+        $orderData['cancellation_reason'] = self::translateCancelReason($orderData['cancellation_reason'] ?? null);
         return response()->json([
             'error' => false,
-            'data'  => array_merge($order->toArray(), [
+            'data'  => array_merge($orderData, [
                 'order_history' => $this->buildOrderHistory($order),
             ]),
         ]);
@@ -886,7 +888,9 @@ class ZaloApiController extends Controller
         $this->dispatchOrderNotification($order->id, 'cancelled', ['by' => 'customer']);
 
         $order->refresh()->load(['items', 'delivery']);
-        return response()->json(['error' => false, 'data' => $order]);
+        $orderData = $order->toArray();
+        $orderData['cancellation_reason'] = self::translateCancelReason($orderData['cancellation_reason'] ?? null);
+        return response()->json(['error' => false, 'data' => $orderData]);
     }
 
     /**
@@ -926,6 +930,29 @@ class ZaloApiController extends Controller
      * Trả về true nếu đã gửi cancel sang VTP, false nếu skip (không có vtp_order_number)
      * hoặc cancel fail.
      */
+    private static function translateCancelReason(?string $raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return $raw;
+        }
+        $labels = [
+            'wrong_item'   => 'Sản phẩm không đúng',
+            'changed_mind' => 'Đổi ý, không muốn mua nữa',
+            'duplicate'    => 'Đặt trùng đơn',
+            'too_long'     => 'Chờ quá lâu',
+            'bad_price'    => 'Giá không phù hợp',
+            'other'        => 'Lý do khác',
+            'unspecified'  => 'Không có lý do',
+        ];
+        if (preg_match('/^\[([^\]]+)\](.*)$/s', $raw, $m)) {
+            $code  = trim($m[1]);
+            $extra = trim($m[2]);
+            $label = $labels[$code] ?? $code;
+            return $extra !== '' ? "{$label}: {$extra}" : $label;
+        }
+        return $raw;
+    }
+
     private function cancelVtpOrderIfExists(ZaloOrder $order, string $reason): bool
     {
         $order->loadMissing('delivery');

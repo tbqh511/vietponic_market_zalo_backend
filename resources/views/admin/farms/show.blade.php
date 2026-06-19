@@ -146,6 +146,32 @@
         $('#selectProduct').val(null).trigger('change');
     });
 
+    // Select2 AJAX cho modal thêm nhân viên
+    $('#attachStaffModal').on('shown.bs.modal', function () {
+        if (!$('#selectStaffCandidate').data('select2')) {
+            $('#selectStaffCandidate').select2({
+                dropdownParent: $('#attachStaffModal'),
+                placeholder: '— Tìm theo tên hoặc SĐT —',
+                allowClear: true,
+                width: '100%',
+                minimumInputLength: 0,
+                ajax: {
+                    url: '{{ route("farms.staff.candidates") }}',
+                    dataType: 'json',
+                    delay: 300,
+                    data: function (params) { return { q: params.term || '' }; },
+                    processResults: function (data) { return { results: data.results }; },
+                    cache: false
+                },
+                language: {
+                    noResults:  function () { return 'Không tìm thấy khách hàng'; },
+                    searching:  function () { return 'Đang tìm...'; }
+                }
+            });
+        }
+        $('#selectStaffCandidate').val(null).trigger('change');
+    });
+
     // Populate modal sửa sản phẩm
     document.querySelectorAll('.btn-edit-product').forEach(function (btn) {
         btn.addEventListener('click', function () {

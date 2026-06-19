@@ -78,7 +78,7 @@
             <h5>Giao hàng</h5>
             @if($order->delivery)
                 <p>{{ $order->delivery->name }} - {{ $order->delivery->phone }}</p>
-                <p>{{ $order->delivery->address }}</p>
+                <p>{{ collect([$order->delivery->address, $order->delivery->ward_name, $order->delivery->province_name])->filter()->join(', ') }}</p>
             @else
                 <p>Không có thông tin giao hàng</p>
             @endif

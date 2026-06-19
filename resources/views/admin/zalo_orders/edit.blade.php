@@ -93,7 +93,7 @@
                 @if($order->delivery)
                     <div class="fw-semibold">{{ $order->delivery->name }}</div>
                     <div class="text-muted small">{{ $order->delivery->phone }}</div>
-                    <div class="text-muted small mt-1">{{ $order->delivery->address }}</div>
+                    <div class="text-muted small mt-1">{{ collect([$order->delivery->address, $order->delivery->ward_name, $order->delivery->province_name])->filter()->join(', ') }}</div>
                 @else
                     <span class="text-muted small">Không có thông tin giao hàng</span>
                 @endif

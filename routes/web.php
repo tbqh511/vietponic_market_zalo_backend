@@ -147,6 +147,8 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('farm-requests/{customer}/reject', [FarmController::class, 'rejectRequest'])->name('farm-requests.reject');
 
         // Giai đoạn 2: Quản lý Farm — không expose create/store, farm chỉ tạo khi duyệt yêu cầu
+        // Đặt trước resource để tránh bị farms/{farm} bắt nhầm
+        Route::get('farms/staff-candidates', [FarmController::class, 'staffCandidates'])->name('farms.staff.candidates');
         Route::resource('farms', FarmController::class)->except(['create', 'store']);
         Route::patch('farms/{farm}/suspend', [FarmController::class, 'suspend'])->name('farms.suspend');
         Route::patch('farms/{farm}/reactivate', [FarmController::class, 'reactivate'])->name('farms.reactivate');

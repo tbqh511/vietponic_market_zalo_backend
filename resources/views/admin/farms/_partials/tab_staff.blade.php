@@ -71,7 +71,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    @if($availableStaffCandidates->isEmpty())
+                    @if(!$hasStaffCandidates)
                         <div class="alert alert-info mb-0">
                             Không có khách hàng nào thoả điều kiện (đang hoạt động + chưa thuộc farm).
                             Vào <a href="{{ route('zalo-customers.index') }}">Quản lý Khách hàng</a> để kiểm tra.
@@ -79,25 +79,13 @@
                     @else
                         <div class="mb-3">
                             <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
-                            <select name="customer_id" class="form-select" required>
-                                <option value="">— Chọn khách hàng —</option>
-                                @foreach($availableStaffCandidates as $c)
-                                    <option value="{{ $c->id }}">
-                                        {{ $c->name ?: '#'.$c->id }}{{ $c->mobile ? ' — '.$c->mobile : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <small class="text-muted">
-                                Chỉ hiển thị 50 khách đầu (đang active + chưa thuộc farm nào). Cần thêm khách
-                                ngoài danh sách thì vào <a href="{{ route('zalo-customers.index') }}">Quản lý Khách hàng</a>
-                                và dùng "Gán làm Staff".
-                            </small>
+                            <select name="customer_id" id="selectStaffCandidate" class="form-select" required></select>
                         </div>
                     @endif
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-                    @if($availableStaffCandidates->isNotEmpty())
+                    @if($hasStaffCandidates)
                         <button type="submit" class="btn btn-success">Thêm</button>
                     @endif
                 </div>

@@ -198,15 +198,11 @@ class FarmController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        // Dropdown "Thêm nhân viên" trong Tab Nhân viên: chỉ hiện customer
-        // active chưa thuộc farm nào. Giới hạn 50 cho gọn — admin cần thêm
-        // người ngoài danh sách thì dùng /zalo-customers gán trực tiếp.
-        $availableStaffCandidates = Customer::query()
+        // Chỉ cần check tồn tại — danh sách thực được load qua AJAX Select2.
+        $hasStaffCandidates = Customer::query()
             ->whereNull('farm_id')
             ->where('isActive', 1)
-            ->orderBy('name')
-            ->limit(50)
-            ->get(['id', 'name', 'mobile']);
+            ->exists();
 
         // Ứng viên cho "Chuyển chủ farm": tất cả active customer (trừ chủ hiện
         // tại). Sort: staff của farm này lên đầu (case phổ biến: promote staff
@@ -251,7 +247,7 @@ class FarmController extends Controller
             'batches',
             'farmProducts',
             'availableProducts',
-            'availableStaffCandidates',
+            'hasStaffCandidates',
             'transferCandidates'
         ));
     }
@@ -473,6 +469,28 @@ class FarmController extends Controller
     // ────────────────────────────────────────────────────────────────────
     //  TAB "NHÂN VIÊN" — Staff/Operator của farm
     // ────────────────────────────────────────────────────────────────────
+
+    /** AJAX endpoint cho Select2: tìm customer active chưa thuộc farm nào. */
+    public function staffCandidates(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $q = trim($request->input('q', ''));
+        $query = Customer::query()->whereNull('farm_id')->where('isActive', 1);
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('mobile', 'like', "%{$q}%");
+            });
+        }
+
+        $results = $query->orderBy('name')->limit(30)->get(['id', 'name', 'mobile'])
+            ->map(fn ($c) => [
+                'id'   => $c->id,
+                'text' => ($c->name ?: '#'.$c->id).($c->mobile ? ' — '.$c->mobile : ''),
+            ]);
+
+        return response()->json(['results' => $results]);
+    }
 
     /**
      * Gán 1 customer làm staff của farm — full quyền Hub nhưng không nhận
