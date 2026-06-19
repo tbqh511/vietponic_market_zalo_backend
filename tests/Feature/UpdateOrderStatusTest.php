@@ -55,7 +55,7 @@ class UpdateOrderStatusTest extends TestCase
         $res->assertStatus(422);
         // ORDPRO-04: message đúng mẫu "Không thể chuyển đơn từ "…" về "…".".
         $this->assertStringContainsString(
-            'Không thể chuyển đơn từ "delivering" về "pending".',
+            'Không thể chuyển đơn từ "đang giao" về "chờ xác nhận".',
             (string) $res->json('message')
         );
         $this->assertSame('delivering', $order->fresh()->status);

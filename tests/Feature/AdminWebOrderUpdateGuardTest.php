@@ -69,7 +69,7 @@ class AdminWebOrderUpdateGuardTest extends TestCase
             ->patch(route('zalo-orders.update', $order->id), ['status' => 'pending']);
 
         $res->assertSessionHasErrors([
-            'status' => 'Không thể chuyển đơn từ "delivering" về "pending".',
+            'status' => 'Không thể chuyển đơn từ "đang giao" về "chờ xác nhận".',
         ]);
         // Trạng thái không đổi.
         $this->assertSame('delivering', $order->fresh()->status);

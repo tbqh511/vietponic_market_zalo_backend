@@ -664,9 +664,19 @@ class ZaloApiController extends Controller
         $forwardOnly = ['delivering', 'delivered'];
         $backwardTarget = ['pending', 'confirmed', 'preparing'];
         if (in_array($order->status, $forwardOnly) && in_array($newStatus, $backwardTarget)) {
+            $statusLabels = [
+                'pending'    => 'chờ xác nhận',
+                'confirmed'  => 'đã xác nhận',
+                'preparing'  => 'đang chuẩn bị',
+                'delivering' => 'đang giao',
+                'delivered'  => 'đã giao',
+                'cancelled'  => 'đã hủy',
+            ];
+            $fromLabel = $statusLabels[$order->status] ?? $order->status;
+            $toLabel   = $statusLabels[$newStatus] ?? $newStatus;
             return response()->json([
                 'error'   => true,
-                'message' => "Không thể chuyển đơn từ \"{$order->status}\" về \"{$newStatus}\".",
+                'message' => "Không thể chuyển đơn từ \"{$fromLabel}\" về \"{$toLabel}\".",
             ], 422);
         }
 

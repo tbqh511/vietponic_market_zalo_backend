@@ -171,8 +171,18 @@ class ZaloOrderController extends Controller
             && in_array($previousStatus, ['delivering', 'delivered'], true)
             && in_array($data['status'], ['pending', 'confirmed', 'preparing'], true)
         ) {
+            $statusLabels = [
+                'pending'    => 'chờ xác nhận',
+                'confirmed'  => 'đã xác nhận',
+                'preparing'  => 'đang chuẩn bị',
+                'delivering' => 'đang giao',
+                'delivered'  => 'đã giao',
+                'cancelled'  => 'đã hủy',
+            ];
+            $fromLabel = $statusLabels[$previousStatus] ?? $previousStatus;
+            $toLabel   = $statusLabels[$data['status']] ?? $data['status'];
             return redirect()->back()->withErrors([
-                'status' => "Không thể chuyển đơn từ \"{$previousStatus}\" về \"{$data['status']}\"."
+                'status' => "Không thể chuyển đơn từ \"{$fromLabel}\" về \"{$toLabel}\"."
             ]);
         }
 
