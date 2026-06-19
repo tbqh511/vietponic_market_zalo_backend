@@ -786,7 +786,7 @@ class ZaloApiController extends Controller
         // hoạt, min/max bỏ qua giá trị absent/null.
         $request->validate([
             'reason_code' => 'nullable|string|max:64',
-            'reason'      => 'required_if:reason_code,other|min:5|max:500',
+            'reason'      => 'nullable|required_if:reason_code,other|min:5|max:500',
         ]);
 
         $customerId = $request->attributes->get('zalo_customer_id');
