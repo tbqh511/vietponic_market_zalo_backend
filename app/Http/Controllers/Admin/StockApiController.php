@@ -79,13 +79,22 @@ class StockApiController extends Controller
     public function import(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'quantity' => 'required|numeric|min:0.01',
-            'note'     => 'required|string|max:500',
+            'quantity'    => 'required|numeric|min:0.01',
+            'note'        => 'required|string|max:500',
+            'expire_date' => 'nullable|date',
+            'batch_date'  => 'nullable|date',
         ]);
 
         $adminId = auth()->id() ?? 0;
         try {
-            $this->stockService->importStock($id, (float) $request->quantity, $request->note, $adminId);
+            $this->stockService->importStock(
+                $id,
+                (float) $request->quantity,
+                $request->note,
+                $adminId,
+                $request->expire_date ?: null,
+                $request->batch_date  ?: null,
+            );
         } catch (\Throwable $e) {
             return response()->json(['error' => true, 'message' => $e->getMessage()], 422);
         }

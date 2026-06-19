@@ -17,28 +17,31 @@
 
     // Status display maps
     $statusLabel = [
-        'pending'   => 'Chờ xác nhận',
-        'confirmed' => 'Đã xác nhận',
-        'packing'   => 'Đóng gói',
-        'shipping'  => 'Đang giao',
-        'delivered' => 'Đã giao',
-        'cancelled' => 'Đã hủy',
+        'pending'    => 'Chờ xác nhận',
+        'confirmed'  => 'Đã xác nhận',
+        'packing'    => 'Đóng gói',
+        'shipping'   => 'Đang giao',
+        'delivering' => 'Đang giao',
+        'delivered'  => 'Đã giao',
+        'cancelled'  => 'Đã hủy',
     ];
     $statusBadge = [
-        'pending'   => 'warning',
-        'confirmed' => 'primary',
-        'packing'   => 'secondary',
-        'shipping'  => 'info',
-        'delivered' => 'success',
-        'cancelled' => 'danger',
+        'pending'    => 'warning',
+        'confirmed'  => 'primary',
+        'packing'    => 'secondary',
+        'shipping'   => 'info',
+        'delivering' => 'info',
+        'delivered'  => 'success',
+        'cancelled'  => 'danger',
     ];
     $statusColor = [
-        'pending'   => '#ffc107',
-        'confirmed' => '#0d6efd',
-        'packing'   => '#6f42c1',
-        'shipping'  => '#0dcaf0',
-        'delivered' => '#198754',
-        'cancelled' => '#dc3545',
+        'pending'    => '#ffc107',
+        'confirmed'  => '#0d6efd',
+        'packing'    => '#6f42c1',
+        'shipping'   => '#0dcaf0',
+        'delivering' => '#0dcaf0',
+        'delivered'  => '#198754',
+        'cancelled'  => '#dc3545',
     ];
 
     // Build pie data

@@ -199,6 +199,15 @@
                         <label class="form-label">Số lượng nhập <span class="text-danger">*</span></label>
                         <input type="number" name="quantity" class="form-control" min="1" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày hết hạn</label>
+                        <input type="date" name="expire_date" id="importExpireDate" class="form-control">
+                        <div class="form-text text-muted">Để trống nếu lô không có hạn sử dụng</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày nhập lô</label>
+                        <input type="date" name="batch_date" id="importBatchDate" class="form-control">
+                    </div>
                     <div class="mb-2">
                         <label class="form-label">Ghi chú</label>
                         <input type="text" name="note" class="form-control" placeholder="Lý do nhập kho...">
@@ -256,6 +265,8 @@ document.getElementById('importModal').addEventListener('show.bs.modal', functio
     document.getElementById('importCurrentStock').textContent = stock;
     document.getElementById('importForm').action = '/inventory/' + id + '/import';
     document.querySelector('#importForm input[name=quantity]').value = '';
+    document.getElementById('importExpireDate').value = '';
+    document.getElementById('importBatchDate').value = new Date().toISOString().slice(0, 10);
     document.querySelector('#importForm input[name=note]').value = '';
 });
 
