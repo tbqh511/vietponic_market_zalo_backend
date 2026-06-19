@@ -70,6 +70,47 @@
     .section-card-title { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
     .expire-urgent td { background: #fff5f5 !important; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    @media (max-width: 575.98px) {
+        /* KPI cards — layout dọc, kích thước thu nhỏ */
+        .das-card {
+            padding: 12px 10px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            margin-bottom: 0;
+        }
+        .das-card .des_icon {
+            width: 38px;
+            height: 38px;
+            margin-right: 0;
+            margin-bottom: 4px;
+            border-radius: 6px;
+        }
+        .das-card .des_icon i { font-size: 16px !important; }
+        .das-card .title-text { font-size: 11px; letter-spacing: 0; line-height: 1.3; }
+        .das-card .data { font-size: 18px; line-height: 1.2; }
+        .kpi-sub { font-size: 10px; margin-top: 0; }
+
+        /* Alert cards — layout dọc */
+        .alert-card {
+            padding: 12px 10px;
+            gap: 6px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .alert-card .ac-icon { width: 32px; height: 32px; font-size: 14px; }
+        .alert-card .ac-label { font-size: 10px; }
+        .alert-card .ac-value { font-size: 20px; }
+
+        /* Section cards */
+        .section-card { padding: 12px 10px; }
+        .section-card-title { font-size: 13px; }
+
+        /* Chart heights */
+        #chart-revenue { min-height: 200px !important; }
+        #chart-status  { min-height: 180px !important; }
+    }
 </style>
 @endsection
 
@@ -437,6 +478,21 @@
         },
         grid: { borderColor: '#f3f4f6' },
         legend: { position: 'top' },
+        responsive: [{
+            breakpoint: 576,
+            options: {
+                chart: { height: 200 },
+                xaxis: {
+                    labels: { rotate: -60, style: { fontSize: '8px' } },
+                    tickAmount: 6,
+                },
+                yaxis: [
+                    { labels: { style: { fontSize: '8px' } }, title: { text: '' } },
+                    { opposite: true, labels: { style: { fontSize: '8px' } }, title: { text: '' } },
+                ],
+                legend: { fontSize: '10px' },
+            }
+        }],
     });
     revenueChart.render();
 
@@ -463,6 +519,14 @@
             y: { formatter: function (val) { return val + ' đơn'; } }
         },
         dataLabels: { enabled: true, formatter: function (val) { return Math.round(val) + '%'; } },
+        responsive: [{
+            breakpoint: 576,
+            options: {
+                chart: { height: 180 },
+                legend: { position: 'bottom', fontSize: '10px' },
+                dataLabels: { style: { fontSize: '9px' } },
+            }
+        }],
     });
     statusChart.render();
     @endif
