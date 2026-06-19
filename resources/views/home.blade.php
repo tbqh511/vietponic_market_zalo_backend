@@ -330,7 +330,7 @@
                                 </td>
                                 <td>
                                     @php $badge = $statusBadge[$order->status] ?? 'secondary'; @endphp
-                                    <span class="badge bg-{{ $badge }} bg-opacity-15 text-{{ $badge }} border border-{{ $badge }} border-opacity-25" style="font-size:11px;">
+                                    <span class="badge bg-{{ $badge }} text-white" style="font-size:11px; white-space:nowrap;">
                                         {{ $statusLabel[$order->status] ?? $order->status }}
                                     </span>
                                 </td>
