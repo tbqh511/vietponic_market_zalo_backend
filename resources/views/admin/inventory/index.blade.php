@@ -265,8 +265,10 @@ document.getElementById('importModal').addEventListener('show.bs.modal', functio
     document.getElementById('importCurrentStock').textContent = stock;
     document.getElementById('importForm').action = '/inventory/' + id + '/import';
     document.querySelector('#importForm input[name=quantity]').value = '';
-    document.getElementById('importExpireDate').value = '';
-    document.getElementById('importBatchDate').value = new Date().toISOString().slice(0, 10);
+    const today = new Date();
+    const expire = new Date(today); expire.setDate(expire.getDate() + 3);
+    document.getElementById('importExpireDate').value = expire.toISOString().slice(0, 10);
+    document.getElementById('importBatchDate').value = today.toISOString().slice(0, 10);
     document.querySelector('#importForm input[name=note]').value = '';
 });
 
