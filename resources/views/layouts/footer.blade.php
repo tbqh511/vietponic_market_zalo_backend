@@ -12,7 +12,7 @@
             ©
             <script>
                 document.write(new Date().getFullYear())
-            </script> |{{ config('app.name') }}
+            </script>, Vietponics
         </div>
 
     </div>

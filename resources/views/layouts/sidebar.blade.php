@@ -9,7 +9,7 @@
                     </div>
                     &nbsp;
                     <p class='text-center'>
-                        {{ config('app.name') }}
+                        Vietponics
                     </p>
                 </div>
             </div>
