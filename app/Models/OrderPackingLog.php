@@ -75,7 +75,13 @@ class OrderPackingLog extends Model
 
         if ($actor instanceof Customer) {
             $actorCustomerId = $actor->id;
-            $role            = $actor->isFarmOwner() ? 'chủ farm' : ($actor->isFarmStaff() ? 'nhân viên' : 'khách');
+            $role            = match ($actor->farm_role) {
+                'owner'   => 'chủ farm',
+                'admin'   => 'quản lý',
+                'packer'  => 'đóng gói',
+                'shipper' => 'giao hàng',
+                default   => 'khách',
+            };
             $actorLabel      = trim(($actor->name ?: 'Khách') . " ({$role})");
         } elseif ($actor instanceof User) {
             $actorUserId = $actor->id;

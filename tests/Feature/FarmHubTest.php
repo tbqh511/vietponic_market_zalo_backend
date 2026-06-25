@@ -70,17 +70,36 @@ class FarmHubTest extends TestCase
     }
 
     /**
-     * Nhân viên (staff) của một farm: cũng là farm_partner đã duyệt, có farm_id
-     * trỏ tới farm đang active → PASS EnsureFarmPartner. Khác owner ở farm_role,
-     * nên bị chặn ở gate chỉ-owner (payout).
+     * Nhân viên đóng gói (packer): cũng là farm_partner đã duyệt, có farm_id
+     * trỏ tới farm đang active → PASS EnsureFarmPartner. Bị chặn ở gate payout
+     * (chỉ owner) và gate canManageFarm (owner/admin).
      */
     private function makeFarmStaff(Farm $farm): Customer
+    {
+        return $this->makeFarmPacker($farm);
+    }
+
+    private function makeFarmPacker(Farm $farm): Customer
     {
         $customer = $this->makeCustomer([
             'role'                => 'farm_partner',
             'farm_partner_status' => 'approved',
         ]);
-        $customer->forceFill(['farm_id' => $farm->id, 'farm_role' => 'staff'])->save();
+        $customer->forceFill(['farm_id' => $farm->id, 'farm_role' => 'packer'])->save();
+
+        return $customer;
+    }
+
+    /**
+     * Quản lý (admin): quyền vận hành đầy đủ như owner nhưng không xem payout.
+     */
+    private function makeFarmAdmin(Farm $farm): Customer
+    {
+        $customer = $this->makeCustomer([
+            'role'                => 'farm_partner',
+            'farm_partner_status' => 'approved',
+        ]);
+        $customer->forceFill(['farm_id' => $farm->id, 'farm_role' => 'admin'])->save();
 
         return $customer;
     }
@@ -1569,7 +1588,7 @@ class FarmHubTest extends TestCase
     }
 
     /**
-     * Staff KHÔNG xem được danh sách payout → 403 (dữ liệu tài chính chỉ owner).
+     * Packer KHÔNG xem được danh sách payout → 403 (dữ liệu tài chính chỉ owner).
      */
     public function test_staff_cannot_access_payouts_list(): void
     {
@@ -1599,7 +1618,7 @@ class FarmHubTest extends TestCase
     }
 
     /**
-     * Staff KHÔNG xem được chi tiết payout của farm mình → 403.
+     * Packer KHÔNG xem được chi tiết payout của farm mình → 403.
      */
     public function test_staff_cannot_access_payout_detail(): void
     {
@@ -1658,5 +1677,69 @@ class FarmHubTest extends TestCase
                 'error'   => true,
                 'message' => 'Bạn không có quyền xem mục này',
             ]);
+    }
+
+    // ─── ROLE-05: role mới — admin / packer phân quyền ──────────────────────────
+
+    /**
+     * Admin KHÔNG xem được payout → 403 (tài chính chỉ owner).
+     */
+    public function test_admin_cannot_access_payouts(): void
+    {
+        [, $farm] = $this->makeFarmPartner();
+        $admin = $this->makeFarmAdmin($farm);
+
+        FarmPayout::create([
+            'farm_id'       => $farm->id,
+            'period_start'  => '2026-06-01',
+            'period_end'    => '2026-06-30',
+            'total_sold'    => 10,
+            'gross_revenue' => 500_000,
+            'adjustment'    => 0,
+            'net_payout'    => 500_000,
+            'status'        => 'draft',
+        ]);
+
+        $this->withHeaders($this->authHeader($admin))
+            ->getJson('/api/farm/payouts')
+            ->assertStatus(403)
+            ->assertJson(['error' => true, 'message' => 'Bạn không có quyền xem mục này']);
+    }
+
+    /**
+     * Profile trả đúng flag can_manage và can_pack theo role.
+     */
+    public function test_profile_returns_correct_capability_flags(): void
+    {
+        [$owner, $farm] = $this->makeFarmPartner();
+        $admin   = $this->makeFarmAdmin($farm);
+        $packer  = $this->makeFarmPacker($farm);
+
+        // Owner: can_manage=true, can_pack=true, is_owner=true
+        $this->withHeaders($this->authHeader($owner))
+            ->getJson('/api/farm/me')
+            ->assertOk()
+            ->assertJsonPath('data.viewer.is_owner', true)
+            ->assertJsonPath('data.viewer.can_manage', true)
+            ->assertJsonPath('data.viewer.can_pack', true)
+            ->assertJsonPath('data.viewer.farm_role', 'owner');
+
+        // Admin: is_owner=false, can_manage=true, can_pack=true
+        $this->withHeaders($this->authHeader($admin))
+            ->getJson('/api/farm/me')
+            ->assertOk()
+            ->assertJsonPath('data.viewer.is_owner', false)
+            ->assertJsonPath('data.viewer.can_manage', true)
+            ->assertJsonPath('data.viewer.can_pack', true)
+            ->assertJsonPath('data.viewer.farm_role', 'admin');
+
+        // Packer: is_owner=false, can_manage=false, can_pack=true
+        $this->withHeaders($this->authHeader($packer))
+            ->getJson('/api/farm/me')
+            ->assertOk()
+            ->assertJsonPath('data.viewer.is_owner', false)
+            ->assertJsonPath('data.viewer.can_manage', false)
+            ->assertJsonPath('data.viewer.can_pack', true)
+            ->assertJsonPath('data.viewer.farm_role', 'packer');
     }
 }

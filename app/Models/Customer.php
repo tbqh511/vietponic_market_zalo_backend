@@ -142,20 +142,57 @@ class Customer extends Authenticatable implements JWTSubject
     }
 
     /**
-     * True nếu customer là chủ của farm họ đang thuộc về.
-     * Owner nhận payout; staff chỉ thao tác Hub.
+     * True nếu customer là chủ farm (nhận payout). Một farm có thể có nhiều owner
+     * nhưng chỉ 1 TK ngân hàng (canonical: farms.owner_customer_id).
      */
     public function isFarmOwner(): bool
     {
         return $this->farm_role === 'owner';
     }
 
+    /** Quản lý vận hành — quyền như owner trừ xem payout tài chính. */
+    public function isFarmAdmin(): bool
+    {
+        return $this->farm_role === 'admin';
+    }
+
+    /** Nhân viên đóng gói — claim / start-packing / confirm-packed. */
+    public function isFarmPacker(): bool
+    {
+        return $this->farm_role === 'packer';
+    }
+
+    /** Nhân viên giao hàng nội bộ — pickup / deliver. */
+    public function isFarmShipper(): bool
+    {
+        return $this->farm_role === 'shipper';
+    }
+
     /**
-     * True nếu customer là nhân viên/người vận hành (không phải chủ) của farm.
+     * Có thể thực hiện thao tác vận hành: confirm order, assign packer, handoff.
+     * = owner HOẶC admin.
+     */
+    public function canManageFarm(): bool
+    {
+        return $this->isFarmOwner() || $this->isFarmAdmin();
+    }
+
+    /**
+     * Có thể làm packing (claim, start, confirm-packed).
+     * = owner HOẶC admin HOẶC packer.
+     */
+    public function canPack(): bool
+    {
+        return $this->canManageFarm() || $this->isFarmPacker();
+    }
+
+    /**
+     * True nếu customer là thành viên (không phải chủ) của farm.
+     * Covers admin, packer, shipper — dùng cho log labels và guard tổng quát.
      */
     public function isFarmStaff(): bool
     {
-        return $this->farm_role === 'staff';
+        return in_array($this->farm_role, ['admin', 'packer', 'shipper']);
     }
 
     public function getProfileAttribute($image)

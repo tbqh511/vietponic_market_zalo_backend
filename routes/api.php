@@ -9,6 +9,7 @@ use App\Http\Controllers\ZaloOaWebhookController;
 use App\Http\Controllers\Admin\StockApiController;
 use App\Http\Controllers\Farm\FarmHubController;
 use App\Http\Controllers\Farm\FarmPackingController;
+use App\Http\Controllers\Farm\FarmShipperController;
 use App\Http\Controllers\Farm\FarmStockController;
 use Illuminate\Support\Facades\Route;
 
@@ -116,9 +117,15 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     Route::post('orders/{orderId}/confirm-packed', [FarmPackingController::class, 'confirmPacked'])->whereNumber('orderId');
     Route::post('orders/{orderId}/claim', [FarmPackingController::class, 'claim'])->whereNumber('orderId');
     Route::post('orders/{orderId}/assign', [FarmPackingController::class, 'assign'])->whereNumber('orderId');
-    // Chỉ owner: xác nhận đơn (pending→confirmed) & bàn giao ship (preparing→delivering).
+    // Chỉ owner/admin: xác nhận đơn (pending→confirmed) & bàn giao ship (preparing→delivering).
     Route::post('orders/{orderId}/confirm-order', [FarmPackingController::class, 'confirmOrder'])->whereNumber('orderId');
     Route::post('orders/{orderId}/handoff-ship', [FarmPackingController::class, 'handoffShipping'])->whereNumber('orderId');
+    Route::post('orders/{orderId}/handoff-internal', [FarmPackingController::class, 'handoffInternal'])->whereNumber('orderId');
+
+    // Internal delivery — shipper nội bộ.
+    Route::get('shipments', [FarmShipperController::class, 'index']);
+    Route::post('shipments/{orderId}/pickup', [FarmShipperController::class, 'pickup'])->whereNumber('orderId');
+    Route::post('shipments/{orderId}/deliver', [FarmShipperController::class, 'deliver'])->whereNumber('orderId');
 
     Route::get('payouts', [FarmHubController::class, 'payouts']);
     Route::get('payouts/{id}', [FarmHubController::class, 'payoutDetail'])->whereNumber('id');

@@ -23,8 +23,9 @@
                         <div class="alert alert-info small">
                             <strong>Lưu ý:</strong> Chủ cũ
                             (<strong>{{ $farm->owner?->name }}</strong>) sẽ tự động trở thành
-                            <strong>nhân viên</strong> của farm này (giữ quyền truy cập Hub
-                            nhưng không nhận payout). Để gỡ hẳn khỏi farm, vào Tab Nhân viên sau khi chuyển.
+                            <strong>quản lý</strong> của farm này — giữ toàn bộ quyền vận hành Hub
+                            (xác nhận đơn, phân công, bàn giao) nhưng không còn nhận payout.
+                            Để gỡ hẳn khỏi farm, vào Tab Thành viên sau khi chuyển.
                         </div>
                     @else
                         <div class="alert alert-info small">

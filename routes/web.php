@@ -158,9 +158,10 @@ Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::post('farms/{farm}/products', [FarmController::class, 'attachProduct'])->name('farms.products.attach');
         Route::patch('farms/{farm}/products/{product}', [FarmController::class, 'updateProduct'])->name('farms.products.update');
         Route::delete('farms/{farm}/products/{product}', [FarmController::class, 'detachProduct'])->name('farms.products.detach');
-        // Tab "Nhân viên" — staff/operator của farm (full quyền Hub, không nhận payout)
+        // Tab "Thành viên" — admin/packer/shipper của farm (không nhận payout)
         Route::post('farms/{farm}/staff', [FarmController::class, 'attachStaff'])->name('farms.staff.attach');
         Route::delete('farms/{farm}/staff/{customer}', [FarmController::class, 'detachStaff'])->name('farms.staff.detach');
+        Route::patch('farms/{farm}/staff/{customer}/role', [FarmController::class, 'changeRole'])->name('farms.staff.change-role');
 
         // Giai đoạn 3: Đối soát (Payout) — không dùng Route::resource vì có flow riêng (mark-paid, cancel)
         Route::get('farm-payouts', [FarmPayoutController::class, 'index'])->name('farm-payouts.index');

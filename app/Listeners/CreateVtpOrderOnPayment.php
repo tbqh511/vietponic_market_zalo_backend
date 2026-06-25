@@ -45,6 +45,11 @@ class CreateVtpOrderOnPayment implements ShouldQueue
             return;
         }
 
+        // Skip nếu farm tự giao nội bộ (delivery_method='internal').
+        if ($order->delivery_method === 'internal') {
+            return;
+        }
+
         // Idempotent guard — listener có thể fire nhiều lần (webhook retry, poll
         // job + webhook đồng thời). VtpOrderService::dispatchOrderToVtp() cũng
         // có guard nội bộ throw RuntimeException nếu vtp_order_number đã tồn tại.

@@ -55,12 +55,14 @@ class FarmHubController extends Controller
                 // bật/tắt toàn bộ UI thao tác đơn. Farm thường → chỉ xem chỉ-đọc.
                 'is_packing_hub' => (bool) $farm->is_packing_hub,
                 // Vai trò người đang đăng nhập trong farm — FE dùng để bật/tắt UI
-                // chỉ-owner (vd nút "Phân công") và xác định đơn của-mình.
+                // theo quyền: is_owner (tài chính), can_manage (vận hành), can_pack.
                 'viewer'         => [
                     'customer_id'    => (int) $customer->id,
                     'name'           => $customer->name ?: 'Thành viên',
-                    'farm_role'      => $customer->farm_role, // 'owner' | 'staff'
+                    'farm_role'      => $customer->farm_role, // 'owner'|'admin'|'packer'|'shipper'
                     'is_owner'       => $customer->isFarmOwner(),
+                    'can_manage'     => $customer->canManageFarm(),
+                    'can_pack'       => $customer->canPack(),
                     // Lặp lại ở cấp viewer để FE đọc gọn cùng chỗ với is_owner.
                     'is_packing_hub' => (bool) $farm->is_packing_hub,
                 ],
@@ -651,7 +653,7 @@ class FarmHubController extends Controller
 
         $members = \App\Models\Customer::where('farm_id', $hub->id)
             ->where('isActive', 1)
-            ->orderByRaw("CASE WHEN farm_role = 'owner' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE farm_role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'packer' THEN 2 ELSE 3 END")
             ->orderBy('name')
             ->get(['id', 'name', 'farm_role']);
 
@@ -730,6 +732,25 @@ class FarmHubController extends Controller
             return response()->json([
                 'error'   => true,
                 'message' => 'Bạn không có quyền xem mục này',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * Gate cho thao tác vận hành (confirm order, assign, handoff). Cho phép cả
+     * owner lẫn admin; chặn packer và shipper. Trả 403 nếu không hợp lệ.
+     */
+    private function ensureCanManage(Request $request): ?JsonResponse
+    {
+        /** @var \App\Models\Customer $customer */
+        $customer = $request->attributes->get('zalo_customer');
+
+        if (! $customer->canManageFarm()) {
+            return response()->json([
+                'error'   => true,
+                'message' => 'Bạn không có quyền thực hiện thao tác này',
             ], 403);
         }
 

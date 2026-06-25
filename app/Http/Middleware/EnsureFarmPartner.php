@@ -42,21 +42,28 @@ class EnsureFarmPartner
     public function handle(Request $request, Closure $next)
     {
         try {
+            // JWTAuth is a singleton whose Parser holds the HTTP Request from
+            // the first resolution. In tests (and in long-lived processes),
+            // the parser's request goes stale across multiple requests.
+            // setRequest() updates the parser; unsetToken() clears the cached
+            // token so getToken() re-parses from the new request.
+            JWTAuth::setRequest($request)->unsetToken();
+
             $token = JWTAuth::getToken();
 
-            if (!$token) {
+            if (! $token) {
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Authorization Token not found',
                 ], 401);
             }
 
-            $payload    = JWTAuth::decode($token);
+            $payload = JWTAuth::decode($token);
             $customerId = $payload->get('customer_id');
 
-            if (!$customerId) {
+            if (! $customerId) {
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Invalid token: missing customer_id',
                 ], 401);
             }
@@ -65,9 +72,9 @@ class EnsureFarmPartner
             // (xem docblock class để hiểu lý do).
             $customer = Customer::find($customerId);
 
-            if (!$customer) {
+            if (! $customer) {
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Customer not found',
                 ], 401);
             }
@@ -87,19 +94,19 @@ class EnsureFarmPartner
             //     nguyên văn (hợp đồng ROLE-02) + code FARM_PARTNER_REQUIRED;
             //     FE đọc farm_partner_status (từ /authenticate) để hiện màn
             //     "Đang chờ duyệt" cho 'requested'.
-            if (!$customer->isFarmPartner()) {
+            if (! $customer->isFarmPartner()) {
                 if ($customer->farm_partner_status === 'suspended') {
                     return response()->json([
-                        'error'   => true,
+                        'error' => true,
                         'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
-                        'code'    => 'FARM_SUSPENDED',
+                        'code' => 'FARM_SUSPENDED',
                     ], 403);
                 }
 
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Bạn không có quyền truy cập chức năng Farm Partner',
-                    'code'    => 'FARM_PARTNER_REQUIRED',
+                    'code' => 'FARM_PARTNER_REQUIRED',
                 ], 403);
             }
 
@@ -121,17 +128,17 @@ class EnsureFarmPartner
 
             if ($farm && $farm->is_active === false) {
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Farm của bạn đang tạm dừng, vui lòng liên hệ admin',
-                    'code'    => 'FARM_SUSPENDED',
+                    'code' => 'FARM_SUSPENDED',
                 ], 403);
             }
 
-            if (!$farm || $farm->approved_at === null) {
+            if (! $farm || $farm->approved_at === null) {
                 return response()->json([
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Tài khoản farm partner chưa được gán farm hoặc farm đã bị vô hiệu hoá',
-                    'code'    => 'FARM_NOT_ASSIGNED',
+                    'code' => 'FARM_NOT_ASSIGNED',
                 ], 403);
             }
 
@@ -140,13 +147,12 @@ class EnsureFarmPartner
             $request->attributes->set('zalo_customer_id', $customerId);
             $request->attributes->set('zalo_customer', $customer);
             $request->attributes->set('farm', $farm);
-
         } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
             return response()->json(['error' => true, 'message' => 'Token is Invalid'], 401);
         } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
             return response()->json(['error' => true, 'message' => 'Token is Expired'], 401);
         } catch (\Exception $e) {
-            return response()->json(['error' => true, 'message' => 'Authorization failed: ' . $e->getMessage()], 401);
+            return response()->json(['error' => true, 'message' => 'Authorization failed: '.$e->getMessage()], 401);
         }
 
         return $next($request);

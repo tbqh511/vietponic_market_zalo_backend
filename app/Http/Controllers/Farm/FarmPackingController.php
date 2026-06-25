@@ -73,8 +73,8 @@ class FarmPackingController extends Controller
             return response()->json(['error' => true, 'message' => 'Không tìm thấy phiếu đóng gói của đơn này'], 404);
         }
 
-        // Staff (của hub) chỉ xem được phiếu gán cho mình.
-        if ($isHub && $customer->isFarmStaff()
+        // Packer/shipper chỉ xem được phiếu gán cho mình; owner/admin xem tất cả.
+        if ($isHub && ! $customer->canManageFarm()
             && (int) optional($assignment)->assigned_customer_id !== (int) $customer->id) {
             return response()->json(['error' => true, 'message' => 'Bạn không được phân công đơn này'], 403);
         }
@@ -210,8 +210,8 @@ class FarmPackingController extends Controller
         /** @var Customer $owner */
         $owner = $request->attributes->get('zalo_customer');
 
-        if (! $owner->isFarmOwner()) {
-            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub được xác nhận đơn'], 403);
+        if (! $owner->canManageFarm()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub hoặc quản lý được xác nhận đơn'], 403);
         }
 
         // Đảm bảo có phiếu hub cho đơn này (đơn có hàng).
@@ -242,8 +242,8 @@ class FarmPackingController extends Controller
         /** @var Customer $owner */
         $owner = $request->attributes->get('zalo_customer');
 
-        if (! $owner->isFarmOwner()) {
-            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub được bàn giao vận chuyển'], 403);
+        if (! $owner->canManageFarm()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub hoặc quản lý được bàn giao vận chuyển'], 403);
         }
 
         if (! $this->findHubAssignment($orderId)) {
@@ -260,6 +260,59 @@ class FarmPackingController extends Controller
     }
 
     /**
+     * POST /farm/orders/{orderId}/handoff-internal — CHỈ owner/admin: bàn giao
+     * cho shipper nội bộ. Set delivery_method='internal' + gán shipper_customer_id.
+     * Có thể gọi thay cho handoff-ship khi farm tự giao (không dùng VTP).
+     * Body: { shipper_customer_id }
+     */
+    public function handoffInternal(Request $request, int $orderId): JsonResponse
+    {
+        if ($deny = $this->requirePackingHub($request)) {
+            return $deny;
+        }
+        /** @var Customer $actor */
+        $actor = $request->attributes->get('zalo_customer');
+
+        if (! $actor->canManageFarm()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub hoặc quản lý được bàn giao giao hàng nội bộ'], 403);
+        }
+
+        $data = $request->validate([
+            'shipper_customer_id' => 'required|integer|exists:customers,id',
+        ]);
+
+        $order = ZaloOrder::find($orderId);
+        if (! $order) {
+            return response()->json(['error' => true, 'message' => 'Không tìm thấy đơn hàng'], 404);
+        }
+        if ($order->status !== 'preparing') {
+            return response()->json(['error' => true, 'message' => "Đơn đang ở trạng thái '{$order->status}', không thể bàn giao"], 422);
+        }
+
+        $shipper = Customer::find($data['shipper_customer_id']);
+        if (! $shipper || ! $shipper->isFarmShipper() && ! $shipper->canManageFarm()) {
+            return response()->json(['error' => true, 'message' => 'Người được gán không phải shipper của farm'], 422);
+        }
+
+        DB::transaction(function () use ($order, $shipper) {
+            $order->delivery_method      = 'internal';
+            $order->shipper_customer_id  = $shipper->id;
+            $order->status               = 'delivering';
+            $order->save();
+        });
+
+        return response()->json([
+            'error' => false,
+            'data'  => [
+                'order_id'            => (int) $order->id,
+                'order_status'        => $order->status,
+                'delivery_method'     => $order->delivery_method,
+                'shipper_customer_id' => (int) $order->shipper_customer_id,
+            ],
+        ]);
+    }
+
+    /**
      * POST /farm/orders/{orderId}/assign — CHỈ chủ hub: gán/đổi packer (thành
      * viên hub) cho phiếu đóng gói của đơn. Body: { packer_customer_id }.
      */
@@ -271,8 +324,8 @@ class FarmPackingController extends Controller
         /** @var Customer $owner */
         $owner = $request->attributes->get('zalo_customer');
 
-        if (! $owner->isFarmOwner()) {
-            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub được phân công đơn'], 403);
+        if (! $owner->canManageFarm()) {
+            return response()->json(['error' => true, 'message' => 'Chỉ chủ hub hoặc quản lý được phân công đơn'], 403);
         }
 
         $data = $request->validate([
@@ -351,9 +404,9 @@ class FarmPackingController extends Controller
             return response()->json(['error' => true, 'message' => 'Không tìm thấy phiếu đóng gói của đơn này'], 404);
         }
 
-        // Staff: chỉ thao tác phiếu gán cho mình. Owner: được phép thao tác mọi phiếu.
+        // Packer/shipper: chỉ thao tác phiếu gán cho mình. Owner/admin: mọi phiếu.
         $isAssignee = (int) $assignment->assigned_customer_id === (int) $customer->id;
-        if (! $isAssignee && ! $customer->isFarmOwner()) {
+        if (! $isAssignee && ! $customer->canManageFarm()) {
             return response()->json(['error' => true, 'message' => 'Bạn không được phân công đơn này'], 403);
         }
 

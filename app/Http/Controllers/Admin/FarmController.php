@@ -237,7 +237,8 @@ class FarmController extends Controller
                     $c->_transfer_warning       = "⚠ Đang là CHỦ farm \"{$name}\" — chuyển sẽ làm farm đó mất chủ";
                     $c->_transfer_needs_confirm = true;
                 } else {
-                    $c->_transfer_warning = "ℹ Đang là nhân viên farm \"{$name}\" — sẽ tự rời farm cũ";
+                    $roleLabel = ['admin' => 'quản lý', 'packer' => 'nhân viên đóng gói', 'shipper' => 'nhân viên giao hàng'][$c->farm_role] ?? 'thành viên';
+                    $c->_transfer_warning = "ℹ Đang là {$roleLabel} farm \"{$name}\" — sẽ tự rời farm cũ";
                 }
             }
         });
@@ -506,10 +507,11 @@ class FarmController extends Controller
 
         $data = $request->validate([
             'customer_id' => 'required|integer|exists:customers,id',
+            'role'        => 'required|in:admin,packer,shipper',
         ]);
 
         if (is_null($farm->owner_customer_id)) {
-            return back()->with('error', 'Farm chưa có chủ — gán chủ trước khi thêm nhân viên.');
+            return back()->with('error', 'Farm chưa có chủ — gán chủ trước khi thêm thành viên.');
         }
 
         try {
@@ -524,11 +526,11 @@ class FarmController extends Controller
                     throw new \DomainException("Khách hàng đã thuộc farm \"{$existingFarmName}\" — gỡ khỏi farm cũ trước khi gán farm mới.");
                 }
                 if ($customer->id === $farm->owner_customer_id) {
-                    throw new \DomainException('Customer này đã là chủ farm — không thể đồng thời là nhân viên.');
+                    throw new \DomainException('Customer này đã là chủ farm — không thể đồng thời là thành viên.');
                 }
 
                 $customer->farm_id             = $farm->id;
-                $customer->farm_role           = 'staff';
+                $customer->farm_role           = $data['role'];
                 $customer->role                = 'farm_partner';
                 $customer->farm_partner_status = 'approved';
                 $customer->save();
@@ -537,8 +539,10 @@ class FarmController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        $roleLabel = ['admin' => 'quản lý', 'packer' => 'nhân viên đóng gói', 'shipper' => 'nhân viên giao hàng'][$data['role']] ?? $data['role'];
+
         return redirect()->route('farms.show', $farm->id)
-            ->with('success', 'Đã thêm nhân viên vào farm.');
+            ->with('success', "Đã thêm {$roleLabel} vào farm.");
     }
 
     /**
@@ -554,7 +558,7 @@ class FarmController extends Controller
         if ($customer->farm_id !== $farm->id) {
             return back()->with('error', 'Nhân viên này không thuộc farm hiện tại.');
         }
-        if ($customer->farm_role !== 'staff') {
+        if ($customer->isFarmOwner()) {
             return back()->with('error', 'Không thể gỡ chủ farm qua chức năng này — dùng Tạm khoá hoặc Xoá farm.');
         }
 
@@ -568,6 +572,35 @@ class FarmController extends Controller
 
         return redirect()->route('farms.show', $farm->id)
             ->with('success', "Đã gỡ {$customer->name} khỏi farm.");
+    }
+
+    /**
+     * Đổi vai trò của thành viên hiện tại (admin / packer / shipper).
+     * Không thể đổi vai trò của owner — dùng transfer-ownership.
+     */
+    public function changeRole(Request $request, int $farmId, int $customerId)
+    {
+        $farm     = Farm::findOrFail($farmId);
+        $customer = Customer::findOrFail($customerId);
+
+        $data = $request->validate([
+            'role' => 'required|in:admin,packer,shipper',
+        ]);
+
+        if ($customer->farm_id !== $farm->id) {
+            return back()->with('error', 'Thành viên này không thuộc farm hiện tại.');
+        }
+        if ($customer->isFarmOwner()) {
+            return back()->with('error', 'Không thể đổi vai trò của chủ farm — dùng Chuyển chủ farm.');
+        }
+
+        $customer->farm_role = $data['role'];
+        $customer->save();
+
+        $roleLabel = ['admin' => 'quản lý', 'packer' => 'nhân viên đóng gói', 'shipper' => 'nhân viên giao hàng'][$data['role']];
+
+        return redirect()->route('farms.show', $farm->id)
+            ->with('success', "Đã đổi vai trò của {$customer->name} thành {$roleLabel}.");
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -655,9 +688,9 @@ class FarmController extends Controller
                 // Nếu chủ mới là NHÂN VIÊN farm khác → chuyển ngay (không cần
                 // confirm). Cập nhật farm_id bên dưới tự động đưa họ rời farm cũ.
 
-                // 1) Chủ cũ → Staff cùng farm (giữ Hub access, mất payout).
+                // 1) Chủ cũ → Admin cùng farm (giữ Hub access + quyền vận hành, mất payout).
                 if ($oldOwner) {
-                    $oldOwner->farm_role = 'staff';
+                    $oldOwner->farm_role = 'admin';
                     // farm_id giữ nguyên = farm->id; role/status giữ nguyên.
                     // farm_bank_* KHÔNG xoá — dữ liệu lịch sử per-customer.
                     $oldOwner->save();
@@ -681,7 +714,7 @@ class FarmController extends Controller
         return redirect()->route('farms.show', $farm->id)
             ->with('success', $wasOwnerless
                 ? 'Đã gán chủ farm thành công — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.'
-                : 'Đã chuyển chủ farm thành công. Chủ cũ đã trở thành nhân viên — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.');
+                : 'Đã chuyển chủ farm thành công. Chủ cũ đã trở thành quản lý (giữ quyền vận hành) — nhớ cập nhật thông tin TK ngân hàng của chủ mới trước payout kế tiếp.');
     }
 
     // ────────────────────────────────────────────────────────────────────

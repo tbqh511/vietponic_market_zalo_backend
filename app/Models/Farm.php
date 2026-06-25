@@ -70,13 +70,34 @@ class Farm extends Model
     }
 
     /**
-     * Chỉ staff (nhân viên/người vận hành) — không bao gồm owner. Owner lấy
-     * qua quan hệ owner(). Staff không nhận payout, chỉ thao tác Hub.
+     * Tất cả thành viên không phải owner (admin, packer, shipper).
+     * Owner lấy qua quan hệ owner(). Dùng cho tab Thành viên admin panel.
      */
     public function staff()
     {
         return $this->hasMany(Customer::class, 'farm_id')
-            ->where('farm_role', 'staff');
+            ->where('farm_role', '!=', 'owner');
+    }
+
+    /** Chỉ admin — quyền vận hành đầy đủ, không nhận payout. */
+    public function admins()
+    {
+        return $this->hasMany(Customer::class, 'farm_id')
+            ->where('farm_role', 'admin');
+    }
+
+    /** Chỉ nhân viên đóng gói. */
+    public function packers()
+    {
+        return $this->hasMany(Customer::class, 'farm_id')
+            ->where('farm_role', 'packer');
+    }
+
+    /** Chỉ nhân viên giao hàng nội bộ. */
+    public function shippers()
+    {
+        return $this->hasMany(Customer::class, 'farm_id')
+            ->where('farm_role', 'shipper');
     }
 
     /**
