@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git stash*)",
+      "Bash(find . *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(php artisan *)",
+      "Bash(composer test*)",
+      "Bash(composer install)",
+      "Bash(composer dump-autoload)",
+      "Bash(./vendor/bin/pint*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,subprocess; d=json.loads(sys.stdin.read()); f=d.get('file_path',''); f.endswith('.php') and subprocess.run(['/Users/huythai/Documents/GitHub/vietponic_market_zalo_backend/vendor/bin/pint', f], capture_output=True)\""
+          }
+        ]
+      }
+    ]
+  }
+}
