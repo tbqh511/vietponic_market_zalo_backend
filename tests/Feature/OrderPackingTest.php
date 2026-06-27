@@ -83,7 +83,7 @@ class OrderPackingTest extends TestCase
             'role'                => 'farm_partner',
             'farm_partner_status' => 'approved',
             'farm_id'             => $farm->id,
-            'farm_role'           => 'staff',
+            'farm_role'           => 'packer',
         ]);
     }
 
