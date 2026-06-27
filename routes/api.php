@@ -103,6 +103,7 @@ Route::group(['prefix' => 'farm', 'middleware' => ['zalo.farm']], function () {
     // Map sang methods sẵn có trong FarmHubController. Đặt trước group /hub
     // để FE có thể chọn URL phẳng (/farm/dashboard) hoặc nested (/farm/hub/overview).
     Route::get('me', [FarmHubController::class, 'profile']);
+    Route::post('me/logo', [FarmHubController::class, 'updateLogo']);
     Route::get('dashboard', [FarmHubController::class, 'overview']);
     Route::get('analytics', [FarmHubController::class, 'analytics']);
     Route::get('products/today', [FarmHubController::class, 'productsToday']);

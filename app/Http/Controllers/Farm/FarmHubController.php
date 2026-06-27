@@ -7,6 +7,7 @@ use App\Models\Farm;
 use App\Services\FarmDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * FarmHubController — endpoints cho Farm Partner Hub dashboard.
@@ -68,6 +69,40 @@ class FarmHubController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * POST /farm/me/logo — chủ farm upload ảnh logo mới.
+     * Chỉ owner được phép; staff nhận 403.
+     * Lưu vào disk public (farm-logos/), xóa ảnh cũ, cập nhật farms.logo.
+     */
+    public function updateLogo(Request $request): JsonResponse
+    {
+        if ($resp = $this->ensureOwner($request)) {
+            return $resp;
+        }
+
+        $request->validate([
+            'logo' => 'required|image|mimes:jpeg,png,webp|max:2048',
+        ]);
+
+        /** @var Farm $farm */
+        $farm = $request->attributes->get('farm');
+
+        // Xóa ảnh cũ nếu là file local (tránh file rác).
+        if ($farm->logo) {
+            $oldPath = str_replace(Storage::disk('public')->url(''), '', $farm->logo);
+            if (Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+        }
+
+        $path = $request->file('logo')->store('farm-logos', 'public');
+        $url  = Storage::disk('public')->url($path);
+
+        $farm->update(['logo' => $url]);
+
+        return response()->json(['error' => false, 'data' => ['logo' => $url]]);
     }
 
     /**
