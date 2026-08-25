@@ -15,10 +15,10 @@
     <div class="footer-grid">
       <div>
         <img src="{{ asset('images/logo-vietponics.png') }}" alt="Vietponics" class="footer-logo-img">
-        <div class="footer-desc"><strong>HTX Dịch vụ nông nghiệp thủy canh Việt - Vietponics</strong><br>Mang rau sạch thủy canh tươi ngon từ vùng cao nguyên Đà Lạt đến mọi bàn ăn Việt Nam. Cam kết sạch, tươi và bền vững.</div>
+        <div class="footer-desc"><strong>HTX DVNN TH Thuỷ Canh Việt</strong><br>Mang rau sạch thủy canh tươi ngon từ vùng cao nguyên Đà Lạt đến mọi bàn ăn Việt Nam. Cam kết sạch, tươi và bền vững.</div>
         <div class="footer-contacts">
           <div class="fci"><strong>Điện thoại:</strong> 0908041047</div>
-          <div class="fci"><strong>Email:</strong> tbqh0511@gmail.com</div>
+          <div class="fci"><strong>Email:</strong> Vietponics@gmail.com</div>
           <div class="fci"><strong>Địa chỉ:</strong> 9C Lữ Gia, Phường Lâm Viên - Đà Lạt, Tỉnh Lâm Đồng, Việt Nam</div>
           <div class="fci"><strong>MST:</strong> 5801350083</div>
         </div>
@@ -53,7 +53,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span>© 2025 HTX Dịch vụ nông nghiệp thủy canh Việt - Vietponics. Tất cả quyền được bảo lưu.</span>
+      <span>© 2025 HTX DVNN TH Thuỷ Canh Việt. Tất cả quyền được bảo lưu.</span>
       <div class="payment-icons">
         <div class="pay-icon">VISA</div>
         <div class="pay-icon">MASTERCARD</div>
